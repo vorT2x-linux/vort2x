@@ -36,3 +36,8 @@ compile_commands.json
 .vscode/settings.json
 /tmp
 /temp
+
+# Local-only notes for AI assistants (never committed)
+/AGENTS.md
+/CLAUDE.md
+/HISTORY.md
