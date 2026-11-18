@@ -2,12 +2,33 @@
 set -euo pipefail
 
 repository=${VORT2X_REPOSITORY:-/usr/local/src/VorT2x-Fedora}
-repository_branch=${VORT2X_REPOSITORY_BRANCH:-main}
+repository_url=https://github.com/vorT2x-linux/vort2x.git
+# Empty: the newest release tag for this Fedora. A branch name (e.g. main)
+# is for development only.
+repository_ref=${VORT2X_REF:-}
+supported_file=scripts/fedora/supported-releases
+
+# The newest release tag vX.Y.Z whose supported-releases lists this Fedora,
+# the same rule as vort2x-install and vort2x-update.
+select_release() {
+	local fedora tag
+	fedora=$(. /etc/os-release && printf '%s' "${VERSION_ID:-}")
+	while read -r tag; do
+		[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+		"${git[@]}" show "refs/tags/$tag:$supported_file" 2>/dev/null |
+			awk -v want="$fedora" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' ||
+			continue
+		printf '%s\n' "$tag"
+		return 0
+	done < <("${git[@]}" tag --list 'v*' --sort=-version:refname)
+	printf 'No VorT2x release supports Fedora %s yet.\n' "$fedora" >&2
+	return 1
+}
 
 # The checkout is system managed and may hold build leftovers, so it is forced
-# to the remote branch like vort2x-install does.
+# clean and moved to the release like vort2x-install does.
 refresh_repository() {
-	local git=(git -c safe.directory="$repository" -C "$repository")
+	local git=(git -c safe.directory="$repository" -C "$repository") release target
 	[[ -d $repository/.git ]] || {
 		printf 'The VorT2x Git checkout is missing: %s\n' "$repository" >&2
 		exit 1
@@ -15,10 +36,18 @@ refresh_repository() {
 	if [[ -n $(find "$repository" ! -user "$(id -u)" -print -quit) ]]; then
 		sudo chown -R "$(id -u):$(id -g)" "$repository"
 	fi
-	"${git[@]}" fetch origin "$repository_branch"
-	"${git[@]}" checkout "$repository_branch"
-	"${git[@]}" reset --hard "origin/$repository_branch"
+	if [[ -n $repository_ref ]]; then
+		"${git[@]}" fetch --quiet "$repository_url" \
+			"+refs/heads/$repository_ref:refs/remotes/origin/$repository_ref"
+		target="refs/remotes/origin/$repository_ref"
+	else
+		"${git[@]}" fetch --quiet --force "$repository_url" '+refs/tags/v*:refs/tags/v*'
+		release=$(select_release) || exit 1
+		target="refs/tags/$release"
+	fi
+	"${git[@]}" reset --hard
 	"${git[@]}" clean -fd
+	"${git[@]}" checkout --quiet --detach "$target"
 }
 
 case ${0##*/} in
