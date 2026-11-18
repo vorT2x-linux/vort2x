@@ -1,7 +1,8 @@
 name: Build VorT2x Fedora installer kit
 
+# Only when work reaches main (merges) and for release tags; branches and
+# pull requests don't run CI.
 on:
-  pull_request:
   push:
     branches:
       - main

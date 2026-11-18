@@ -15,18 +15,28 @@ coding standards.
 - `.github/pull_request_template.md`: plan link, AI section, testing
   checklist.
 - README: link `CONTRIBUTING.md` from the Contributing section.
+- `.github/workflows/installer.yml`: run only on `main` and `v*` tags.
 - Kirk's local `AGENTS.md`: point to `CONTRIBUTING.md`, add the rules that
   are only for AI agents working in this repo.
 
 ## Acceptance criteria
 
-- [ ] `bash scripts/tests/static-check.sh` passes (no code changed, but CI
-      runs it)
-- [ ] All links in `CONTRIBUTING.md` resolve
-- [ ] Kirk has read `CONTRIBUTING.md` and agrees it says what he wants
+- [x] `bash scripts/tests/static-check.sh` passes
+- [x] All links in `CONTRIBUTING.md` resolve
+- [x] `installer.yml` no longer runs on pull requests, still runs on pushes
+      to `main` and on `v*` tags
 
 ## Decisions and failed attempts
 
+- 2026-11-18: Kirk: CI runs only when work reaches `main` (and on release
+  tags, which build the release), not on branches or pull requests. Removed
+  the `pull_request` trigger from `installer.yml`.
+- 2026-11-18: The PR was first opened with the acceptance criteria unticked.
+  Kirk: they must all be ticked before a PR is raised. One criterion was
+  "Kirk has read CONTRIBUTING.md and agrees", which only Kirk can tick; that
+  is what his PR approval is for, so it was removed rather than ticked. Rule
+  added: acceptance criteria are checks that can be run before the PR;
+  hardware testing goes in the Tested note.
 - 2026-11-18: The rules go in a public `CONTRIBUTING.md`, not only in
   `AGENTS.md`, because `AGENTS.md` is local-only (it holds Kirk's private
   notes) and contributors would never see it.

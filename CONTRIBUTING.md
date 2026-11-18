@@ -11,8 +11,9 @@ Please be kind. Everyone here is a volunteer. See [VALUES.md](VALUES.md).
 1. **Fork** the repository and work on a **branch** in your fork. Nothing is
    committed straight to `main`, by anyone.
 2. For anything non-trivial, start with a **plan** (see [Plans](#plans)).
-3. Open a **pull request** against `main`. Fill in the template, including
-   the AI section.
+3. **Tick every acceptance criterion** in the plan, then open a **pull
+   request** against `main`. Fill in the template, including the AI
+   section. A pull request with unticked criteria isn't ready to open.
 4. **Test it** on a real T2 Mac. When it's tested and working, a person (not
    an AI) adds a short note to the pull request saying it's ready to merge:
    who tested it, on which Mac model and Fedora version, and what they
@@ -33,8 +34,9 @@ Every non-trivial change starts with a short, simple plan:
 - saved in `plans/` as `YYYYMMDD_{slug}.md`, for example
   `plans/20261118_touchbar_brightness.md`;
 - committed as part of the pull request;
-- with **acceptance criteria**: a concrete list of tests that must pass
-  (commands to run, and checks on real hardware);
+- with **acceptance criteria**: a concrete list of tests that must pass,
+  all ticked before the pull request is opened (so only checks you can run
+  yourself; testing on a Mac goes in the Tested note);
 - with a **history of decisions and failed attempts**, for example "reading
   the sensor through hwmon worked but lagged by two seconds".
 
@@ -80,8 +82,9 @@ another system use a container:
 bash scripts/tests/static-check.sh
 ```
 
-For a Rust app, `cargo check` and `cargo test` in its folder. CI runs the
-static checks and builds the installer kit on every pull request.
+For a Rust app, `cargo check` and `cargo test` in its folder. CI doesn't run
+on branches or pull requests, only once work is merged into `main` (and for
+release tags), so run the checks yourself before you open the pull request.
 
 ## Licences and credit
 

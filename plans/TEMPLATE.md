@@ -13,11 +13,11 @@ The steps, in order. Which files change.
 
 ## Acceptance criteria
 
-Concrete tests that must pass before this is merged:
+Concrete tests, each one ticked before the pull request is opened. Only
+list checks you can run yourself; testing on a Mac goes under Tested.
 
 - [ ] `bash scripts/tests/static-check.sh` passes
 - [ ] (command or test) ...
-- [ ] On a real Mac: (model, Fedora version) ... works
 
 ## Decisions and failed attempts
 
