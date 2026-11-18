@@ -142,6 +142,21 @@ require_fedora() {
 		fail "this script is Fedora-only"
 }
 
+# Only the Fedora releases in supported-releases (45 and newer). Set
+# VORT2X_ALLOW_UNSUPPORTED=1 to try anyway.
+require_supported_fedora() {
+	local list="$REPO_ROOT/scripts/fedora/supported-releases"
+	require_fedora
+	[[ ${ID:-} == fedora ]] || return 0
+	awk -v want="${VERSION_ID:-}" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' \
+		"$list" && return 0
+	[[ ${VORT2X_ALLOW_UNSUPPORTED:-0} == 1 ]] && {
+		warn "Fedora ${VERSION_ID:-?} is not supported by this VorT2x version; continuing because VORT2X_ALLOW_UNSUPPORTED=1"
+		return 0
+	}
+	fail "Fedora ${VERSION_ID:-?} is not supported by this VorT2x version (supported: $(sed 's/#.*//' "$list" | xargs))"
+}
+
 # Every T2 MacBook Pro has a Touch Bar; the MacBook Air, Mac mini, iMac and
 # Mac Pro models do not.
 has_touch_bar() {

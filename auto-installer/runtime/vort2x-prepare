@@ -12,6 +12,10 @@ boot_root=${VORT2X_BOOT_ROOT:-/boot}
 modules_root=${VORT2X_MODULES_ROOT:-/usr/lib/modules}
 os_release=${VORT2X_OS_RELEASE:-/etc/os-release}
 repository_url=https://github.com/vorT2x-linux/vort2x.git
+# Empty: the newest release tag for this Fedora. A branch name (e.g. main)
+# is for development only.
+repository_ref=${VORT2X_REF:-}
+supported_file=scripts/fedora/supported-releases
 transition_package=kmod-vort2x-input
 input_modules=(t2hid hid_t2magicmouse t2_trackpad_actuator t2_precision_trackpad apple-t2-bridge apple-t2-vhci-hcd)
 original_default=
@@ -97,7 +101,7 @@ wait_for_dnf() {
 }
 
 wait_for_github() {
-	until git ls-remote --exit-code "$repository_url" refs/heads/main \
+	until git ls-remote --exit-code "$repository_url" HEAD \
 		>/dev/null 2>&1; do
 		printf '\nConnect to a Wi-Fi network and press any key to retry. '
 		IFS= read -r -n 1 _answer
@@ -124,6 +128,45 @@ repair_origin_url() {
 	fi
 }
 
+repo_git() {
+	local path=$1
+	shift
+	git -c safe.directory="$path" -C "$path" "$@"
+}
+
+# The newest release tag vX.Y.Z whose supported-releases lists this Fedora.
+select_release() {
+	local path=$1 fedora=$2 tag
+	while read -r tag; do
+		[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+		repo_git "$path" show "refs/tags/$tag:$supported_file" 2>/dev/null |
+			awk -v want="$fedora" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' ||
+			continue
+		printf '%s\n' "$tag"
+		return 0
+	done < <(repo_git "$path" tag --list 'v*' --sort=-version:refname)
+	return 1
+}
+
+# Fetches GitHub into the checkout at $1 and checks out the release (or the
+# development branch in VORT2X_REF) as a detached HEAD.
+checkout_release() {
+	local path=$1 release target
+	if [[ -n "$repository_ref" ]]; then
+		printf '[vort2x] using the %s branch (development)\n' "$repository_ref"
+		repo_git "$path" fetch --quiet "$repository_url" \
+			"+refs/heads/$repository_ref:refs/remotes/origin/$repository_ref"
+		target="refs/remotes/origin/$repository_ref"
+	else
+		repo_git "$path" fetch --quiet --force "$repository_url" '+refs/tags/v*:refs/tags/v*'
+		release=$(select_release "$path" "$VERSION_ID") ||
+			die "no VorT2x release supports Fedora $VERSION_ID yet"
+		printf '[vort2x] using VorT2x release %s\n' "$release"
+		target="refs/tags/$release"
+	fi
+	repo_git "$path" checkout --quiet --detach "$target"
+}
+
 bootstrap_repository() {
 	local setup_user uid gid parent
 	setup_user=${SUDO_USER:-}
@@ -140,16 +183,13 @@ bootstrap_repository() {
 		[[ -d "$repository/.git" ]] ||
 			die "$repository exists but is not a Git checkout"
 		repair_origin_url
-		[[ $(git -c safe.directory="$repository" -C "$repository" branch --show-current) == main ]] ||
-			die "$repository is not on the main branch"
 		# This is a system-managed checkout, not a user workspace: force it
 		# clean instead of dying on stray build artifacts (e.g. leftovers from
 		# an older module's build, or a nested .git it dropped) and telling
 		# the user to go fix a git checkout by hand.
-		git -c safe.directory="$repository" -C "$repository" reset --hard
-		git -c safe.directory="$repository" -C "$repository" clean -ffd
-		git -c safe.directory="$repository" -C "$repository" fetch origin main
-		git -c safe.directory="$repository" -C "$repository" merge --ff-only origin/main
+		repo_git "$repository" reset --hard
+		repo_git "$repository" clean -ffd
+		checkout_release "$repository"
 		chown -R "$uid:$gid" "$repository"
 		return
 	fi
@@ -157,11 +197,10 @@ bootstrap_repository() {
 	parent=${repository%/*}
 	install -d -m 0755 "$parent"
 	new_repository="${repository}.new.$$"
-	git clone --branch main --single-branch "$repository_url" "$new_repository"
-	[[ -z $(git -C "$new_repository" status --porcelain) ]] ||
+	git clone --quiet --no-checkout "$repository_url" "$new_repository"
+	checkout_release "$new_repository"
+	[[ -z $(repo_git "$new_repository" status --porcelain) ]] ||
 		die 'the freshly cloned VorT2x checkout is not clean'
-	[[ $(git -C "$new_repository" branch --show-current) == main ]] ||
-		die 'the freshly cloned VorT2x checkout is not on main'
 	chown -R "$uid:$gid" "$new_repository"
 	mv "$new_repository" "$repository"
 	new_repository=

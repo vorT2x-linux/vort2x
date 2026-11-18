@@ -4,9 +4,10 @@
 <img src="org.vort2xupdate.gtk.svg" alt="VorT2x Update logo" width="96">
 </p>
 
-VorT2x Update fetches `origin/main` into `/usr/local/src/VorT2x-Fedora`,
-reads the map from GitHub and compares each record with it. A step runs
-again when one of its sources changed since its record.
+VorT2x Update fetches the release tags into `/usr/local/src/VorT2x-Fedora`,
+picks the newest release whose `scripts/fedora/supported-releases` lists
+this Fedora, reads the map from that release and compares each record with
+it. A step runs again when one of its sources changed since its record.
 
 | Change | Runs |
 |---|---|

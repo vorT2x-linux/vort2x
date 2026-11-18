@@ -1,0 +1,6 @@
+# Fedora releases this version of VorT2x supports, one number per line.
+#
+# Installed systems update to the newest VorT2x release tag (vX.Y.Z) whose
+# copy of this file lists their Fedora release, so a release that drops a
+# Fedora version leaves those systems on the last release that supported it.
+45

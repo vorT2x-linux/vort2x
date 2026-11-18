@@ -37,12 +37,17 @@ The repository checkout method remains available below for development builds.
    If no terminal appears, open one and run `vort2x-install` without
    `sudo`; the installer requests administrator access when needed.
 5. After the reboot, the same installer continues automatically with the
-   regular, unchanged VorT2x installer from GitHub `main`. Review its output
+   regular, unchanged VorT2x installer from the newest VorT2x release for
+   this Fedora version. Review its output
    and reboot after success. If the prepared kernel is already running, setup
    continues in the same window.
 
-Run `vort2x-install` again at any later time to fast-forward the clean Git
-checkout and rerun the regular project installer.
+Run `vort2x-install` again at any later time to move the clean Git checkout
+to the newest release for this Fedora version and rerun the regular project
+installer. A release supports the Fedora versions listed in its
+`scripts/fedora/supported-releases`; when a new release drops a Fedora
+version, systems on that version stay on the last release that supported it.
+For development, `VORT2X_REF=main vort2x-install` uses a branch instead.
 
 The standard Fedora boot entry remains available on the USB stick as a fallback.
 Atomic desktops, Labs, Server, and network-install images are not supported by

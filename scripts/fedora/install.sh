@@ -4,7 +4,7 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
 require_root
 require_repo_root
-require_fedora
+require_supported_fedora
 require_min_kernel 7 0
 
 GDM_BRANDING_MARKER=/etc/dconf/db/gdm.d/00-vort2x

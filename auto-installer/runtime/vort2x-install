@@ -7,7 +7,11 @@ state_file="$state_dir/state"
 repository=${VORT2X_REPOSITORY:-/usr/local/src/VorT2x-Fedora}
 prepare=${VORT2X_PREPARE_COMMAND:-/usr/local/bin/vort2x-prepare}
 repository_url=${VORT2X_REPOSITORY_URL:-https://github.com/vorT2x-linux/vort2x.git}
-repository_branch=${VORT2X_REPOSITORY_BRANCH:-main}
+# Empty: the newest release tag for this Fedora. A branch name (e.g. main)
+# is for development only.
+repository_ref=${VORT2X_REF:-}
+os_release=${VORT2X_OS_RELEASE:-/etc/os-release}
+supported_file=scripts/fedora/supported-releases
 repository_installer="$repository/auto-installer/runtime/vort2x-install"
 self_path=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/${BASH_SOURCE[0]##*/}
 lock_file="${XDG_RUNTIME_DIR:-/tmp}/vort2x-install-$(id -u).lock"
@@ -40,8 +44,7 @@ die() {
 }
 
 wait_for_github() {
-	until git ls-remote --exit-code "$repository_url" \
-		"refs/heads/$repository_branch" \
+	until git ls-remote --exit-code "$repository_url" HEAD \
 		>/dev/null 2>&1; do
 		printf '\nConnect to a Wi-Fi network and press any key to retry. '
 		IFS= read -r -n 1 _answer
@@ -100,14 +103,46 @@ delegate_to_repository() {
 	exec bash "$repository_installer" "$@"
 }
 
+fedora_release() {
+	[[ -r "$os_release" ]] || die "$os_release is missing."
+	# shellcheck disable=SC1090,SC1091
+	(source "$os_release" && printf '%s\n' "${VERSION_ID:-}")
+}
+
+# The newest release tag vX.Y.Z whose supported-releases lists this Fedora.
+select_release() {
+	local fedora=$1 tag
+	while read -r tag; do
+		[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+		repository_git show "refs/tags/$tag:$supported_file" 2>/dev/null |
+			awk -v want="$fedora" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' ||
+			continue
+		printf '%s\n' "$tag"
+		return 0
+	done < <(repository_git tag --list 'v*' --sort=-version:refname)
+	return 1
+}
+
 refresh_repository() {
-	local previous current
+	local previous current fedora release target
 	validate_repository
-	printf 'Checking for the latest VorT2x %s branch...\n' "$repository_branch"
 	wait_for_github
-	repository_git checkout "$repository_branch"
 	previous=$(repository_git rev-parse HEAD)
-	repository_git pull --ff-only origin "$repository_branch"
+	if [[ -n "$repository_ref" ]]; then
+		printf 'Using the VorT2x %s branch (development).\n' "$repository_ref"
+		repository_git fetch --quiet "$repository_url" \
+			"+refs/heads/$repository_ref:refs/remotes/origin/$repository_ref"
+		target="refs/remotes/origin/$repository_ref"
+	else
+		fedora=$(fedora_release)
+		printf 'Checking for the newest VorT2x release for Fedora %s...\n' "$fedora"
+		repository_git fetch --quiet --force "$repository_url" '+refs/tags/v*:refs/tags/v*'
+		release=$(select_release "$fedora") ||
+			die "No VorT2x release supports Fedora $fedora yet."
+		printf 'VorT2x release: %s\n' "$release"
+		target="refs/tags/$release"
+	fi
+	repository_git checkout --quiet --detach "$target"
 	current=$(repository_git rev-parse HEAD)
 
 	# Once this implementation is available in the checkout, run the freshly
@@ -204,7 +239,11 @@ case "$phase" in
 		printf '\n'
 		printf 'Administrator access is required.\n\n'
 		sudo -v
-		sudo "$prepare"
+		if [[ -n "$repository_ref" ]]; then
+			sudo env VORT2X_REF="$repository_ref" "$prepare"
+		else
+			sudo "$prepare"
+		fi
 		delegate_to_repository "$@"
 		if [[ $(state_value target_kernel || :) == $(uname -r) ]]; then
 			run_initial_install

@@ -150,7 +150,7 @@ fn overview_card(ui_labels: [&Label; 3]) -> GtkBox {
     grid.set_margin_end(CARD_PADDING);
     grid.set_margin_top(CARD_PADDING);
     grid.set_margin_bottom(CARD_PADDING);
-    for (row, (key, value)) in ["Local", "GitHub", "New commits"].iter().zip(ui_labels).enumerate() {
+    for (row, (key, value)) in ["Installed", "Newest release", "New commits"].iter().zip(ui_labels).enumerate() {
         grid.attach(&text_label(key, &["vort2x-key"]), 0, row as i32, 1, 1);
         value.set_xalign(0.0);
         value.set_hexpand(true);
@@ -216,7 +216,7 @@ fn build_ui(app: &Application) {
     root.append(&items);
     root.append(&unaffected);
 
-    let commits_heading = text_label("New on GitHub", &["heading"]);
+    let commits_heading = text_label("New in this release", &["heading"]);
     let commits = boxed_list();
     root.append(&commits_heading);
     root.append(&commits);
@@ -255,7 +255,7 @@ fn build_ui(app: &Application) {
         .vexpand(true)
         .hscrollbar_policy(PolicyType::Never)
         .build();
-    // Beside the content like in Kernel Builder, so the output is in view
+    // Beside the content, so the output is in view
     // without scrolling.
     let log_card = style::card(&log_scroll);
     log_card.add_css_class("vort2x-log");
@@ -453,8 +453,9 @@ fn start_check(ui: &Rc<Ui>) {
 }
 
 fn show_plan(ui: &Rc<Ui>, plan: &Plan) {
-    ui.local_value.set_label(&format!("{}  {}", short(&plan.local), plan.local_date));
-    ui.remote_value.set_label(&format!("{}  {}", short(&plan.remote), plan.remote_date));
+    let local_name = plan.local_release.as_deref().unwrap_or_else(|| short(&plan.local));
+    ui.local_value.set_label(&format!("{}  {}", local_name, plan.local_date));
+    ui.remote_value.set_label(&format!("{}  {}", plan.release, plan.remote_date));
     ui.count_value.set_label(&plan.commits.len().to_string());
 
     ui.status.set_label(match (plan.items.is_empty(), plan.commits.is_empty()) {

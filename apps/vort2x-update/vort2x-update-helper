@@ -7,7 +7,8 @@ repository=/usr/local/src/VorT2x-Fedora
 # The only source updates come from. The origin remote of the checkout is
 # ignored, so a changed remote cannot make this root helper install other code.
 repository_url=https://github.com/vorT2x-linux/vort2x.git
-branch=main
+supported_file=scripts/fedora/supported-releases
+target=
 
 die() {
 	printf 'vort2x-update-helper: %s\n' "$*" >&2
@@ -38,13 +39,30 @@ valid_name() {
 		"$repository/scripts/fedora/update-map"
 }
 
+# The newest release tag vX.Y.Z whose supported-releases lists this Fedora.
+# vort2x-install and vort2x-update (src/git.rs) use the same rule.
+select_release() {
+	local fedora tag
+	fedora=$(. /etc/os-release && printf '%s' "${VERSION_ID:-}")
+	[[ $fedora =~ ^[0-9]+$ ]] || die 'could not read the Fedora release'
+	while read -r tag; do
+		[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+		repo_git show "refs/tags/$tag:$supported_file" 2>/dev/null |
+			awk -v want="$fedora" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' ||
+			continue
+		printf '%s\n' "$tag"
+		return 0
+	done < <(repo_git tag --list 'v*' --sort=-version:refname)
+	die "no VorT2x release supports Fedora $fedora yet, nothing was installed"
+}
+
 # Parts without a record count as installed from the current HEAD. That is
 # written down before HEAD moves, so a failed run is offered again.
 record_current_state() {
 	local applied=/var/lib/vort2x-installer/applied head name
 	head=$(repo_git rev-parse HEAD)
 	install -d -m 0755 "$applied"
-	repo_git show "origin/$branch:scripts/fedora/update-map" |
+	repo_git show "$target:scripts/fedora/update-map" |
 		awk '!/^#/ && NF && $1 != "core" { print $1 }' |
 		while read -r name; do
 			[[ -e $applied/$name ]] || printf '%s\n' "$head" >"$applied/$name"
@@ -52,11 +70,14 @@ record_current_state() {
 }
 
 refresh_repository() {
-	repo_git fetch "$repository_url" "+refs/heads/$branch:refs/remotes/origin/$branch"
+	local release
+	repo_git fetch --quiet --force "$repository_url" '+refs/tags/v*:refs/tags/v*'
+	release=$(select_release) || exit 1
+	target="refs/tags/$release"
 	record_current_state
-	repo_git checkout "$branch"
-	repo_git reset --hard "origin/$branch"
+	repo_git reset --hard
 	repo_git clean -fd
+	repo_git checkout --quiet --detach "$target"
 }
 
 # Optional parts stay as they are, nothing is asked in the background.
@@ -89,7 +110,7 @@ case ${1:-} in
 		refresh_repository
 		# An older install.sh ignores --only and would run every step.
 		grep -q -- '--only' "$repository/scripts/fedora/install.sh" ||
-			die 'the installer on GitHub cannot run single steps yet, nothing was installed'
+			die 'the installer in this release cannot run single steps yet, nothing was installed'
 		for name in "${steps[@]}"; do
 			valid_name "$name" || die "not an installer step: $name"
 		done

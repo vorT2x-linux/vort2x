@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    git::{Commit, REMOTE_REF, Repository},
+    git::{self, Commit, Repository},
     map::{self, Entry},
 };
 
@@ -48,9 +48,12 @@ impl Item {
 }
 
 pub struct Plan {
+    /// The release tag the checkout is on, if it is on one.
+    pub local_release: Option<String>,
+    /// The newest release for this Fedora.
+    pub release: String,
     pub local: String,
     pub local_date: String,
-    pub remote: String,
     pub remote_date: String,
     pub commits: Vec<Commit>,
     pub items: Vec<Item>,
@@ -102,12 +105,14 @@ pub fn select(
 pub fn check(repo: &Repository, home: &Path) -> Result<Plan, String> {
     let fetch_error = repo.fetch().err();
     let local = repo.resolve("HEAD")?;
-    let remote = repo
-        .resolve(REMOTE_REF)
-        .map_err(|_| format!("{REMOTE_REF} is missing in {}", repo.path().display()))?;
+    let fedora = git::fedora_release().ok_or("Could not read the Fedora release from /etc/os-release")?;
+    let release = repo
+        .release_for(&fedora)
+        .ok_or_else(|| format!("No VorT2x release supports Fedora {fedora} yet"))?;
+    let remote = repo.resolve(&format!("refs/tags/{release}"))?;
     let map_text = repo
         .show(&remote, map::MAP_PATH)
-        .ok_or_else(|| format!("{} is missing on GitHub", map::MAP_PATH))?;
+        .ok_or_else(|| format!("{} is missing in release {release}", map::MAP_PATH))?;
     let entries = map::parse(&map_text);
     let known_names: Option<HashSet<String>> = repo
         .show(&local, map::MAP_PATH)
@@ -145,11 +150,12 @@ pub fn check(repo: &Repository, home: &Path) -> Result<Plan, String> {
         .collect();
 
     Ok(Plan {
+        local_release: repo.tag_at(&local),
+        release,
         local_date: repo.commit_date(&local),
         remote_date: repo.commit_date(&remote),
         commits: repo.commits(&local, &remote)?,
         local,
-        remote,
         items,
         core_changes,
         unaffected,

@@ -6,8 +6,8 @@ use std::{
     process::Command,
 };
 
-pub const BRANCH: &str = "main";
-pub const REMOTE_REF: &str = "origin/main";
+/// Lists the Fedora releases a VorT2x release supports, read from each tag.
+pub const SUPPORTED_FILE: &str = "scripts/fedora/supported-releases";
 /// The only source updates come from. The origin remote of the checkout is
 /// ignored, so a changed remote cannot redirect an update.
 pub const REPOSITORY_URL: &str = "https://github.com/vorT2x-linux/vort2x.git";
@@ -53,11 +53,33 @@ impl Repository {
         Err(if message.is_empty() { format!("git {} failed", args.join(" ")) } else { message })
     }
 
-    /// Fetches GitHub as the user, who owns the checkout, into
-    /// `origin/main` no matter where the origin remote points.
+    /// Fetches the release tags from GitHub as the user, who owns the
+    /// checkout, no matter where the origin remote points.
     pub fn fetch(&self) -> Result<(), String> {
-        let refspec = format!("+refs/heads/{BRANCH}:refs/remotes/{REMOTE_REF}");
-        self.git(&["fetch", "--quiet", REPOSITORY_URL, &refspec]).map(|_| ())
+        self.git(&["fetch", "--quiet", "--force", REPOSITORY_URL, "+refs/tags/v*:refs/tags/v*"])
+            .map(|_| ())
+    }
+
+    /// The newest release tag vX.Y.Z that supports Fedora `fedora`. The
+    /// update helper and vort2x-install use the same rule.
+    pub fn release_for(&self, fedora: &str) -> Option<String> {
+        self.git(&["tag", "--list", "v*", "--sort=-version:refname"])
+            .ok()?
+            .lines()
+            .filter(|tag| is_release_tag(tag))
+            .find(|tag| {
+                self.show(&format!("refs/tags/{tag}"), SUPPORTED_FILE)
+                    .is_some_and(|text| supports(&text, fedora))
+            })
+            .map(str::to_owned)
+    }
+
+    /// The release tag HEAD sits on, if any.
+    pub fn tag_at(&self, rev: &str) -> Option<String> {
+        self.git(&["describe", "--tags", "--exact-match", "--match", "v*", rev])
+            .ok()
+            .map(|tag| tag.trim().to_owned())
+            .filter(|tag| is_release_tag(tag))
     }
 
     pub fn resolve(&self, rev: &str) -> Result<String, String> {
@@ -102,5 +124,52 @@ impl Repository {
     /// A file as it is in a commit, None when it does not exist there.
     pub fn show(&self, rev: &str, path: &str) -> Option<String> {
         self.git(&["show", &format!("{rev}:{path}")]).ok()
+    }
+}
+
+/// vX.Y.Z with numbers only, so test or pre-release tags are never picked.
+pub fn is_release_tag(tag: &str) -> bool {
+    let Some(version) = tag.strip_prefix('v') else { return false };
+    let parts: Vec<&str> = version.split('.').collect();
+    parts.len() == 3 && parts.iter().all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// Whether a supported-releases file lists `fedora`; `#` starts a comment.
+pub fn supports(text: &str, fedora: &str) -> bool {
+    text.lines()
+        .filter_map(|line| line.split('#').next())
+        .any(|line| line.split_whitespace().next() == Some(fedora))
+}
+
+/// VERSION_ID from /etc/os-release.
+pub fn fedora_release() -> Option<String> {
+    let text = std::fs::read_to_string("/etc/os-release").ok()?;
+    text.lines()
+        .find_map(|line| line.strip_prefix("VERSION_ID="))
+        .map(|value| value.trim().trim_matches('"').to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn release_tags() {
+        assert!(is_release_tag("v0.2.0"));
+        assert!(is_release_tag("v10.0.12"));
+        assert!(!is_release_tag("v0.2"));
+        assert!(!is_release_tag("v0.2.0-rc1"));
+        assert!(!is_release_tag("0.2.0"));
+        assert!(!is_release_tag("v0..1"));
+    }
+
+    #[test]
+    fn supported_releases() {
+        let text = "# comment\n45\n 46  # later\n";
+        assert!(supports(text, "45"));
+        assert!(supports(text, "46"));
+        assert!(!supports(text, "44"));
+        assert!(!supports(text, "4"));
     }
 }
