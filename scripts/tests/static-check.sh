@@ -22,7 +22,6 @@ shell_files=(
 	auto-installer/runtime/vort2x-prepare
 	apps/t2-touchbar/install.sh
 	apps/t2-touchbar/uninstall.sh
-	packaging/installer/runtime/vort2x-install
 	scripts/fedora/build-installer.sh
 	scripts/fedora/install-gdm-branding.sh
 	scripts/fedora/install-dkms-modules.sh
@@ -36,7 +35,6 @@ shell_files=(
 	scripts/fedora/lib.sh
 	scripts/macos/download-fedora-iso.sh
 	scripts/macos/prepare-fedora-installer.sh
-	scripts/copr/make-kernel-srpm.sh
 	scripts/tests/edition-catalog.sh
 	scripts/tests/iso-download.sh
 	scripts/tests/installer-input.sh
@@ -99,8 +97,6 @@ grep -Fq 'dracut --force --force-drivers' \
 # without headers has to be refused before anything is removed.
 grep -Fq 'require_kernel_headers' scripts/fedora/install-dkms-modules.sh
 grep -Fq 'require_kernel_headers()' scripts/fedora/lib.sh
-grep -Fq 't2-kernel-builder installation failed; continuing because it is optional' \
-	scripts/fedora/install-apps.sh
 grep -Fq 'apps/t2-touchbar/install.sh' scripts/fedora/install-apps.sh
 # The Touch Bar daemon is optional and asked for before any step runs.
 grep -Fq 'VORT2X_INSTALL_TOUCHBAR' scripts/fedora/install-apps.sh
@@ -115,61 +111,18 @@ grep -Fq 'ask_eddy' scripts/fedora/install.sh
 grep -Fq 'VORT2X_INSTALL_EDDY' scripts/fedora/install.sh
 grep -Fq 'as_eddy_user bash "$SCRIPT_DIR/install-eddy.sh"' scripts/fedora/install.sh
 grep -Fq 'device_access_ready' apps/t2-touchbar/install.sh
-# ISOs up to v0.1.12 delegate to the old installer path.
-grep -Fq 'auto-installer/runtime' packaging/installer/runtime/vort2x-install
 grep -Fq '"$BIN" --detach' apps/t2-touchbar/uninstall.sh
 grep -Fq 'build_cargo_project "$APP_DIR"' apps/t2-touchbar/install.sh
 grep -Fq 'env CARGO_TARGET_DIR="$CARGO_TARGET_DIR" make -C "$path" build' scripts/fedora/lib.sh
 grep -Fq 'device_group_is_live' apps/t2-touchbar/install.sh
 grep -Fq 'vort2x-touchbar --attach' \
 	apps/t2-touchbar/integration/systemd/system/vort2x-touchbar-attach.service
-grep -Fq 't2-kernel-builder bundle is incomplete' \
-	apps/t2-kernel-builder/install.sh
 # A wrong origin URL must be repaired; dying leaves the user with no way out.
 grep -Fq 'repair_origin_url' auto-installer/runtime/vort2x-install
 grep -Fq 'repair_origin_url' auto-installer/runtime/vort2x-prepare
 ! grep -Fq 'unexpected origin URL' \
 	auto-installer/runtime/vort2x-install \
 	auto-installer/runtime/vort2x-prepare
-grep -Fq '["dkms", "autoinstall", "-k", release]' \
-	apps/t2-kernel-builder/t2-kernel-builder-cleanup
-grep -Fq "DKMS_OVERRIDE.write_text('post_transaction=\"\"\\n'" \
-	apps/t2-kernel-builder/t2-kernel-builder-cleanup
-grep -Fq 'rebuilt initramfs is missing required module' \
-	apps/t2-kernel-builder/t2-kernel-builder-cleanup
-for module in acpi_tad applesmc macsmc_core macsmc_acpi macsmc_hwmon \
-		macsmc_light macsmc_accel leds_macsmc macsmc_wdt rtc_macsmc \
-		macsmc_power hid_apple hid_appletb_bl hid_appletb_kbd hid_magicmouse \
-		appletbdrm apple_mfi_fastcharge apple_gmux apple-t2-bridge \
-		apple-t2-vhci-hcd t2hid; do
-	grep -Fq "\"$module\"" apps/t2-kernel-builder/t2-kernel-builder-cleanup
-done
-grep -Fq 'installation rolled back' \
-	apps/t2-kernel-builder/t2-kernel-builder-cleanup
-grep -Fq 'Cancelling installation and rolling back' \
-	apps/t2-kernel-builder/t2-kernel-builder.py
-grep -Fq 'Path(f"/boot/initramfs-{release}.img").is_file()' \
-	apps/t2-kernel-builder/t2-kernel-builder.py
-! grep -Fq '["dracut", "--force"' \
-	apps/t2-kernel-builder/t2-kernel-builder-cleanup
-for symbol in MFD_MACSMC_CORE MACSMC_ACPI SENSORS_MACSMC_HWMON \
-		MACSMC_LIGHT MACSMC_ACCEL LEDS_MACSMC MACSMC_WDT \
-		RTC_DRV_MACSMC MACSMC_POWER; do
-	grep -Fq "$symbol" apps/t2-kernel-builder/engine/build.sh
-done
-grep -Fq 'required T2 kernel module was rejected by Kconfig' \
-	apps/t2-kernel-builder/engine/build.sh
-grep -Fq -- '--enable IIO' apps/t2-kernel-builder/engine/build.sh
-grep -Fq "grep -Eq '^\\+config[[:space:]]+MACSMC_ACPI" \
-	apps/t2-kernel-builder/engine/build.sh
-grep -Fq 'if ((HAS_MACSMC_PATCHES)); then' \
-	apps/t2-kernel-builder/engine/build.sh
-grep -Fq 'if ((HAS_AMD_DGPU)); then' \
-	apps/t2-kernel-builder/engine/build.sh
-grep -Fq 'T2_REQUIRED_MODULES+=("${MACSMC_REQUIRED_MODULES[@]}")' \
-	apps/t2-kernel-builder/engine/build.sh
-grep -Fq 'T2_REQUIRED_MODULES+=("${AMD_DGPU_REQUIRED_MODULES[@]}")' \
-	apps/t2-kernel-builder/engine/build.sh
 grep -Fq '/etc/modprobe.d/vort2x-silent-blacklist.conf' \
 	scripts/fedora/install-kernel-args.sh
 grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/edit-grub' scripts/fedora/install.sh

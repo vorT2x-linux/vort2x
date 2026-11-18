@@ -230,14 +230,6 @@ wanted t2-zone-power && run_step "t2-zone-power" install_rust_app "$REPO_ROOT/ap
 if wanted vort2x-update; then
 	run_step "vort2x-update" install_rust_app "$REPO_ROOT/apps/vort2x-update" "vort2x-update"
 fi
-if ! wanted t2-kernel-builder; then
-	:
-elif "$REPO_ROOT/apps/t2-kernel-builder/install.sh"; then
-	mark_applied app:t2-kernel-builder
-else
-	warn "t2-kernel-builder installation failed; continuing because it is optional"
-	warn "retry it later with: sudo $REPO_ROOT/apps/t2-kernel-builder/install.sh"
-fi
 wanted t2-power-tune && install_script_app t2-power-tune || true
 wanted t2-sidecar && install_script_app t2-sidecar || true
 

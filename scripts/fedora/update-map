@@ -40,7 +40,6 @@ app:t2-journal                t2-services/t2-journal/ packaging/lifecycle/
 app:gpu-control               apps/t2-dgpu-control/ apps/t2-hybrid-gpu-control/
 app:t2-zone-power             apps/t2-zone-power/
 app:vort2x-update            apps/vort2x-update/
-app:t2-kernel-builder         apps/t2-kernel-builder/
 app:t2-power-tune             apps/t2-power-tune/
 app:t2-sidecar                apps/t2-sidecar/
 install-t2-services-common.sh t2-services/shared/ packaging/lifecycle/
