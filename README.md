@@ -13,19 +13,29 @@ modules, apps and fixes come from VorT2x.
 [Contributing](#contributing) |
 [License](#license)
 
-> **Status:** VorT2x has just been forked from KAIT2EN and renamed. It has no
-> release yet and hasn't been tested under its new name. Expect rough edges.
+> **Status:** v0.2.0 is the first VorT2x release. It supports Fedora 45 and
+> hasn't been tested on a Mac under the VorT2x name yet. Expect rough edges.
 
 ## Install
 
-VorT2x has no release installer yet. On Fedora, from a clone of this
-repository:
+VorT2x is an installer. You run it once on macOS to make a Fedora USB stick,
+then Fedora finishes the setup by itself after the first login.
 
-```bash
-git clone https://github.com/vorT2x-linux/vort2x.git
-cd vort2x
-sudo ./scripts/fedora/install.sh
-```
+1. On a Mac, in macOS, connect an empty USB drive and run:
+
+   ```bash
+   curl -fsSL https://github.com/vorT2x-linux/vort2x/releases/latest/download/install-vort2x-fedora.sh | bash
+   ```
+
+   Pick a Fedora edition and the USB drive. It downloads and checks Fedora,
+   then asks before it erases the drive.
+2. Boot the Mac from the USB stick and install Fedora as usual.
+3. After the first login, connect to Wi-Fi. The VorT2x installer opens, asks
+   for one reboot, then installs the rest.
+
+Run `vort2x-install` at any time later to update to the newest VorT2x
+release for your Fedora version. [auto-installer/README.md](auto-installer/README.md)
+has the details, rescue tools and troubleshooting.
 
 ## Contributing
 
