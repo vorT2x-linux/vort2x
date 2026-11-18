@@ -134,7 +134,7 @@ fn build_ui(app: &adw::Application) {
     footer.set_margin_top(6);
     footer.set_margin_bottom(6);
     let donate = gtk4::LinkButton::builder()
-        .uri("https://donate.stripe.com/eVq14n8a7agh2lQdqq14400")
+        .uri("https://patreon.com/VorT2x")
         .label("Fund our bugs")
         .build();
     donate.add_css_class("donate-link");

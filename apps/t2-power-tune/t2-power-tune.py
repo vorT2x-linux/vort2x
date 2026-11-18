@@ -105,7 +105,7 @@ class PowerTune(Adw.Application):
         root.append(footer)
         status=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8)
         status.set_margin_start(18); status.set_margin_end(18); status.set_margin_bottom(8)
-        donate=Gtk.LinkButton(uri="https://donate.stripe.com/eVq14n8a7agh2lQdqq14400",label="Fund our bugs")
+        donate=Gtk.LinkButton(uri="https://patreon.com/VorT2x",label="Fund our bugs")
         donate.add_css_class("donate-link"); status.append(donate)
         status.append(Gtk.Box(hexpand=True))
         version=Gtk.Label(label=f"v{APP_VERSION}"); version.add_css_class("dim-label"); status.append(version)

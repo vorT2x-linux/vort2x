@@ -291,7 +291,7 @@ fn build_ui(app: &Application) {
     restart.add_css_class("suggested-action");
     restart.set_visible(false);
     let donate = LinkButton::builder()
-        .uri("https://donate.stripe.com/eVq14n8a7agh2lQdqq14400")
+        .uri("https://patreon.com/VorT2x")
         .label("Fund our bugs")
         .build();
     donate.add_css_class("donate-link");

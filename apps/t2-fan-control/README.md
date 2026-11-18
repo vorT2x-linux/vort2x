@@ -141,4 +141,4 @@ You need a Rust toolchain and the usual native build dependencies for GTK4 and L
 
 ## Support
 
-[Fund my bugs](https://donate.stripe.com/eVq14n8a7agh2lQdqq14400)
+[Support VorT2x on Patreon](https://patreon.com/VorT2x)

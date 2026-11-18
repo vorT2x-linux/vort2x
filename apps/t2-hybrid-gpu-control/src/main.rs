@@ -384,7 +384,7 @@ fn build_ui(app: &adw::Application) {
     content.append(&page);
     let footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     footer.set_margin_start(18); footer.set_margin_end(18); footer.set_margin_bottom(8);
-    let donate = gtk::LinkButton::builder().uri("https://donate.stripe.com/eVq14n8a7agh2lQdqq14400").label("Fund our bugs").build();
+    let donate = gtk::LinkButton::builder().uri("https://patreon.com/VorT2x").label("Fund our bugs").build();
     donate.add_css_class("donate-link"); footer.append(&donate);
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0); spacer.set_hexpand(true); footer.append(&spacer);
     footer.append(&gtk::Label::new(Some(&format!("v{APP_VERSION}"))));

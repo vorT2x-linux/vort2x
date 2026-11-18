@@ -24,6 +24,6 @@ apple_t2_bridge.dyndbg=+p apple_t2_vhci_hcd.dyndbg=+p snd_apple_t2.dyndbg=+p t2_
 
 ## Support
 
-If this work helps you and you want to support it:
+If this work helps you and you want to support VorT2x:
 
-https://www.paypal.com/paypalme/negmaster
+https://patreon.com/VorT2x

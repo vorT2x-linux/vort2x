@@ -373,7 +373,7 @@ class CpuControl(Adw.Application):
         body.append(throttle_row)
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         footer.set_margin_start(8); footer.set_margin_end(8); footer.set_margin_bottom(8)
-        donate = Gtk.LinkButton(uri="https://donate.stripe.com/eVq14n8a7agh2lQdqq14400", label="Fund our bugs")
+        donate = Gtk.LinkButton(uri="https://patreon.com/VorT2x", label="Fund our bugs")
         donate.add_css_class("donate-link"); footer.append(donate)
         spacer = Gtk.Box(hexpand=True); footer.append(spacer)
         footer.append(Gtk.Label(label=f"v{APP_VERSION}"))

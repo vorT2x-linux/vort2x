@@ -273,7 +273,7 @@ fn build_ui(app: &Application) {
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
     let donate = LinkButton::builder()
-        .uri("https://donate.stripe.com/eVq14n8a7agh2lQdqq14400")
+        .uri("https://patreon.com/VorT2x")
         .label("Fund our bugs")
         .build();
     donate.set_halign(Align::Start);
