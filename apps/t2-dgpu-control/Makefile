@@ -12,13 +12,13 @@ STATUS_HELPER_SRC := contrib/t2-dgpu-control-status
 STATUS_HELPER_NAME := t2-dgpu-control-status
 POLICY_SRC := contrib/org.t2dgpucontrol.policy
 STATUS_POLICY_SRC := contrib/org.t2dgpucontrol.status.policy
-UNIT_NAME := kait2en-dgpu-off.service
+UNIT_NAME := vort2x-dgpu-off.service
 UNIT_SRC := systemd/$(UNIT_NAME)
-SUSPEND_UNIT_NAME := kait2en-dgpu-suspend.service
+SUSPEND_UNIT_NAME := vort2x-dgpu-suspend.service
 SUSPEND_UNIT_SRC := systemd/$(SUSPEND_UNIT_NAME)
-PROFILE_UNIT_NAME := kait2en-amdgpu-profile.service
+PROFILE_UNIT_NAME := vort2x-amdgpu-profile.service
 PROFILE_UNIT_SRC := systemd/$(PROFILE_UNIT_NAME)
-PROFILE_RESUME_UNIT_NAME := kait2en-amdgpu-profile-resume.service
+PROFILE_RESUME_UNIT_NAME := vort2x-amdgpu-profile-resume.service
 PROFILE_RESUME_UNIT_SRC := systemd/$(PROFILE_RESUME_UNIT_NAME)
 ICON_SRC := assets/icons/hicolor/scalable/apps/$(APP_ID).svg
 

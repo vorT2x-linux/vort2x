@@ -7,8 +7,8 @@ if [ "$1" = configure ]; then
         if [ -d /run/systemd/system ]; then
             t2_run systemctl daemon-reload
             if [ "$migration_status" -eq 0 ]; then
-                if [ -z "${2:-}" ] && ! systemctl is-enabled --quiet kait2en-t2-remote.service; then t2_run systemctl preset kait2en-t2-remote.service; fi
-                t2_run systemctl try-restart kait2en-t2-remote.service
+                if [ -z "${2:-}" ] && ! systemctl is-enabled --quiet vort2x-t2-remote.service; then t2_run systemctl preset vort2x-t2-remote.service; fi
+                t2_run systemctl try-restart vort2x-t2-remote.service
             fi
         fi
         t2_summary

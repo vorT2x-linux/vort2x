@@ -70,8 +70,8 @@ link-local profiles are retired on disk, the link is unmanaged by NetworkManager
 from the next boot. Custom and unrelated profiles are untouched. No live network
 disconnect is issued.
 
-Ownership receipts live in `/var/lib/kait2en/ownership/<package>.json`.
-Recoverable migration backups live in `/var/lib/kait2en/migration/<package>/`.
+Ownership receipts live in `/var/lib/vort2x/ownership/<package>.json`.
+Recoverable migration backups live in `/var/lib/vort2x/migration/<package>/`.
 Removal cleans unchanged, verified migration backups and generated files.
 It never restores obsolete files that would shadow another package install.
 Administrator-modified files, unrecognized local units and symlinks are

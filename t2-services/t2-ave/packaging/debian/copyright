@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: KaiT2en T2 services
-Source: https://github.com/kaiT2en/KaiT2en-Fedora
+Upstream-Name: VorT2x T2 services
+Source: https://github.com/vorT2x-linux/vort2x
 
 Files: *
 Copyright: 2026 André Eikmeyer <andre.eikmeyer@kait2en.org>

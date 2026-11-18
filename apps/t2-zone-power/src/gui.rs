@@ -17,12 +17,12 @@ const APP_ID: &str = "org.t2zonepower.gtk";
 const APP_VERSION: &str = "0.03";
 const HISTORY_CAPACITY: usize = 90;
 
-fn kait2en_brand() -> DrawingArea {
+fn vort2x_brand() -> DrawingArea {
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let dark = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
-        .expect("failed to load kait2en wordmark");
-    let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+    let dark = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
+        .expect("failed to load vort2x wordmark");
+    let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
         .unwrap_or_else(|_| dark.clone());
     let brand = DrawingArea::new();
     brand.set_content_width(80); brand.set_content_height(21); brand.set_size_request(80, 21);
@@ -239,7 +239,7 @@ fn build_ui(app: &Application) {
 
     let header = adw::HeaderBar::new();
     header.set_title_widget(Some(&adw::WindowTitle::new("Zone Power", "")));
-    let brand = kait2en_brand();
+    let brand = vort2x_brand();
     brand.set_margin_start(10);
     brand.set_margin_end(10);
     header.pack_start(&brand);

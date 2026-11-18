@@ -8,28 +8,28 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 # One error ledger for the complete installation, inherited by child scripts.
 # A failing atomic step stops only that step; run_step continues its siblings.
 INSTALL_REPORT_OWNER=0
-if [[ -z "${KAIT2EN_INSTALL_ERRORS:-}" ]]; then
-	KAIT2EN_INSTALL_ERRORS=$(mktemp /tmp/kait2en-install-errors.XXXXXX)
-	export KAIT2EN_INSTALL_ERRORS
+if [[ -z "${VORT2X_INSTALL_ERRORS:-}" ]]; then
+	VORT2X_INSTALL_ERRORS=$(mktemp /tmp/vort2x-install-errors.XXXXXX)
+	export VORT2X_INSTALL_ERRORS
 	INSTALL_REPORT_OWNER=1
 fi
 
-KAIT2EN_INSTALL_HARD_ERRORS="$KAIT2EN_INSTALL_ERRORS.hard"
+VORT2X_INSTALL_HARD_ERRORS="$VORT2X_INSTALL_ERRORS.hard"
 
 # All Rust projects build into one target directory in the invoking user's
 # cache. The shared GTK stack compiles once and updates build incrementally.
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
-	CARGO_TARGET_DIR="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.cache/kait2en/cargo-target"
+	CARGO_TARGET_DIR="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.cache/vort2x/cargo-target"
 	export CARGO_TARGET_DIR
 fi
 
 record_error() {
 	local message="$*"
-	printf '[kait2en] error: %s\n' "$message" >&2
-	if ! printf '%s: %s\n' "${0##*/}" "$message" >>"$KAIT2EN_INSTALL_ERRORS"; then
-		printf '[kait2en] error: cannot append to error report %s\n' "$KAIT2EN_INSTALL_ERRORS" >&2
+	printf '[vort2x] error: %s\n' "$message" >&2
+	if ! printf '%s: %s\n' "${0##*/}" "$message" >>"$VORT2X_INSTALL_ERRORS"; then
+		printf '[vort2x] error: cannot append to error report %s\n' "$VORT2X_INSTALL_ERRORS" >&2
 	fi
-	printf '%s: %s\n' "${0##*/}" "$message" >>"$KAIT2EN_INSTALL_HARD_ERRORS" || true
+	printf '%s: %s\n' "${0##*/}" "$message" >>"$VORT2X_INSTALL_HARD_ERRORS" || true
 }
 
 installation_summary() {
@@ -38,21 +38,21 @@ installation_summary() {
 	# The .hard file exists only when an error was recorded.
 	local report
 	if [[ ${EUID:-$(id -u)} -eq 0 && -n "${SUDO_USER:-}" ]]; then
-		for report in "$KAIT2EN_INSTALL_ERRORS" "$KAIT2EN_INSTALL_HARD_ERRORS"; do
+		for report in "$VORT2X_INSTALL_ERRORS" "$VORT2X_INSTALL_HARD_ERRORS"; do
 			[[ -e "$report" ]] || continue
-			chown "$SUDO_USER" "$report" || printf '[kait2en] warning: cannot hand %s to %s\n' "$report" "$SUDO_USER" >&2
+			chown "$SUDO_USER" "$report" || printf '[vort2x] warning: cannot hand %s to %s\n' "$report" "$SUDO_USER" >&2
 		done
 	fi
-	if [[ -s "$KAIT2EN_INSTALL_HARD_ERRORS" ]]; then
-		printf '[kait2en] installation completed with errors:\n' >&2
-		cat "$KAIT2EN_INSTALL_ERRORS" >&2
-		printf '[kait2en] saved report: %s\n' "$KAIT2EN_INSTALL_ERRORS" >&2
+	if [[ -s "$VORT2X_INSTALL_HARD_ERRORS" ]]; then
+		printf '[vort2x] installation completed with errors:\n' >&2
+		cat "$VORT2X_INSTALL_ERRORS" >&2
+		printf '[vort2x] saved report: %s\n' "$VORT2X_INSTALL_ERRORS" >&2
 		return 1
 	fi
-	if [[ -s "$KAIT2EN_INSTALL_ERRORS" ]]; then
-		printf '[kait2en] installation completed with warnings:\n' >&2
-		cat "$KAIT2EN_INSTALL_ERRORS" >&2
-		printf '[kait2en] saved report: %s\n' "$KAIT2EN_INSTALL_ERRORS" >&2
+	if [[ -s "$VORT2X_INSTALL_ERRORS" ]]; then
+		printf '[vort2x] installation completed with warnings:\n' >&2
+		cat "$VORT2X_INSTALL_ERRORS" >&2
+		printf '[vort2x] saved report: %s\n' "$VORT2X_INSTALL_ERRORS" >&2
 		return 0
 	fi
 	info "installation completed without recorded errors"
@@ -94,24 +94,24 @@ run_step() {
 }
 
 info() {
-	printf '[kait2en] %s\n' "$*"
+	printf '[vort2x] %s\n' "$*"
 }
 
 # Records the commit a step or app was last installed from.
-# kait2en-update compares it with GitHub to pick what has to run again.
-KAIT2EN_APPLIED_DIR=${KAIT2EN_APPLIED_DIR:-/var/lib/kait2en-installer/applied}
+# vort2x-update compares it with GitHub to pick what has to run again.
+VORT2X_APPLIED_DIR=${VORT2X_APPLIED_DIR:-/var/lib/vort2x-installer/applied}
 mark_applied() {
 	local name=$1 commit
 	commit=$(git -c safe.directory="$REPO_ROOT" -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null) || return 0
-	install -d -m 0755 "$KAIT2EN_APPLIED_DIR" &&
-		printf '%s\n' "$commit" >"$KAIT2EN_APPLIED_DIR/$name" ||
-		printf '[kait2en] warning: cannot record %s as installed\n' "$name" >&2
+	install -d -m 0755 "$VORT2X_APPLIED_DIR" &&
+		printf '%s\n' "$commit" >"$VORT2X_APPLIED_DIR/$name" ||
+		printf '[vort2x] warning: cannot record %s as installed\n' "$name" >&2
 }
 
 warn() {
-	printf '[kait2en] warning: %s\n' "$*" >&2
-	printf '%s: warning: %s\n' "${0##*/}" "$*" >>"$KAIT2EN_INSTALL_ERRORS" ||
-		printf '[kait2en] error: cannot write warning report\n' >&2
+	printf '[vort2x] warning: %s\n' "$*" >&2
+	printf '%s: warning: %s\n' "${0##*/}" "$*" >>"$VORT2X_INSTALL_ERRORS" ||
+		printf '[vort2x] error: cannot write warning report\n' >&2
 }
 
 # sudo resets the environment, so the shared target directory is passed on.
@@ -176,10 +176,10 @@ require_command() {
 	done
 }
 
-install_kait2en_fonts() {
+install_vort2x_fonts() {
 	local font_source="$REPO_ROOT/assets/fonts"
-	local font_dir=/usr/local/share/fonts/kait2en
-	local license_dir=/usr/local/share/licenses/kait2en-fonts
+	local font_dir=/usr/local/share/fonts/vort2x
+	local license_dir=/usr/local/share/licenses/vort2x-fonts
 
 	[[ -f "$font_source/JetBrainsMono-Regular.ttf" &&
 		-f "$font_source/JetBrainsMono-Medium.ttf" &&
@@ -223,7 +223,7 @@ require_min_kernel() {
 	minor="${BASH_REMATCH[2]}"
 
 	if (( major < min_major || (major == min_major && minor < min_minor) )); then
-		fail "KaiT2en requires Linux kernel ${min_major}.${min_minor} or newer. Update Fedora first, reboot into the updated kernel, then run this installer again. Current kernel: $release"
+		fail "VorT2x requires Linux kernel ${min_major}.${min_minor} or newer. Update Fedora first, reboot into the updated kernel, then run this installer again. Current kernel: $release"
 	fi
 }
 
@@ -254,7 +254,7 @@ kernel_version_ge() {
 # kernel. Callers copy what they patch, the pool itself is never patched. A
 # self-built kernel with a full source tree behind /lib/modules/<kver>/build
 # is used directly. Prints the tree, messages go to stderr.
-KERNEL_SOURCE_CACHE=/var/cache/kait2en/kernel-source
+KERNEL_SOURCE_CACHE=/var/cache/vort2x/kernel-source
 
 kernel_source_tree() {
 	local kver=$1

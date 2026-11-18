@@ -6,11 +6,11 @@ require_root
 require_repo_root
 require_fedora
 
-# Without arguments every app is installed. kait2en-update names only the
+# Without arguments every app is installed. vort2x-update names only the
 # apps whose sources changed, for example: install-apps.sh t2-fan-control
 SELECTED_APPS=("$@")
-[[ ${#SELECTED_APPS[@]} -gt 0 || -z "${KAIT2EN_APPS:-}" ]] ||
-	IFS=, read -r -a SELECTED_APPS <<<"$KAIT2EN_APPS"
+[[ ${#SELECTED_APPS[@]} -gt 0 || -z "${VORT2X_APPS:-}" ]] ||
+	IFS=, read -r -a SELECTED_APPS <<<"$VORT2X_APPS"
 
 wanted() {
 	local app
@@ -22,7 +22,7 @@ wanted() {
 }
 
 OBSOLETE_UNITS=(
-	kait2en-t2-smc-charge-limit.service
+	vort2x-t2-smc-charge-limit.service
 )
 
 remove_obsolete_apps() {
@@ -114,7 +114,7 @@ install_rust_app() {
 		return 0
 	fi
 	if [[ "$name" == t2-journal ]]; then
-		python3 "$REPO_ROOT/packaging/lifecycle/kait2en-lifecycle.py" t2-journal record-source || warn "could not record t2-journal installation ownership"
+		python3 "$REPO_ROOT/packaging/lifecycle/vort2x-lifecycle.py" t2-journal record-source || warn "could not record t2-journal installation ownership"
 	fi
 	mark_applied "app:$name"
 }
@@ -172,14 +172,14 @@ install_gpu_control() {
 }
 
 install_app_assets() {
-	install -d -o root -g root -m 0755 /usr/local/share/kait2en
+	install -d -o root -g root -m 0755 /usr/local/share/vort2x
 	install -o root -g root -m 0644 \
-		"$REPO_ROOT/assets/kait2en-app-logo.png" \
-		/usr/local/share/kait2en/kait2en-wordmark.png
+		"$REPO_ROOT/assets/vort2x-app-logo.png" \
+		/usr/local/share/vort2x/vort2x-wordmark.png
 	install -o root -g root -m 0644 \
-		"$REPO_ROOT/assets/kait2en-app-logo-light.png" \
-		/usr/local/share/kait2en/kait2en-wordmark-light.png
-	install_kait2en_fonts
+		"$REPO_ROOT/assets/vort2x-app-logo-light.png" \
+		/usr/local/share/vort2x/vort2x-wordmark-light.png
+	install_vort2x_fonts
 }
 run_step "install app assets" install_app_assets
 (( STEP_STATUS == 0 )) && mark_applied app:assets
@@ -198,21 +198,21 @@ fi
 if ! wanted t2-touchbar; then
 	:
 elif ! has_touch_bar; then
-	info "no Touch Bar on this model; skipping kait2en-touchbar"
-elif [[ "${KAIT2EN_INSTALL_TOUCHBAR:-1}" == 1 ]]; then
-	run_step "kait2en-touchbar" install_touchbar
-elif [[ -x /usr/local/bin/kait2en-touchbar ]]; then
-	info "kait2en-touchbar not selected; the existing installation is left unchanged"
+	info "no Touch Bar on this model; skipping vort2x-touchbar"
+elif [[ "${VORT2X_INSTALL_TOUCHBAR:-1}" == 1 ]]; then
+	run_step "vort2x-touchbar" install_touchbar
+elif [[ -x /usr/local/bin/vort2x-touchbar ]]; then
+	info "vort2x-touchbar not selected; the existing installation is left unchanged"
 	info "remove it with: sudo $REPO_ROOT/apps/t2-touchbar/uninstall.sh"
 else
-	info "kait2en-touchbar not selected; the native Touch Bar row stays active"
+	info "vort2x-touchbar not selected; the native Touch Bar row stays active"
 fi
 # T2 TrueTone needs the ambient light sensor and GNOME Shell. On any other
 # Mac an installation from an earlier run is removed.
 remove_truetone() {
 	info "removing t2-truetone, this Mac has no ambient light sensor or no GNOME Shell"
 	make -C "$REPO_ROOT/apps/t2-truetone" uninstall || warn "could not remove t2-truetone"
-	rm -f /var/lib/kait2en-installer/applied/app:t2-truetone
+	rm -f /var/lib/vort2x-installer/applied/app:t2-truetone
 }
 if ! wanted t2-truetone; then
 	:
@@ -227,8 +227,8 @@ wanted t2-journal && run_step "t2-journal" install_rust_app "$REPO_ROOT/t2-servi
 wanted gpu-control && run_step "GPU control" install_gpu_control
 run_step "remove t2-cpu-control" remove_t2_cpu_control
 wanted t2-zone-power && run_step "t2-zone-power" install_rust_app "$REPO_ROOT/apps/t2-zone-power" "t2-zone-power"
-if wanted kait2en-update; then
-	run_step "kait2en-update" install_rust_app "$REPO_ROOT/apps/kait2en-update" "kait2en-update"
+if wanted vort2x-update; then
+	run_step "vort2x-update" install_rust_app "$REPO_ROOT/apps/vort2x-update" "vort2x-update"
 fi
 if ! wanted t2-kernel-builder; then
 	:

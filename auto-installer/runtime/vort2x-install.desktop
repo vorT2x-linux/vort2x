@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install or update VorT2x
+Comment=Install or update VorT2x on this T2 Mac
+Exec=/usr/local/bin/vort2x-launch-terminal
+Terminal=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

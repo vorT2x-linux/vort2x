@@ -1185,11 +1185,11 @@ mod tests {
     }
 
     /// Renders both layers and the Touch ID prompt for design review:
-    /// `KAIT2EN_TOUCHBAR_PREVIEW=/tmp/tb cargo test preview -- --ignored`
+    /// `VORT2X_TOUCHBAR_PREVIEW=/tmp/tb cargo test preview -- --ignored`
     #[test]
     #[ignore]
     fn preview() {
-        let dir = std::env::var("KAIT2EN_TOUCHBAR_PREVIEW").unwrap_or_else(|_| ".".into());
+        let dir = std::env::var("VORT2X_TOUCHBAR_PREVIEW").unwrap_or_else(|_| ".".into());
         let mut canvas = Canvas::new(2170, 60, 0x00dce6ff).unwrap();
         let save = |name: &str, canvas: &Canvas| {
             let mut ppm = format!("P6 {} {} 255\n", canvas.width, canvas.height).into_bytes();

@@ -2,9 +2,9 @@
 # Failure injection: no root privileges, host installation or hardware needed.
 set -Eeuo pipefail
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-work=$(mktemp -d /tmp/kait2en-error-test.XXXXXX)
+work=$(mktemp -d /tmp/vort2x-error-test.XXXXXX)
 trap 'rm -rf -- "$work"' EXIT
-export KAIT2EN_INSTALL_ERRORS="$work/errors"
+export VORT2X_INSTALL_ERRORS="$work/errors"
 export TEST_LIB="$repo_root/scripts/fedora/lib.sh"
 
 bash -c '
@@ -42,7 +42,7 @@ grep -q 'reported warning' "$work/summary"
 # A lone warning (e.g. a step skipping itself on unsupported hardware) must
 # not fail the whole installation, or the auto-installer never marks it
 # complete and re-runs it forever.
-if ! KAIT2EN_INSTALL_ERRORS="$work/warn-only-errors" bash -c 'source "$TEST_LIB"; INSTALL_REPORT_OWNER=1; warn "just a warning"; printf "FINISHED\n"' >"$work/warn-only" 2>&1; then
+if ! VORT2X_INSTALL_ERRORS="$work/warn-only-errors" bash -c 'source "$TEST_LIB"; INSTALL_REPORT_OWNER=1; warn "just a warning"; printf "FINISHED\n"' >"$work/warn-only" 2>&1; then
 	printf 'error: a lone warning failed the installation\n' >&2
 	exit 1
 fi
@@ -50,6 +50,6 @@ grep -q FINISHED "$work/warn-only"
 grep -q 'completed with warnings' "$work/warn-only"
 grep -q 'just a warning' "$work/warn-only"
 
-KAIT2EN_INSTALL_ERRORS="$work/clean-errors" bash -c 'source "$TEST_LIB"; INSTALL_REPORT_OWNER=1; run_step success true' >"$work/clean" 2>&1
+VORT2X_INSTALL_ERRORS="$work/clean-errors" bash -c 'source "$TEST_LIB"; INSTALL_REPORT_OWNER=1; run_step success true' >"$work/clean" 2>&1
 grep -q 'without recorded errors' "$work/clean"
 printf 'Installer failure collection and continuation: PASS\n'

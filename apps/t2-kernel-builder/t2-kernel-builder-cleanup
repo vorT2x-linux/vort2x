@@ -22,8 +22,8 @@ MACSMC_MODULES = (
     "macsmc_accel", "leds_macsmc", "macsmc_wdt", "rtc_macsmc",
     "macsmc_power",
 )
-DRACUT_CONFIG = pathlib.Path("/etc/dracut.conf.d/90-kait2en-input.conf")
-DKMS_OVERRIDE = pathlib.Path("/etc/dkms/framework.conf.d/kait2en-disable-post-transaction.conf")
+DRACUT_CONFIG = pathlib.Path("/etc/dracut.conf.d/90-vort2x-input.conf")
+DKMS_OVERRIDE = pathlib.Path("/etc/dkms/framework.conf.d/vort2x-disable-post-transaction.conf")
 
 def fail(message):
     print(f"t2-kernel-builder-cleanup: {message}", file=sys.stderr)
@@ -122,12 +122,12 @@ if len(sys.argv) in (4, 5) and sys.argv[1] == "install-kernel":
         DKMS_OVERRIDE.write_text('post_transaction=""\n', encoding="utf-8")
         os.chmod(DKMS_OVERRIDE, 0o644)
 
-        print("[kait2en-progress] phase=install-modules", flush=True)
+        print("[vort2x-progress] phase=install-modules", flush=True)
         run(["make", "-C", str(tree), "INSTALL_MOD_STRIP=1", "modules_install"], cancel_file)
         if previous_modules is not None and (previous_modules / "extra").is_dir():
             shutil.copytree(previous_modules / "extra", module_dir / "extra", dirs_exist_ok=True)
 
-        print("[kait2en-progress] phase=install-dkms", flush=True)
+        print("[vort2x-progress] phase=install-dkms", flush=True)
         status = subprocess.run(
             ["dkms", "status", "-k", release], text=True, capture_output=True, check=True,
         ).stdout
@@ -172,10 +172,10 @@ if len(sys.argv) in (4, 5) and sys.argv[1] == "install-kernel":
             )
             os.chmod(DRACUT_CONFIG, 0o644)
 
-        print("[kait2en-progress] phase=install-boot", flush=True)
+        print("[vort2x-progress] phase=install-boot", flush=True)
         run(["make", "-C", str(tree), "install"], cancel_file)
 
-        print("[kait2en-progress] phase=verify-install", flush=True)
+        print("[vort2x-progress] phase=verify-install", flush=True)
         initramfs = pathlib.Path("/boot") / f"initramfs-{release}.img"
         if not initramfs.is_file():
             fail(f"kernel installation did not create {initramfs}")

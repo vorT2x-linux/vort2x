@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.fedoraproject.Anaconda.Addons.VorT2x
+Exec=/usr/libexec/anaconda/start-module com_vort2x_input.service
+User=root

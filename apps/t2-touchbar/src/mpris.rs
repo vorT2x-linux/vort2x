@@ -125,7 +125,7 @@ pub fn watch() -> Result<(Receiver<MediaEvent>, UnixStream)> {
             loop {
                 if let Err(error) = listen(&sender, &mut wake_writer) {
                     if !reported {
-                        eprintln!("kait2en-touchbar: track listener: {error:#}");
+                        eprintln!("vort2x-touchbar: track listener: {error:#}");
                         reported = true;
                     }
                     thread::sleep(Duration::from_secs(30));

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=VorT2x Update
+Comment=Update VorT2x and install only what changed
+Exec=/usr/local/bin/vort2x-update
+Icon=org.vort2xupdate.gtk
+Terminal=false
+Categories=System;Settings;
+Keywords=update;upgrade;install;T2;Mac;VorT2x;
+StartupNotify=true

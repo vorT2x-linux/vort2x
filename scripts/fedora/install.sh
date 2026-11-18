@@ -7,24 +7,24 @@ require_repo_root
 require_fedora
 require_min_kernel 7 0
 
-GDM_BRANDING_MARKER=/etc/dconf/db/gdm.d/00-kait2en
+GDM_BRANDING_MARKER=/etc/dconf/db/gdm.d/00-vort2x
 
-# --only step,step runs just those steps, as kait2en-update does after it
+# --only step,step runs just those steps, as vort2x-update does after it
 # compared the installed state with GitHub. Optional parts then keep what is
 # installed, no question is asked.
 ONLY_STEPS=()
 if [[ ${1:-} == --only ]]; then
 	[[ -n ${2:-} ]] || fail "usage: install.sh [--only step,step,...]"
 	IFS=, read -r -a ONLY_STEPS <<<"$2"
-	if [[ -z "${KAIT2EN_INSTALL_TOUCHBAR:-}" ]]; then
-		KAIT2EN_INSTALL_TOUCHBAR=0
-		[[ -x /usr/local/bin/kait2en-touchbar ]] && KAIT2EN_INSTALL_TOUCHBAR=1
+	if [[ -z "${VORT2X_INSTALL_TOUCHBAR:-}" ]]; then
+		VORT2X_INSTALL_TOUCHBAR=0
+		[[ -x /usr/local/bin/vort2x-touchbar ]] && VORT2X_INSTALL_TOUCHBAR=1
 	fi
-	if [[ -z "${KAIT2EN_INSTALL_GDM_BRANDING:-}" ]]; then
-		KAIT2EN_INSTALL_GDM_BRANDING=0
-		[[ -e "$GDM_BRANDING_MARKER" ]] && KAIT2EN_INSTALL_GDM_BRANDING=1
+	if [[ -z "${VORT2X_INSTALL_GDM_BRANDING:-}" ]]; then
+		VORT2X_INSTALL_GDM_BRANDING=0
+		[[ -e "$GDM_BRANDING_MARKER" ]] && VORT2X_INSTALL_GDM_BRANDING=1
 	fi
-	KAIT2EN_INSTALL_VORNEHM=0
+	VORT2X_INSTALL_EDDY=0
 elif (( $# > 0 )); then
 	fail "usage: install.sh [--only step,step,...]"
 fi
@@ -37,22 +37,22 @@ selected() {
 	done
 	return 1
 }
-selected install-vornehm.sh && (( ${#ONLY_STEPS[@]} > 0 )) && KAIT2EN_INSTALL_VORNEHM=1
+selected install-eddy.sh && (( ${#ONLY_STEPS[@]} > 0 )) && VORT2X_INSTALL_EDDY=1
 
 # Asked before anything runs so the rest of the installation is unattended.
-# KAIT2EN_INSTALL_TOUCHBAR=1|0 answers it ahead of time. Without a terminal
+# VORT2X_INSTALL_TOUCHBAR=1|0 answers it ahead of time. Without a terminal
 # the previous default (install) is kept.
 ask_touchbar() {
 	local answer
 	if ! has_touch_bar; then
-		KAIT2EN_INSTALL_TOUCHBAR=0
+		VORT2X_INSTALL_TOUCHBAR=0
 		return
 	fi
-	case "${KAIT2EN_INSTALL_TOUCHBAR:-}" in
+	case "${VORT2X_INSTALL_TOUCHBAR:-}" in
 		1 | 0) return ;;
 	esac
 	if [[ ! -t 0 ]]; then
-		KAIT2EN_INSTALL_TOUCHBAR=1
+		VORT2X_INSTALL_TOUCHBAR=1
 		return
 	fi
 	cat <<'TEXT'
@@ -73,71 +73,71 @@ T2 Touch Bar (optional)
   active.
 
 TEXT
-	read -r -p "Install kait2en-touchbar? [Y/n] " answer || answer=
+	read -r -p "Install vort2x-touchbar? [Y/n] " answer || answer=
 	case "${answer,,}" in
-		n | no) KAIT2EN_INSTALL_TOUCHBAR=0 ;;
-		*) KAIT2EN_INSTALL_TOUCHBAR=1 ;;
+		n | no) VORT2X_INSTALL_TOUCHBAR=0 ;;
+		*) VORT2X_INSTALL_TOUCHBAR=1 ;;
 	esac
 }
 ask_touchbar
-export KAIT2EN_INSTALL_TOUCHBAR
+export VORT2X_INSTALL_TOUCHBAR
 
-# KAIT2EN_INSTALL_GDM_BRANDING=1|0 answers it ahead of time. Without a
+# VORT2X_INSTALL_GDM_BRANDING=1|0 answers it ahead of time. Without a
 # terminal the previous default (install) is kept.
 ask_gdm_branding() {
 	local answer
 	if [[ ! -d /etc/dconf/db/gdm.d ]]; then
-		KAIT2EN_INSTALL_GDM_BRANDING=0
+		VORT2X_INSTALL_GDM_BRANDING=0
 		return
 	fi
-	case "${KAIT2EN_INSTALL_GDM_BRANDING:-}" in
+	case "${VORT2X_INSTALL_GDM_BRANDING:-}" in
 		1 | 0) return ;;
 	esac
 	if [[ ! -t 0 ]]; then
-		KAIT2EN_INSTALL_GDM_BRANDING=1
+		VORT2X_INSTALL_GDM_BRANDING=1
 		return
 	fi
 	cat <<'TEXT'
 
-KaiT2en login screen (optional)
+VorT2x login screen (optional)
 
-  Gives the GDM login screen a black background and the KaiT2en logo.
+  Gives the GDM login screen a black background and the VorT2x logo.
   Remove it at any time with install-gdm-branding.sh --remove or in
-  KaiT2en Update.
+  VorT2x Update.
 
   Without it, the login screen keeps the Fedora look.
 
 TEXT
-	read -r -p "Install the KaiT2en login screen? [Y/n] " answer || answer=
+	read -r -p "Install the VorT2x login screen? [Y/n] " answer || answer=
 	case "${answer,,}" in
-		n | no) KAIT2EN_INSTALL_GDM_BRANDING=0 ;;
-		*) KAIT2EN_INSTALL_GDM_BRANDING=1 ;;
+		n | no) VORT2X_INSTALL_GDM_BRANDING=0 ;;
+		*) VORT2X_INSTALL_GDM_BRANDING=1 ;;
 	esac
 }
 ask_gdm_branding
 
-# KaiT2en Vornehm changes the GNOME desktop of the user who runs sudo, so
-# it is only offered when GNOME is there. KAIT2EN_INSTALL_VORNEHM=1|0
+# VorT2x Eddy changes the GNOME desktop of the user who runs sudo, so
+# it is only offered when GNOME is there. VORT2X_INSTALL_EDDY=1|0
 # answers it ahead of time. Without a terminal nothing is changed.
-VORNEHM_USER=${SUDO_USER:-}
+EDDY_USER=${SUDO_USER:-}
 
 # Runs a command as that user, inside the running session when there is one.
-as_vornehm_user() {
+as_eddy_user() {
 	local uid home runtime
-	uid=$(id -u "$VORNEHM_USER")
-	home=$(getent passwd "$VORNEHM_USER" | cut -d: -f6)
+	uid=$(id -u "$EDDY_USER")
+	home=$(getent passwd "$EDDY_USER" | cut -d: -f6)
 	runtime=/run/user/$uid
 	if [[ -S "$runtime/bus" ]]; then
-		runuser -u "$VORNEHM_USER" -- env HOME="$home" XDG_RUNTIME_DIR="$runtime" \
+		runuser -u "$EDDY_USER" -- env HOME="$home" XDG_RUNTIME_DIR="$runtime" \
 			DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" "$@"
 	else
-		runuser -u "$VORNEHM_USER" -- env HOME="$home" dbus-run-session -- "$@"
+		runuser -u "$EDDY_USER" -- env HOME="$home" dbus-run-session -- "$@"
 	fi
 }
 
 # A shell setting that holds a list of extension UUIDs, one per line.
 extension_setting() {
-	as_vornehm_user gsettings get org.gnome.shell "$1" 2>/dev/null |
+	as_eddy_user gsettings get org.gnome.shell "$1" 2>/dev/null |
 		tr -d "[]'," | tr ' ' '\n' | grep -v -e '^$' -e '^@as$' | sort || true
 }
 
@@ -147,15 +147,15 @@ extension_setting() {
 # official GNOME extensions are never listed, so a fresh install shows none.
 active_extensions() {
 	local home uuids uuid dir name defaults
-	home=$(getent passwd "$VORNEHM_USER" | cut -d: -f6)
+	home=$(getent passwd "$EDDY_USER" | cut -d: -f6)
 	defaults=$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions 2>/dev/null) || defaults=
-	if ! uuids=$(as_vornehm_user gnome-extensions list --enabled 2>/dev/null); then
-		[[ $(as_vornehm_user gsettings get org.gnome.shell disable-user-extensions 2>/dev/null) == true ]] &&
+	if ! uuids=$(as_eddy_user gnome-extensions list --enabled 2>/dev/null); then
+		[[ $(as_eddy_user gsettings get org.gnome.shell disable-user-extensions 2>/dev/null) == true ]] &&
 			return 0
 		uuids=$(comm -23 <(extension_setting enabled-extensions) <(extension_setting disabled-extensions))
 	fi
 	for uuid in $uuids; do
-		[[ $uuid == kait2en-* || $uuid == *@gnome-shell-extensions.gcampax.github.com ]] && continue
+		[[ $uuid == vort2x-* || $uuid == *@gnome-shell-extensions.gcampax.github.com ]] && continue
 		[[ $defaults == *"'$uuid'"* ]] && continue
 		for dir in "$home/.local/share/gnome-shell/extensions/$uuid" \
 			"/usr/local/share/gnome-shell/extensions/$uuid" \
@@ -169,30 +169,30 @@ active_extensions() {
 	done
 }
 
-ask_vornehm() {
+ask_eddy() {
 	local answer extensions
-	if ! command -v gnome-shell >/dev/null 2>&1 || [[ -z "$VORNEHM_USER" || "$VORNEHM_USER" == root ]]; then
-		KAIT2EN_INSTALL_VORNEHM=0
+	if ! command -v gnome-shell >/dev/null 2>&1 || [[ -z "$EDDY_USER" || "$EDDY_USER" == root ]]; then
+		VORT2X_INSTALL_EDDY=0
 		return
 	fi
-	case "${KAIT2EN_INSTALL_VORNEHM:-}" in
+	case "${VORT2X_INSTALL_EDDY:-}" in
 		1 | 0) return ;;
 	esac
 	if [[ ! -t 0 ]]; then
-		KAIT2EN_INSTALL_VORNEHM=0
+		VORT2X_INSTALL_EDDY=0
 		return
 	fi
 	cat <<'TEXT'
 
-KaiT2en Vornehm (optional)
+VorT2x Eddy (optional)
 
-  KaiT2en Vornehm is a calm, dark look for GNOME. Darker surfaces with fine
+  VorT2x Eddy is a calm, dark look for GNOME. Darker surfaces with fine
   chrome rims, frosted glass behind menus, dialogs and notifications, a
   slim dock whose icons lift on hover, app icons on dark tiles, graphite
   folders and a blurred wallpaper in the overview. It switches GNOME to dark
-  style and sets a BLACK wallpaper by Jean-Marc Denis. There is nothing to
-  configure. Remove it at any time with install-vornehm.sh --remove, which
-  brings back your previous wallpaper, style and icons.
+  style and keeps your own wallpaper. There is nothing to configure. Remove
+  it at any time with install-eddy.sh --remove, which brings back your
+  previous style and icons.
 
   Without it, GNOME keeps its own look.
 
@@ -200,38 +200,38 @@ TEXT
 	extensions=$(active_extensions | sort -f)
 	if [[ -n "$extensions" ]]; then
 		cat <<'TEXT'
-  (Ignore on fresh KaiT2en installs) Extensions you added yourself
+  (Ignore on fresh VorT2x installs) Extensions you added yourself
   can get in the way, especially ones that restyle the shell. These
   are currently active :
 
 TEXT
 		printf '%s\n\n' "$extensions"
 		cat <<'TEXT'
-  It is best to switch all of them off, try KaiT2en Vornehm and then turn
+  It is best to switch all of them off, try VorT2x Eddy and then turn
   them back on one by one, so you notice any side effect right away.
 
 TEXT
 	fi
-	read -r -p "Install KaiT2en Vornehm for $VORNEHM_USER? [Y/n] " answer || answer=
+	read -r -p "Install VorT2x Eddy for $EDDY_USER? [Y/n] " answer || answer=
 	case "${answer,,}" in
-		n | no) KAIT2EN_INSTALL_VORNEHM=0 ;;
-		*) KAIT2EN_INSTALL_VORNEHM=1 ;;
+		n | no) VORT2X_INSTALL_EDDY=0 ;;
+		*) VORT2X_INSTALL_EDDY=1 ;;
 	esac
 }
-ask_vornehm
+ask_eddy
 
-install_vornehm() {
-	as_vornehm_user bash "$SCRIPT_DIR/install-vornehm.sh"
+install_eddy() {
+	as_eddy_user bash "$SCRIPT_DIR/install-eddy.sh"
 }
 
 install_multicall() {
 	install -d -o root -g root -m 0755 /usr/local/bin
-	install -o root -g root -m 0755 "$SCRIPT_DIR/kait2en-multicall" /usr/local/bin/kait2en-multicall
-	ln -sfn kait2en-multicall /usr/local/bin/edit-grub
-	ln -sfn kait2en-multicall /usr/local/bin/update-grub
-	ln -sfn kait2en-multicall /usr/local/bin/boot-macos
-	ln -sfn kait2en-multicall /usr/local/bin/update-modules
-	ln -sfn kait2en-multicall /usr/local/bin/update-apps
+	install -o root -g root -m 0755 "$SCRIPT_DIR/vort2x-multicall" /usr/local/bin/vort2x-multicall
+	ln -sfn vort2x-multicall /usr/local/bin/edit-grub
+	ln -sfn vort2x-multicall /usr/local/bin/update-grub
+	ln -sfn vort2x-multicall /usr/local/bin/boot-macos
+	ln -sfn vort2x-multicall /usr/local/bin/update-modules
+	ln -sfn vort2x-multicall /usr/local/bin/update-apps
 }
 if selected command-helpers; then
 	run_step "install command helpers" install_multicall
@@ -285,12 +285,12 @@ fi
 failed_steps=()
 for step in "${STEPS[@]}"; do
 	selected "$step" || continue
-	if [[ "$step" == install-gdm-branding.sh && $KAIT2EN_INSTALL_GDM_BRANDING != 1 ]]; then
+	if [[ "$step" == install-gdm-branding.sh && $VORT2X_INSTALL_GDM_BRANDING != 1 ]]; then
 		if [[ -e "$GDM_BRANDING_MARKER" ]]; then
-			info "KaiT2en login screen not selected, the existing branding is left unchanged"
+			info "VorT2x login screen not selected, the existing branding is left unchanged"
 			info "remove it with: sudo $SCRIPT_DIR/install-gdm-branding.sh --remove"
 		else
-			info "KaiT2en login screen not selected, GDM keeps the Fedora look"
+			info "VorT2x login screen not selected, GDM keeps the Fedora look"
 		fi
 		continue
 	fi
@@ -312,19 +312,19 @@ for step in "${STEPS[@]}"; do
 	fi
 done
 
-if [[ $KAIT2EN_INSTALL_VORNEHM == 1 ]]; then
-	run_step "KaiT2en Vornehm for $VORNEHM_USER" install_vornehm
+if [[ $VORT2X_INSTALL_EDDY == 1 ]]; then
+	run_step "VorT2x Eddy for $EDDY_USER" install_eddy
 	if (( STEP_STATUS == 0 )); then
-		mark_applied install-vornehm.sh
+		mark_applied install-eddy.sh
 	else
-		failed_steps+=(install-vornehm.sh)
+		failed_steps+=(install-eddy.sh)
 	fi
-elif (( ${#ONLY_STEPS[@]} == 0 )) && [[ -n "$VORNEHM_USER" && "$VORNEHM_USER" != root ]] && command -v gnome-shell >/dev/null 2>&1; then
-	info "KaiT2en Vornehm not selected; add it later with: $SCRIPT_DIR/install-vornehm.sh"
+elif (( ${#ONLY_STEPS[@]} == 0 )) && [[ -n "$EDDY_USER" && "$EDDY_USER" != root ]] && command -v gnome-shell >/dev/null 2>&1; then
+	info "VorT2x Eddy not selected; add it later with: $SCRIPT_DIR/install-eddy.sh"
 fi
 
 if (( ${#failed_steps[@]} > 0 )); then
 	warn "installation completed with errors in: ${failed_steps[*]}"
 fi
-info "All Kait2en installation steps have been attempted"
+info "All Vort2x installation steps have been attempted"
 info "reboot after reviewing the output"

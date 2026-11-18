@@ -2,7 +2,7 @@
 
 Adds an extended display to GNOME for streaming the desktop to a tablet, the
 counterpart of macOS Sidecar. The T2 encodes the stream through the
-`t2-sidecar` encoder, see `website/docs/post-install/sidecar.md`.
+`t2-sidecar` encoder, see the [sidecar guide](https://github.com/kaiT2en/KaiT2en-Fedora/blob/30e367b/website/docs/post-install/sidecar.md) from KAIT2EN (VorT2x docs to follow).
 
 ```bash
 t2-sidecar on              # mode used last, first time 1920x1200 at 60 Hz

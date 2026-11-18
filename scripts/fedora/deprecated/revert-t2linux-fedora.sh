@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Reverts a T2 Linux Fedora installation to vanilla Fedora + KAIT2EN.
+# Reverts a T2 Linux Fedora installation to vanilla Fedora + VORT2X.
 # Removes the sharpenedblade/t2linux COPR, the t2linux support packages
 # (t2linux-config, t2linux-audio, t2fanrd, tiny-dfr, ...) and their config
 # leftovers, resets stored WirePlumber defaults, distro-syncs the kernel back
 # to the Fedora repositories and rebuilds the initramfs for non-.t2 kernels.
-# Run it AFTER the KAIT2EN installer has completed. KAIT2EN files are left
+# Run it AFTER the VORT2X installer has completed. VORT2X files are left
 # untouched. Reboot afterwards.
 #
 # Restored from howto/migration/revert-t2linux-fedora.md (removed in 10ac212).

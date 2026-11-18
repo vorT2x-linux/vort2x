@@ -6,13 +6,13 @@ require_root
 require_repo_root
 require_fedora
 
-BRANDING_SRC="$REPO_ROOT/assets/gdm/00-kait2en"
-LOGO_SRC="$REPO_ROOT/assets/gdm/kait2en-gdm-logo.png"
+BRANDING_SRC="$REPO_ROOT/assets/gdm/00-vort2x"
+LOGO_SRC="$REPO_ROOT/assets/gdm/vort2x-gdm-logo.png"
 BACKGROUND_SRC="$REPO_ROOT/assets/gdm/gdm-black.png"
-THEME_CSS_SRC="$REPO_ROOT/assets/gdm/kait2en-gdm.css"
-BRANDING_DST=/etc/dconf/db/gdm.d/00-kait2en
-LOGO_DST=/usr/share/pixmaps/kait2en-gdm-logo.png
-BACKGROUND_DST=/usr/share/backgrounds/kait2en/gdm-black.png
+THEME_CSS_SRC="$REPO_ROOT/assets/gdm/vort2x-gdm.css"
+BRANDING_DST=/etc/dconf/db/gdm.d/00-vort2x
+LOGO_DST=/usr/share/pixmaps/vort2x-gdm-logo.png
+BACKGROUND_DST=/usr/share/backgrounds/vort2x/gdm-black.png
 
 # --remove takes the branding out again and leaves GDM as Fedora ships it.
 REMOVE=0
@@ -29,10 +29,10 @@ for command_name in cat dconf glib-compile-resources gresource install mktemp re
 done
 [[ -d /etc/dconf/db/gdm.d ]] || missing_requirements+=("GDM dconf database")
 if (( REMOVE == 0 )); then
-	[[ -r "$BRANDING_SRC" ]] || missing_requirements+=("asset 00-kait2en")
-	[[ -r "$LOGO_SRC" ]] || missing_requirements+=("asset kait2en-gdm-logo.png")
+	[[ -r "$BRANDING_SRC" ]] || missing_requirements+=("asset 00-vort2x")
+	[[ -r "$LOGO_SRC" ]] || missing_requirements+=("asset vort2x-gdm-logo.png")
 	[[ -r "$BACKGROUND_SRC" ]] || missing_requirements+=("asset gdm-black.png")
-	[[ -r "$THEME_CSS_SRC" ]] || missing_requirements+=("asset kait2en-gdm.css")
+	[[ -r "$THEME_CSS_SRC" ]] || missing_requirements+=("asset vort2x-gdm.css")
 fi
 
 if (( ${#missing_requirements[@]} > 0 )); then
@@ -40,7 +40,7 @@ if (( ${#missing_requirements[@]} > 0 )); then
 	exit 0
 fi
 
-# Rebuilds the GNOME Shell theme. Earlier KaiT2en additions sit at the end of
+# Rebuilds the GNOME Shell theme. Earlier VorT2x additions sit at the end of
 # the theme, so they are cut off, and unless REMOVE is set the current
 # stylesheet is appended once.
 patch_gnome_shell_theme() {
@@ -48,7 +48,7 @@ patch_gnome_shell_theme() {
 	theme_resource=$(readlink -f /usr/share/gnome-shell/gnome-shell-theme.gresource) || return 1
 	[[ -r "$theme_resource" ]] || return 1
 
-	work=$(mktemp -d /tmp/kait2en-gdm-theme.XXXXXX) || return 1
+	work=$(mktemp -d /tmp/vort2x-gdm-theme.XXXXXX) || return 1
 	manifest="$work/gnome-shell-theme.gresource.xml"
 
 	printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
@@ -68,7 +68,7 @@ patch_gnome_shell_theme() {
 
 	for css_file in "$work"/gnome-shell-*.css; do
 		[[ -f "$css_file" ]] || continue
-		sed -i '/^\/\* KaiT2en GDM/,$d' "$css_file"
+		sed -i '/^\/\* VorT2x GDM/,$d' "$css_file"
 		(( REMOVE == 1 )) && continue
 		printf '\n' >>"$css_file"
 		cat "$THEME_CSS_SRC" >>"$css_file"
@@ -88,16 +88,16 @@ patch_gnome_shell_theme() {
 }
 
 if (( REMOVE == 1 )); then
-	info "removing KaiT2en GDM branding"
+	info "removing VorT2x GDM branding"
 	rm -f "$BRANDING_DST" "$LOGO_DST" "$BACKGROUND_DST"
 	rmdir "${BACKGROUND_DST%/*}" 2>/dev/null || true
 	dconf update || warn "could not update the GDM dconf database"
 	patch_gnome_shell_theme || warn "could not restore the GNOME Shell login theme"
-	info "KaiT2en GDM branding removed"
+	info "VorT2x GDM branding removed"
 	exit 0
 fi
 
-info "installing KaiT2en GDM branding"
+info "installing VorT2x GDM branding"
 if ! install -d -o root -g root -m 0755 "${BACKGROUND_DST%/*}"; then
 	warn "could not create the GDM background directory; leaving the existing login screen unchanged"
 	exit 0
@@ -123,4 +123,4 @@ if ! patch_gnome_shell_theme; then
 	exit 0
 fi
 
-info "KaiT2en GDM branding installed"
+info "VorT2x GDM branding installed"

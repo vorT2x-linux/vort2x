@@ -1,5 +1,5 @@
 #!/bin/bash
-# Adapted from the KaiT2en guide. Special thanks to Deqrocks and the KaiT2en contributors.
+# Adapted from the VorT2x guide. Special thanks to Deqrocks and the VorT2x contributors.
 # EFI partition transfer method credit goes to the T2 Linux guide.
 set -euo pipefail
 shopt -s nullglob

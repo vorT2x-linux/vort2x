@@ -19,12 +19,12 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk
 APP_ID = "org.t2kernelbuilder.gtk"
 APP_VERSION = "0.03"
 
-def kait2en_brand():
+def vort2x_brand():
     # White type for dark surfaces, dark type for light ones. Without the
     # light file the white one is used.
-    dark = GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
+    dark = GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
     try:
-        light = GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+        light = GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
     except GLib.Error:
         light = dark
     manager = Adw.StyleManager.get_default()
@@ -142,7 +142,7 @@ class KernelBuilder(Adw.Application):
         header = Adw.HeaderBar()
         header.set_title_widget(Adw.WindowTitle(title="Kernel Builder",
                                                 subtitle="Minimal Fedora kernels for T2 Macs"))
-        brand = kait2en_brand()
+        brand = vort2x_brand()
         brand.set_margin_start(10); brand.set_margin_end(10); header.pack_start(brand)
         root.append(header)
 
@@ -845,7 +845,7 @@ class KernelBuilder(Adw.Application):
                     GLib.idle_add(self.append_log, "".join(log_batch))
                     log_batch = []
                     last_log_flush = self.last_output_at
-                if ("[kait2en-progress]" in line or line.startswith(("Downloading ", "Extracting ",
+                if ("[vort2x-progress]" in line or line.startswith(("Downloading ", "Extracting ",
                                                                      "Preparing ", "Applying ", "Building "))):
                     GLib.idle_add(self.process_progress_line, line)
             if log_batch:
@@ -868,13 +868,13 @@ class KernelBuilder(Adw.Application):
             "Extracting Fedora source package": ("Extracting Fedora source", 0.28),
             "Preparing Fedora kernel sources": ("Preparing kernel source tree", 0.42),
             "Applying ": ("Applying and validating patches", 0.58),
-            "[kait2en-progress] phase=localmodconfig": ("Running localmodconfig", 0.78),
+            "[vort2x-progress] phase=localmodconfig": ("Running localmodconfig", 0.78),
             "Building ": ("Building kernel", 0.0),
-            "[kait2en-progress] phase=installing": ("Waiting for authorization, then installing", 0.98),
-            "[kait2en-progress] phase=install-modules": ("Installing kernel modules", 0.98),
-            "[kait2en-progress] phase=install-dkms": ("Installing DKMS modules", 0.98),
-            "[kait2en-progress] phase=install-boot": ("Creating kernel boot files and initramfs", 0.98),
-            "[kait2en-progress] phase=verify-install": ("Verifying installed kernel", 0.98),
+            "[vort2x-progress] phase=installing": ("Waiting for authorization, then installing", 0.98),
+            "[vort2x-progress] phase=install-modules": ("Installing kernel modules", 0.98),
+            "[vort2x-progress] phase=install-dkms": ("Installing DKMS modules", 0.98),
+            "[vort2x-progress] phase=install-boot": ("Creating kernel boot files and initramfs", 0.98),
+            "[vort2x-progress] phase=verify-install": ("Verifying installed kernel", 0.98),
         }
         for marker, (phase, fraction) in phases.items():
             if marker in line:

@@ -1,0 +1,13 @@
+[Unit]
+Description=Install Apple Bluetooth firmware in the VorT2x live session
+Documentation=https://github.com/vorT2x-linux/vort2x
+ConditionPathIsDirectory=/run/vort2x/apple-firmware
+After=local-fs.target systemd-modules-load.service vort2x-live-wifi.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/run/vort2x/vort2x-live-bluetooth
+
+[Install]
+WantedBy=multi-user.target

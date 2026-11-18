@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-script="$repo_root/auto-installer/runtime/kait2en-live-bluetooth"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-live-bt-test.XXXXXX")
+script="$repo_root/auto-installer/runtime/vort2x-live-bluetooth"
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-live-bt-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 # Every case gets its own fake sysfs, its own stubbed commands and a helper that
@@ -20,11 +20,11 @@ setup_case() {
 
 	printf '%s\n' '#!/bin/sh' 'exit 0' >"$case_dir/bin/journalctl"
 	printf '%s\n' '#!/bin/sh' 'exit 0' >"$case_dir/bin/dmesg"
-	printf '%s\n' '#!/bin/sh' 'echo "modprobe $*" >>"$KAIT2EN_TEST_LOG"' \
+	printf '%s\n' '#!/bin/sh' 'echo "modprobe $*" >>"$VORT2X_TEST_LOG"' \
 		>"$case_dir/bin/modprobe"
 	printf '%s\n' '#!/bin/sh' 'exit 0' >"$case_dir/bin/rfkill"
 	printf '%s\n' '#!/bin/sh' 'exit 0' >"$case_dir/bin/systemctl"
-	printf '%s\n' '#!/bin/sh' 'echo "helper $*" >>"$KAIT2EN_TEST_LOG"' \
+	printf '%s\n' '#!/bin/sh' 'echo "helper $*" >>"$VORT2X_TEST_LOG"' \
 		>"$case_dir/helper.sh"
 	chmod 0755 "$case_dir/bin"/* "$case_dir/helper.sh"
 	: >"$case_dir/log"
@@ -49,14 +49,14 @@ run_live() {
 	local case_dir=$1
 	env \
 		PATH="$case_dir/bin:$PATH" \
-		KAIT2EN_TEST_LOG="$case_dir/log" \
-		KAIT2EN_PCI_ROOT="$case_dir/pci" \
-		KAIT2EN_LIVE_BT_ROOT="$case_dir/bluetooth" \
-		KAIT2EN_LIVE_BT_SOURCE="$case_dir/source" \
-		KAIT2EN_BT_HELPER="$case_dir/helper.sh" \
-		KAIT2EN_LIVE_ROOT="$case_dir" \
-		KAIT2EN_LIVE_BT_REQUEST_TIMEOUT=0 \
-		KAIT2EN_LIVE_BT_LINK_TIMEOUT=0 \
+		VORT2X_TEST_LOG="$case_dir/log" \
+		VORT2X_PCI_ROOT="$case_dir/pci" \
+		VORT2X_LIVE_BT_ROOT="$case_dir/bluetooth" \
+		VORT2X_LIVE_BT_SOURCE="$case_dir/source" \
+		VORT2X_BT_HELPER="$case_dir/helper.sh" \
+		VORT2X_LIVE_ROOT="$case_dir" \
+		VORT2X_LIVE_BT_REQUEST_TIMEOUT=0 \
+		VORT2X_LIVE_BT_LINK_TIMEOUT=0 \
 		bash "$script"
 }
 

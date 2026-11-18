@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 helper="$repo_root/scripts/macos/download-fedora-iso.sh"
-test_root=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-iso-download-test.XXXXXX")
+test_root=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-iso-download-test.XXXXXX")
 trap 'rm -rf "$test_root"' EXIT
 fake_bin="$test_root/bin"
 mkdir -p "$fake_bin"
@@ -113,7 +113,7 @@ run_case() {
 	mkdir -p "${destination%/*}"
 	SCENARIO=$scenario CURL_LOG="$test_root/$scenario/curl.log" PATH="$fake_bin:$PATH" \
 		export SCENARIO CURL_LOG PATH
-	kait2en_download_iso "$destination" "$canonical" "$expected_size" "$expected_sha"
+	vort2x_download_iso "$destination" "$canonical" "$expected_size" "$expected_sha"
 	cmp <(printf '%s' "$payload") "$destination"
 }
 
@@ -150,7 +150,7 @@ write_dir="$test_root/local_write"
 mkdir -p "$write_dir"
 SCENARIO=local_write CURL_LOG="$write_dir/curl.log" PATH="$fake_bin:$PATH" \
 	export SCENARIO CURL_LOG PATH
-if kait2en_download_iso "$write_dir/Fedora-Test.iso" "$canonical" \
+if vort2x_download_iso "$write_dir/Fedora-Test.iso" "$canonical" \
 	"$expected_size" "$expected_sha" 2>"$write_dir/error"; then
 	printf 'local write failure unexpectedly succeeded\n' >&2
 	exit 1
@@ -164,7 +164,7 @@ mkdir -p "$cache_dir"
 printf '%s' "$payload" >"$cache_dir/Fedora-Test.iso"
 SCENARIO=all_fail CURL_LOG="$cache_dir/curl.log" PATH="$fake_bin:$PATH" \
 	export SCENARIO CURL_LOG PATH
-kait2en_download_iso "$cache_dir/Fedora-Test.iso" "$canonical" \
+vort2x_download_iso "$cache_dir/Fedora-Test.iso" "$canonical" \
 	"$expected_size" "$expected_sha"
 [[ ! -e "$cache_dir/curl.log" ]]
 
@@ -172,7 +172,7 @@ failure_dir="$test_root/all_fail"
 mkdir -p "$failure_dir"
 SCENARIO=all_fail CURL_LOG="$failure_dir/curl.log" PATH="$fake_bin:$PATH" \
 	export SCENARIO CURL_LOG PATH
-if kait2en_download_iso "$failure_dir/Fedora-Test.iso" "$canonical" \
+if vort2x_download_iso "$failure_dir/Fedora-Test.iso" "$canonical" \
 	"$expected_size" "$expected_sha" 2>"$failure_dir/error"; then
 	printf 'all-failure ISO download unexpectedly succeeded\n' >&2
 	exit 1
@@ -181,17 +181,17 @@ fi
 grep -Fq 'resumable partial file' "$failure_dir/error"
 grep -Fq 'the target disk was not changed' \
 	"$repo_root/scripts/macos/prepare-fedora-installer.sh"
-download_line=$(grep -n 'kait2en_download_iso "$ISO_PATH"' \
+download_line=$(grep -n 'vort2x_download_iso "$ISO_PATH"' \
 	"$repo_root/scripts/macos/prepare-fedora-installer.sh" | cut -d: -f1)
 disk_write_line=$(grep -n '^DISK_TOUCHED=1' \
 	"$repo_root/scripts/macos/prepare-fedora-installer.sh" | cut -d: -f1)
 ((download_line < disk_write_line))
 
-if kait2en_fedora_release_path 'https://evil.example/releases/44/Test.iso' >/dev/null; then
+if vort2x_fedora_release_path 'https://evil.example/releases/44/Test.iso' >/dev/null; then
 	printf 'unsafe Fedora host was accepted\n' >&2
 	exit 1
 fi
-if kait2en_fedora_release_path \
+if vort2x_fedora_release_path \
 	'https://download.fedoraproject.org/pub/fedora/linux/releases/44/../Test.iso' >/dev/null; then
 	printf 'unsafe Fedora path was accepted\n' >&2
 	exit 1

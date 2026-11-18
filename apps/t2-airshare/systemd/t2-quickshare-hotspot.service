@@ -1,6 +1,6 @@
 [Unit]
 Description=T2 AirShare hotspot for Quick Share transfers over Bluetooth
-Documentation=https://github.com/kaiT2en/KaiT2en-Fedora
+Documentation=https://github.com/vorT2x-linux/vort2x
 After=NetworkManager.service
 
 [Service]

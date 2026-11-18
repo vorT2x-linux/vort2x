@@ -18,10 +18,10 @@
 //! `t2-touchid` daemon stopped so only one session is open.
 //!
 //! ```text
-//! sudo systemctl stop kait2en-t2-touchid
+//! sudo systemctl stop vort2x-t2-touchid
 //! sudo ./t2-bio-enroll --uid 501 --token <32-hex> --yes          # arm + capture
 //! sudo ./t2-bio-enroll --uid 501 --token <32-hex> --yes --commit # also persist
-//! sudo systemctl start kait2en-t2-touchid
+//! sudo systemctl start vort2x-t2-touchid
 //! ```
 
 use std::time::Duration;

@@ -1,4 +1,4 @@
-# KAIT2EN audio DSP profile imacpro1_1 (iMacPro1,1)
+# VORT2X audio DSP profile imacpro1_1 (iMacPro1,1)
 
 Speaker DSP for the internal speakers of the iMacPro1,1: `graph.json` is the
 PipeWire filter-chain graph. There are no crosstalk cancellation FIRs

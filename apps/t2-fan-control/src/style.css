@@ -1,6 +1,6 @@
-/* KaiT2en app style. Self contained, it does not rely on any desktop theme. */
+/* VorT2x app style. Self contained, it does not rely on any desktop theme. */
 
-/* The ground matches the file view of KaiT2en Vornehm, cards its sidebar.
+/* The ground matches the file view of VorT2x Eddy, cards its sidebar.
  * Set on the widgets, not on the named colors, so a desktop theme that
  * redefines those colors cannot lighten the app.
  */
@@ -38,33 +38,33 @@ window.csd.fullscreen {
 }
 
 /* Interface text is sans, measured values are mono with tabular digits */
-.kait2en-heading {
+.vort2x-heading {
   font-weight: 600;
 }
 
-.kait2en-key {
+.vort2x-key {
   opacity: 0.62;
 }
 
-.kait2en-value {
+.vort2x-value {
   font-family: "JetBrains Mono";
   font-feature-settings: "tnum" 1;
 }
 
-.kait2en-meta {
+.vort2x-meta {
   font-size: smaller;
   opacity: 0.62;
 }
 
 /* Cards hold the graphs, flat with a hairline */
-.kait2en-card {
+.vort2x-card {
   border-radius: 10px;
   background-color: #e2e2e8;
   box-shadow: inset 0 0 0 1px RGB(0 0 0 / 8%);
 }
 
 @media (prefers-color-scheme: dark) {
-  .kait2en-card {
+  .vort2x-card {
     background-color: #0d0d0f;
     box-shadow: inset 0 0 0 1px RGB(255 255 255 / 6%);
   }

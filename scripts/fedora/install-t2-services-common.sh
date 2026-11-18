@@ -7,18 +7,18 @@ require_repo_root
 require_fedora
 require_command install nmcli rm systemctl readlink
 
-readonly CONNECTION="kait2en-t2-ncm"
-readonly OBSOLETE_SERVICE="kait2en-t2-ncm-down.service"
+readonly CONNECTION="vort2x-t2-ncm"
+readonly OBSOLETE_SERVICE="vort2x-t2-ncm-down.service"
 readonly OBSOLETE_SERVICE_FILE="/etc/systemd/system/$OBSOLETE_SERVICE"
-readonly OBSOLETE_HELPER="/usr/local/libexec/kait2en/kait2en-t2-ncm-down.sh"
+readonly OBSOLETE_HELPER="/usr/local/libexec/vort2x/vort2x-t2-ncm-down.sh"
 # Fixed address of the T2 bridge CDC-NCM interface, the same on every T2 Mac.
 readonly T2_NCM_MAC="ac:de:48:00:11:22"
 
 install_shared() {
 	make -C "$REPO_ROOT/t2-services/shared" install SYSTEMD_UNIT_DIR=/etc/systemd/system
-	python3 "$REPO_ROOT/packaging/lifecycle/kait2en-lifecycle.py" t2-services-common record-source
-	if [[ -f /usr/local/libexec/kait2en/kait2en-suspend.sh ]] &&
-		grep -q '^unbind_t2_ncm()' /usr/local/libexec/kait2en/kait2en-suspend.sh; then
+	python3 "$REPO_ROOT/packaging/lifecycle/vort2x-lifecycle.py" t2-services-common record-source
+	if [[ -f /usr/local/libexec/vort2x/vort2x-suspend.sh ]] &&
+		grep -q '^unbind_t2_ncm()' /usr/local/libexec/vort2x/vort2x-suspend.sh; then
 		fail "old suspend helper still owns NCM; rerun install-suspend-service.sh before enabling the common unit"
 	fi
 	systemctl daemon-reload
@@ -56,10 +56,10 @@ configure_ncm() {
 		systemctl disable "$OBSOLETE_SERVICE"
 	fi
 	rm -f "$OBSOLETE_SERVICE_FILE" "$OBSOLETE_HELPER"
-	rm -f /etc/udev/rules.d/90-kait2en-t2-network.rules \
-		/etc/udev/rules.d/90-kait2en-t2-network-managed.rules \
+	rm -f /etc/udev/rules.d/90-vort2x-t2-network.rules \
+		/etc/udev/rules.d/90-vort2x-t2-network-managed.rules \
 		/etc/NetworkManager/conf.d/99-network-t2-ncm.conf \
-		/etc/NetworkManager/conf.d/10-kait2en-t2-no-auto-default.conf
+		/etc/NetworkManager/conf.d/10-vort2x-t2-no-auto-default.conf
 
 	# NetworkManager leaves the NCM link unmanaged (10-t2-services.conf) and
 	# 90-t2-services-ncm.rules brings it up. Otherwise NetworkManager takes the

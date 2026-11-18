@@ -579,6 +579,6 @@ MODULE_SOFTDEP("pre: t2touchbar_bl");
 MODULE_AUTHOR("Ronald Tschalär");
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
 MODULE_AUTHOR("Aditya Garg <gargaditya08@live.com>");
-MODULE_AUTHOR("kait2en");
-MODULE_DESCRIPTION("Kait2en T2 Touch Bar Keyboard Mode driver");
+MODULE_AUTHOR("vort2x");
+MODULE_DESCRIPTION("Vort2x T2 Touch Bar Keyboard Mode driver");
 MODULE_LICENSE("GPL");

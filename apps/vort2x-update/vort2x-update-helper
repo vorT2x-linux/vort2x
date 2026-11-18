@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# Runs the VorT2x installer for vort2x-update through pkexec.
+# It accepts only names listed in scripts/fedora/update-map.
+set -Eeuo pipefail
+
+repository=/usr/local/src/VorT2x-Fedora
+# The only source updates come from. The origin remote of the checkout is
+# ignored, so a changed remote cannot make this root helper install other code.
+repository_url=https://github.com/vorT2x-linux/vort2x.git
+branch=main
+
+die() {
+	printf 'vort2x-update-helper: %s\n' "$*" >&2
+	exit 1
+}
+
+usage() {
+	die 'usage: vort2x-update-helper apply --all | apply STEPS APPS | optional t2-touchbar|install-gdm-branding.sh install|remove'
+}
+
+[[ $EUID -eq 0 ]] || die 'must run as root'
+[[ -n ${PKEXEC_UID:-} ]] || die 'must be started through pkexec'
+[[ -d $repository/.git ]] || die "the VorT2x Git checkout is missing: $repository"
+
+user=$(id -nu "$PKEXEC_UID") || die "unknown user $PKEXEC_UID"
+home=$(getent passwd "$user" | cut -d: -f6)
+owner=$(stat -c %U "$repository")
+
+# Git runs as the owner of the checkout, so no root owned files appear in it.
+repo_git() {
+	runuser -u "$owner" -- git -c safe.directory="$repository" -C "$repository" "$@"
+}
+
+valid_name() {
+	local name=$1
+	[[ $name =~ ^[a-z0-9][a-z0-9.:-]*$ ]] || return 1
+	awk -v name="$name" '$1 == name { found = 1 } END { exit !found }' \
+		"$repository/scripts/fedora/update-map"
+}
+
+# Parts without a record count as installed from the current HEAD. That is
+# written down before HEAD moves, so a failed run is offered again.
+record_current_state() {
+	local applied=/var/lib/vort2x-installer/applied head name
+	head=$(repo_git rev-parse HEAD)
+	install -d -m 0755 "$applied"
+	repo_git show "origin/$branch:scripts/fedora/update-map" |
+		awk '!/^#/ && NF && $1 != "core" { print $1 }' |
+		while read -r name; do
+			[[ -e $applied/$name ]] || printf '%s\n' "$head" >"$applied/$name"
+		done
+}
+
+refresh_repository() {
+	repo_git fetch "$repository_url" "+refs/heads/$branch:refs/remotes/origin/$branch"
+	record_current_state
+	repo_git checkout "$branch"
+	repo_git reset --hard "origin/$branch"
+	repo_git clean -fd
+}
+
+# Optional parts stay as they are, nothing is asked in the background.
+keep_optional_parts() {
+	export VORT2X_INSTALL_TOUCHBAR=0 VORT2X_INSTALL_EDDY=0 VORT2X_INSTALL_GDM_BRANDING=0
+	[[ -x /usr/local/bin/vort2x-touchbar ]] && VORT2X_INSTALL_TOUCHBAR=1
+	[[ -e /etc/dconf/db/gdm.d/00-vort2x ]] && VORT2X_INSTALL_GDM_BRANDING=1
+	[[ -d $home/.local/share/gnome-shell/extensions/vort2x-eddy@vort2x ]] &&
+		VORT2X_INSTALL_EDDY=1
+	return 0
+}
+
+run_installer() {
+	export SUDO_USER=$user SUDO_UID=$PKEXEC_UID
+	keep_optional_parts
+	cd "$repository"
+	exec bash ./scripts/fedora/install.sh "$@" </dev/null
+}
+
+case ${1:-} in
+	apply)
+		if [[ ${2:-} == --all ]]; then
+			(( $# == 2 )) || usage
+			refresh_repository
+			run_installer
+		fi
+		(( $# == 3 )) || usage
+		IFS=, read -r -a steps <<<"$2"
+		IFS=, read -r -a apps <<<"$3"
+		refresh_repository
+		# An older install.sh ignores --only and would run every step.
+		grep -q -- '--only' "$repository/scripts/fedora/install.sh" ||
+			die 'the installer on GitHub cannot run single steps yet, nothing was installed'
+		for name in "${steps[@]}"; do
+			valid_name "$name" || die "not an installer step: $name"
+		done
+		for name in "${apps[@]}"; do
+			valid_name "app:$name" || die "not an app: $name"
+		done
+		if (( ${#apps[@]} > 0 )); then
+			steps+=(install-apps.sh)
+			export VORT2X_APPS=$3
+		fi
+		(( ${#steps[@]} > 0 )) || die 'nothing to install'
+		run_installer --only "$(IFS=,; printf '%s' "${steps[*]}")"
+		;;
+	optional)
+		# Eddy belongs to the user and needs no helper.
+		(( $# == 3 )) || usage
+		export SUDO_USER=$user SUDO_UID=$PKEXEC_UID
+		cd "$repository"
+		case $2:$3 in
+			t2-touchbar:install)
+				grep -q -- '--only' scripts/fedora/install.sh ||
+					die 'the installer in the checkout cannot run single steps yet'
+				export VORT2X_INSTALL_TOUCHBAR=1 VORT2X_APPS=t2-touchbar
+				exec bash ./scripts/fedora/install.sh --only install-apps.sh </dev/null
+				;;
+			t2-touchbar:remove)
+				bash ./apps/t2-touchbar/uninstall.sh </dev/null
+				rm -f /var/lib/vort2x-installer/applied/app:t2-touchbar
+				;;
+			install-gdm-branding.sh:install)
+				grep -q -- '--only' scripts/fedora/install.sh ||
+					die 'the installer in the checkout cannot run single steps yet'
+				export VORT2X_INSTALL_GDM_BRANDING=1
+				exec bash ./scripts/fedora/install.sh --only install-gdm-branding.sh </dev/null
+				;;
+			install-gdm-branding.sh:remove)
+				bash ./scripts/fedora/install-gdm-branding.sh --remove </dev/null
+				rm -f /var/lib/vort2x-installer/applied/install-gdm-branding.sh
+				;;
+			*)
+				usage
+				;;
+		esac
+		;;
+	*)
+		usage
+		;;
+esac

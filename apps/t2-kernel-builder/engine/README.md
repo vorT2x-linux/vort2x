@@ -4,7 +4,7 @@ This script builds a Fedora kernel with every `*.patch` file in its `patches/`
 folder. The build can run on another x86_64 Fedora computer.
 
 The patches and configuration files currently included in `patches/` and
-`configs/` are examples from ongoing KaiT2en kernel testing. They are not a
+`configs/` are examples from ongoing VorT2x kernel testing. They are not a
 generic patch set or configuration for every T2 Mac. Review and replace them
 as appropriate before building a kernel for another machine or test.
 
@@ -111,7 +111,7 @@ ls -1 /boot/vmlinuz-*
 ls -1 /lib/modules
 ```
 
-KaiT2en's DKMS modules must exist for the new kernel before booting it. When
+VorT2x's DKMS modules must exist for the new kernel before booting it. When
 building directly on the MacBook, point the new module directory at the
 prepared source tree:
 

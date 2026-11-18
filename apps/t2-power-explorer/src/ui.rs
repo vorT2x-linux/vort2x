@@ -12,12 +12,12 @@ use crate::model::{Assessment, DeviceKind, DeviceTree, Property, Severity};
 
 const APP_VERSION: &str = "0.02";
 
-fn kait2en_brand() -> gtk::DrawingArea {
+fn vort2x_brand() -> gtk::DrawingArea {
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let dark = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
-        .expect("failed to load kait2en wordmark");
-    let light = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+    let dark = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
+        .expect("failed to load vort2x wordmark");
+    let light = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
         .unwrap_or_else(|_| dark.clone());
     let brand = gtk::DrawingArea::new();
     brand.set_content_width(80); brand.set_content_height(21); brand.set_size_request(80, 21);
@@ -515,7 +515,7 @@ pub fn build(app: &adw::Application) {
         "Kernel device topology and runtime power state",
     );
     header.set_title_widget(Some(&title));
-    let brand = kait2en_brand();
+    let brand = vort2x_brand();
     brand.set_margin_start(10);
     brand.set_margin_end(10);
     header.pack_start(&brand);

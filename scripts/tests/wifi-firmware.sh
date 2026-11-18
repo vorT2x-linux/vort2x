@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 helper="$repo_root/auto-installer/runtime/install-wifi-firmware.sh"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-wifi-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-wifi-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 # macOS names the .clmb, .txcb and NVRAM files after the board plus the antenna
@@ -24,7 +24,7 @@ run_case() {
 	printf txcap >"$source/${board}.txcb"
 	printf nvram >"$source/P-${board}_M-${module}_V-${vendor}__m-${version}.txt"
 
-	KAIT2EN_FIRMWARE_REQUEST=$request bash "$helper" --source "$source" --root "$root" >/dev/null
+	VORT2X_FIRMWARE_REQUEST=$request bash "$helper" --source "$source" --root "$root" >/dev/null
 
 	local destination="$root/usr/lib/firmware/brcm"
 	[[ -f "$destination/${request#brcm/}" ]]
@@ -95,7 +95,7 @@ printf x >"$work/reject/source/board.trx"
 printf x >"$work/reject/source/board.clmb"
 printf x >"$work/reject/source/board.txcb"
 printf x >"$work/reject/source/P-board_M-module_V-vendor__m-1.txt"
-if KAIT2EN_FIRMWARE_REQUEST=brcm/brcmfmac4364-pcie.txt \
+if VORT2X_FIRMWARE_REQUEST=brcm/brcmfmac4364-pcie.txt \
 	bash "$helper" --source "$work/reject/source" --root "$work/reject/root" \
 	>/dev/null 2>&1; then
 	printf 'generic brcmfmac firmware request was unexpectedly accepted\n' >&2

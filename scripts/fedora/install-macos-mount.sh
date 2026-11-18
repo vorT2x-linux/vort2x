@@ -16,9 +16,9 @@ require_command systemctl install
 # place. The volume list and the encryption flags come from the container
 # superblock, so the encrypted Data volume and missing volumes are never
 # mounted.
-info "installing Kait2en macOS volume mount"
-install -d -o root -g root -m 0755 /usr/local/libexec/kait2en
-tee /usr/local/libexec/kait2en/kait2en-macos-mount >/dev/null <<'EOF'
+info "installing Vort2x macOS volume mount"
+install -d -o root -g root -m 0755 /usr/local/libexec/vort2x
+tee /usr/local/libexec/vort2x/vort2x-macos-mount >/dev/null <<'EOF'
 #!/bin/sh
 
 # A single parent directory holds every readable volume as a subdirectory.
@@ -131,13 +131,13 @@ readable_vols() {
 	done
 }
 
-probe=$(mktemp -d /run/kait2en-macos-mount.XXXXXX) || exit 1
+probe=$(mktemp -d /run/vort2x-macos-mount.XXXXXX) || exit 1
 mounted_any=0
 last_err=
 mkdir -p "$PARENT"
 mountpoint -q "$PARENT" ||
 	mount -t tmpfs -o mode=0755,size=64k,x-gvfs-show,x-gvfs-name=macOS \
-		kait2en-macos "$PARENT" || exit 1
+		vort2x-macos "$PARENT" || exit 1
 
 # Internal APFS partitions only. External disks are left to the file manager,
 # and loop devices (mounted dmgs) are skipped so manual experiments are not
@@ -176,35 +176,35 @@ if [ "$mounted_any" != 1 ]; then
 fi
 exit 0
 EOF
-chmod 0755 /usr/local/libexec/kait2en/kait2en-macos-mount
+chmod 0755 /usr/local/libexec/vort2x/vort2x-macos-mount
 
-tee /etc/systemd/system/kait2en-macos-mount.service >/dev/null <<'EOF'
+tee /etc/systemd/system/vort2x-macos-mount.service >/dev/null <<'EOF'
 [Unit]
-Description=Kait2en mount the readable macOS volumes read-only
+Description=Vort2x mount the readable macOS volumes read-only
 After=local-fs.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/libexec/kait2en/kait2en-macos-mount
-ExecStop=/usr/local/libexec/kait2en/kait2en-macos-mount stop
+ExecStart=/usr/local/libexec/vort2x/vort2x-macos-mount
+ExecStop=/usr/local/libexec/vort2x/vort2x-macos-mount stop
 
 [Install]
 WantedBy=multi-user.target
 EOF
-chmod 0644 /etc/systemd/system/kait2en-macos-mount.service
+chmod 0644 /etc/systemd/system/vort2x-macos-mount.service
 
 # File managers would list the partition itself as a mountable entry, and a
 # click mounts the encrypted Data volume. The volumes are reached through
 # /media/macOS, so the partition is hidden.
-tee /etc/udev/rules.d/90-kait2en-macos.rules >/dev/null <<'EOF'
+tee /etc/udev/rules.d/90-vort2x-macos.rules >/dev/null <<'EOF'
 SUBSYSTEM=="block", ENV{DEVTYPE}=="partition", KERNEL=="nvme*", ENV{ID_FS_TYPE}=="apfs", ENV{UDISKS_IGNORE}="1"
 EOF
-chmod 0644 /etc/udev/rules.d/90-kait2en-macos.rules
+chmod 0644 /etc/udev/rules.d/90-vort2x-macos.rules
 udevadm control --reload
 udevadm trigger --action=change --subsystem-match=block --property-match=ID_FS_TYPE=apfs
 
 systemctl daemon-reload
-systemctl enable kait2en-macos-mount.service
+systemctl enable vort2x-macos-mount.service
 
-info "Kait2en macOS volume mount installed"
+info "Vort2x macOS volume mount installed"

@@ -8,21 +8,21 @@ cd "$repo_root"
 shell_files=(
 	auto-installer/build-in-container.sh
 	auto-installer/build-input-kmod.sh
-	auto-installer/initramfs/20-kait2en-input.sh.in
-	auto-installer/initramfs/90-kait2en-updates.sh
+	auto-installer/initramfs/20-vort2x-input.sh.in
+	auto-installer/initramfs/90-vort2x-updates.sh
 	auto-installer/macos-release-bootstrap.sh.in
 	auto-installer/runtime/install-bt-firmware.sh
 	auto-installer/runtime/install-wifi-firmware.sh
-	auto-installer/runtime/kait2en-install
-	auto-installer/runtime/kait2en-launch-terminal
-	auto-installer/runtime/kait2en-live-bluetooth
-	auto-installer/runtime/kait2en-live-diagnostics
-	auto-installer/runtime/kait2en-rescue
-	auto-installer/runtime/kait2en-live-wifi
-	auto-installer/runtime/kait2en-prepare
+	auto-installer/runtime/vort2x-install
+	auto-installer/runtime/vort2x-launch-terminal
+	auto-installer/runtime/vort2x-live-bluetooth
+	auto-installer/runtime/vort2x-live-diagnostics
+	auto-installer/runtime/vort2x-rescue
+	auto-installer/runtime/vort2x-live-wifi
+	auto-installer/runtime/vort2x-prepare
 	apps/t2-touchbar/install.sh
 	apps/t2-touchbar/uninstall.sh
-	packaging/installer/runtime/kait2en-install
+	packaging/installer/runtime/vort2x-install
 	scripts/fedora/build-installer.sh
 	scripts/fedora/install-gdm-branding.sh
 	scripts/fedora/install-dkms-modules.sh
@@ -68,32 +68,32 @@ while IFS= read -r file; do
 done < <(git ls-files 'auto-installer/anaconda-addon/*.py' \
 	'auto-installer/anaconda-addon/**/*.py')
 
-! grep -rInE --exclude-dir=target 'OEMDRV|rhdd3|inst\.dd=|inst\.ks=|kait2en\.wifi_required' \
+! grep -rInE --exclude-dir=target 'OEMDRV|rhdd3|inst\.dd=|inst\.ks=|vort2x\.wifi_required' \
 	auto-installer/grub.cfg.in \
 	auto-installer/initramfs \
 	auto-installer/anaconda-addon \
 	scripts/macos
 ! grep -rInE --exclude-dir=target 'brcmfmac(4364|4377).*alias|generic.*brcmfmac|brcmfmac[^ ]*-pcie\.txt' \
 	auto-installer
-# A KaiT2en entry without the input initramfs loses the keyboard it rescues.
+# A VorT2x entry without the input initramfs loses the keyboard it rescues.
 awk '
-$1 == "linux" && index($0, "${kait2en_common}") { entries++ }
-$1 == "initrd" && $2 == "${kait2en_initrd}" { overlays++ }
+$1 == "linux" && index($0, "${vort2x_common}") { entries++ }
+$1 == "initrd" && $2 == "${vort2x_initrd}" { overlays++ }
 END { exit !(entries >= 5 && entries == overlays) }
 ' auto-installer/grub.cfg.in
 grep -Fq 'plymouth.enable=0' auto-installer/grub.cfg.in
 grep -Fq 'nomodeset' auto-installer/grub.cfg.in
-if grep -Eq '^set kait2en_blacklist=.*apple_gmux' auto-installer/grub.cfg.in; then
+if grep -Eq '^set vort2x_blacklist=.*apple_gmux' auto-installer/grub.cfg.in; then
 	exit 1
 fi
 ! grep -InE 'INPUT_COMPAT_PATCH|compat_patch|auto-installer/patches' \
-	auto-installer/runtime/kait2en-prepare
+	auto-installer/runtime/vort2x-prepare
 grep -Fq '"$transition_source" "$target_kernel" "$work/rpm"' \
-	auto-installer/runtime/kait2en-prepare
+	auto-installer/runtime/vort2x-prepare
 # The transition modules only live in the initramfs, so they must be forced in.
 grep -Fq 'dracut --force --force-drivers' \
-	auto-installer/runtime/kait2en-prepare
-! grep -Fq -- '--add-drivers' auto-installer/runtime/kait2en-prepare
+	auto-installer/runtime/vort2x-prepare
+! grep -Fq -- '--add-drivers' auto-installer/runtime/vort2x-prepare
 
 # DKMS drops every kernel's build before rebuilding any of them, so a kernel
 # without headers has to be refused before anything is removed.
@@ -103,34 +103,34 @@ grep -Fq 't2-kernel-builder installation failed; continuing because it is option
 	scripts/fedora/install-apps.sh
 grep -Fq 'apps/t2-touchbar/install.sh' scripts/fedora/install-apps.sh
 # The Touch Bar daemon is optional and asked for before any step runs.
-grep -Fq 'KAIT2EN_INSTALL_TOUCHBAR' scripts/fedora/install-apps.sh
+grep -Fq 'VORT2X_INSTALL_TOUCHBAR' scripts/fedora/install-apps.sh
 grep -Fq 'ask_touchbar' scripts/fedora/install.sh
 # Only models with a Touch Bar are asked, and the first install must not
 # switch the panel before the session can open it.
 grep -Fq 'has_touch_bar' scripts/fedora/install.sh
 grep -Fq 'has_touch_bar' scripts/fedora/install-apps.sh
-# KaiT2en Vornehm is optional, offered only with GNOME and installed as
+# VorT2x Eddy is optional, offered only with GNOME and installed as
 # the user who runs sudo.
-grep -Fq 'ask_vornehm' scripts/fedora/install.sh
-grep -Fq 'KAIT2EN_INSTALL_VORNEHM' scripts/fedora/install.sh
-grep -Fq 'as_vornehm_user bash "$SCRIPT_DIR/install-vornehm.sh"' scripts/fedora/install.sh
+grep -Fq 'ask_eddy' scripts/fedora/install.sh
+grep -Fq 'VORT2X_INSTALL_EDDY' scripts/fedora/install.sh
+grep -Fq 'as_eddy_user bash "$SCRIPT_DIR/install-eddy.sh"' scripts/fedora/install.sh
 grep -Fq 'device_access_ready' apps/t2-touchbar/install.sh
 # ISOs up to v0.1.12 delegate to the old installer path.
-grep -Fq 'auto-installer/runtime' packaging/installer/runtime/kait2en-install
+grep -Fq 'auto-installer/runtime' packaging/installer/runtime/vort2x-install
 grep -Fq '"$BIN" --detach' apps/t2-touchbar/uninstall.sh
 grep -Fq 'build_cargo_project "$APP_DIR"' apps/t2-touchbar/install.sh
 grep -Fq 'env CARGO_TARGET_DIR="$CARGO_TARGET_DIR" make -C "$path" build' scripts/fedora/lib.sh
 grep -Fq 'device_group_is_live' apps/t2-touchbar/install.sh
-grep -Fq 'kait2en-touchbar --attach' \
-	apps/t2-touchbar/integration/systemd/system/kait2en-touchbar-attach.service
+grep -Fq 'vort2x-touchbar --attach' \
+	apps/t2-touchbar/integration/systemd/system/vort2x-touchbar-attach.service
 grep -Fq 't2-kernel-builder bundle is incomplete' \
 	apps/t2-kernel-builder/install.sh
 # A wrong origin URL must be repaired; dying leaves the user with no way out.
-grep -Fq 'repair_origin_url' auto-installer/runtime/kait2en-install
-grep -Fq 'repair_origin_url' auto-installer/runtime/kait2en-prepare
+grep -Fq 'repair_origin_url' auto-installer/runtime/vort2x-install
+grep -Fq 'repair_origin_url' auto-installer/runtime/vort2x-prepare
 ! grep -Fq 'unexpected origin URL' \
-	auto-installer/runtime/kait2en-install \
-	auto-installer/runtime/kait2en-prepare
+	auto-installer/runtime/vort2x-install \
+	auto-installer/runtime/vort2x-prepare
 grep -Fq '["dkms", "autoinstall", "-k", release]' \
 	apps/t2-kernel-builder/t2-kernel-builder-cleanup
 grep -Fq "DKMS_OVERRIDE.write_text('post_transaction=\"\"\\n'" \
@@ -170,78 +170,78 @@ grep -Fq 'T2_REQUIRED_MODULES+=("${MACSMC_REQUIRED_MODULES[@]}")' \
 	apps/t2-kernel-builder/engine/build.sh
 grep -Fq 'T2_REQUIRED_MODULES+=("${AMD_DGPU_REQUIRED_MODULES[@]}")' \
 	apps/t2-kernel-builder/engine/build.sh
-grep -Fq '/etc/modprobe.d/kait2en-silent-blacklist.conf' \
+grep -Fq '/etc/modprobe.d/vort2x-silent-blacklist.conf' \
 	scripts/fedora/install-kernel-args.sh
-grep -Fq 'ln -sfn kait2en-multicall /usr/local/bin/edit-grub' scripts/fedora/install.sh
-grep -Fq 'ln -sfn kait2en-multicall /usr/local/bin/update-grub' scripts/fedora/install.sh
-grep -Fq 'ln -sfn kait2en-multicall /usr/local/bin/boot-macos' scripts/fedora/install.sh
-grep -Fq 'ln -sfn kait2en-multicall /usr/local/bin/update-modules' scripts/fedora/install.sh
-grep -Fq 'ln -sfn kait2en-multicall /usr/local/bin/update-apps' scripts/fedora/install.sh
-grep -Fq 'exec sudo nano /etc/default/grub' scripts/fedora/kait2en-multicall
+grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/edit-grub' scripts/fedora/install.sh
+grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/update-grub' scripts/fedora/install.sh
+grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/boot-macos' scripts/fedora/install.sh
+grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/update-modules' scripts/fedora/install.sh
+grep -Fq 'ln -sfn vort2x-multicall /usr/local/bin/update-apps' scripts/fedora/install.sh
+grep -Fq 'exec sudo nano /etc/default/grub' scripts/fedora/vort2x-multicall
 grep -Fq 'exec sudo grub2-mkconfig -o /boot/grub2/grub.cfg' \
-	scripts/fedora/kait2en-multicall
+	scripts/fedora/vort2x-multicall
 grep -Fq "printf 'install %s /bin/true" scripts/fedora/install-kernel-args.sh
 grep -Fq '"etc", "xdg", "autostart"' \
-	auto-installer/anaconda-addon/com_kait2en_input/service/installation.py
+	auto-installer/anaconda-addon/com_vort2x_input/service/installation.py
 ! grep -InE 'find_regular_user|home\.lstrip|os\.chown' \
-	auto-installer/anaconda-addon/com_kait2en_input/service/installation.py
-grep -Fq 'KAIT2EN_AUTOSTART_FILE:-/etc/xdg/autostart/kait2en-install.desktop' \
-	auto-installer/runtime/kait2en-prepare
+	auto-installer/anaconda-addon/com_vort2x_input/service/installation.py
+grep -Fq 'VORT2X_AUTOSTART_FILE:-/etc/xdg/autostart/vort2x-install.desktop' \
+	auto-installer/runtime/vort2x-prepare
 ! grep -InE '\$HOME/\.config/autostart' \
-	auto-installer/runtime/kait2en-install
-if grep -rInE --exclude-dir=target 'kait2en-first-boot|KAIT2EN_FIRST_BOOT' \
+	auto-installer/runtime/vort2x-install
+if grep -rInE --exclude-dir=target 'vort2x-first-boot|VORT2X_FIRST_BOOT' \
 		auto-installer; then
 	exit 1
 fi
 # The live Wi-Fi helpers must ride along in the input initramfs and must stay
 # inside /run, which never reaches the installed system.
-grep -Fq 'usr/lib/kait2en/kait2en-live-wifi' auto-installer/build-in-container.sh
-grep -Fq 'usr/lib/kait2en/kait2en-live-wifi.service' \
+grep -Fq 'usr/lib/vort2x/vort2x-live-wifi' auto-installer/build-in-container.sh
+grep -Fq 'usr/lib/vort2x/vort2x-live-wifi.service' \
 	auto-installer/build-in-container.sh
-grep -Fq 'usr/lib/kait2en/install-wifi-firmware.sh' \
+grep -Fq 'usr/lib/vort2x/install-wifi-firmware.sh' \
 	auto-installer/build-in-container.sh
-grep -Fq 'usr/lib/kait2en/kait2en-live-diagnostics' \
+grep -Fq 'usr/lib/vort2x/vort2x-live-diagnostics' \
 	auto-installer/build-in-container.sh
 grep -Fq 'runtime_units=/run/systemd/system' \
-	auto-installer/initramfs/90-kait2en-updates.sh
-grep -Fq 'ExecStart=/run/kait2en/kait2en-live-wifi' \
-	auto-installer/runtime/kait2en-live-wifi.service
-! grep -rInE --exclude-dir=target 'kait2en-live-wifi' \
+	auto-installer/initramfs/90-vort2x-updates.sh
+grep -Fq 'ExecStart=/run/vort2x/vort2x-live-wifi' \
+	auto-installer/runtime/vort2x-live-wifi.service
+! grep -rInE --exclude-dir=target 'vort2x-live-wifi' \
 	auto-installer/anaconda-addon
 
-grep -Fq 'usr/lib/kait2en/kait2en-rescue' auto-installer/build-in-container.sh
-grep -Fq 'kait2en-rescue' auto-installer/initramfs/90-kait2en-updates.sh
-grep -Fq '/sysroot/usr/bin/kait2en-rescue' \
-	auto-installer/initramfs/90-kait2en-updates.sh
-grep -Fq 'apfs' auto-installer/runtime/kait2en-rescue
-grep -Fq 'set-default-index' auto-installer/runtime/kait2en-rescue
-! grep -Fq -- '--set-default ' auto-installer/runtime/kait2en-rescue
-! grep -rInE --exclude-dir=target 'kait2en-rescue' \
+grep -Fq 'usr/lib/vort2x/vort2x-rescue' auto-installer/build-in-container.sh
+grep -Fq 'vort2x-rescue' auto-installer/initramfs/90-vort2x-updates.sh
+grep -Fq '/sysroot/usr/bin/vort2x-rescue' \
+	auto-installer/initramfs/90-vort2x-updates.sh
+grep -Fq 'apfs' auto-installer/runtime/vort2x-rescue
+grep -Fq 'set-default-index' auto-installer/runtime/vort2x-rescue
+! grep -Fq -- '--set-default ' auto-installer/runtime/vort2x-rescue
+! grep -rInE --exclude-dir=target 'vort2x-rescue' \
 	auto-installer/anaconda-addon
 
 # Bluetooth firmware is loaded from disk by BCM4377 alone. Every entry point has
 # to check for that PCI function, and the UART .hcd path must stay out of here.
 grep -Fq '0x5fa0' auto-installer/runtime/install-bt-firmware.sh
-grep -Fq '0x5fa0' auto-installer/runtime/kait2en-live-bluetooth
+grep -Fq '0x5fa0' auto-installer/runtime/vort2x-live-bluetooth
 grep -Fq '0x5fa0' \
-	auto-installer/anaconda-addon/com_kait2en_input/service/installation.py
+	auto-installer/anaconda-addon/com_vort2x_input/service/installation.py
 grep -Fq 'BCM4377' scripts/macos/prepare-fedora-installer.sh
 ! grep -rInE --exclude-dir=target '\.hcd' auto-installer scripts/macos
-grep -Fq 'usr/lib/kait2en/install-bt-firmware.sh' \
+grep -Fq 'usr/lib/vort2x/install-bt-firmware.sh' \
 	auto-installer/build-in-container.sh
-grep -Fq 'usr/lib/kait2en/kait2en-live-bluetooth' \
+grep -Fq 'usr/lib/vort2x/vort2x-live-bluetooth' \
 	auto-installer/build-in-container.sh
-grep -Fq 'usr/lib/kait2en/kait2en-live-bluetooth.service' \
+grep -Fq 'usr/lib/vort2x/vort2x-live-bluetooth.service' \
 	auto-installer/build-in-container.sh
-grep -Fq 'ExecStart=/run/kait2en/kait2en-live-bluetooth' \
-	auto-installer/runtime/kait2en-live-bluetooth.service
-! grep -rInE --exclude-dir=target 'kait2en-live-bluetooth' \
+grep -Fq 'ExecStart=/run/vort2x/vort2x-live-bluetooth' \
+	auto-installer/runtime/vort2x-live-bluetooth.service
+! grep -rInE --exclude-dir=target 'vort2x-live-bluetooth' \
 	auto-installer/anaconda-addon
 
-grep -Fq 'Do not close this window!' auto-installer/runtime/kait2en-install
+grep -Fq 'Do not close this window!' auto-installer/runtime/vort2x-install
 grep -Fq 'Ensure that you are connected to Wi-Fi before continuing.' \
-	auto-installer/runtime/kait2en-install
-grep -Fq 'Press any key to continue.' auto-installer/runtime/kait2en-install
+	auto-installer/runtime/vort2x-install
+grep -Fq 'Press any key to continue.' auto-installer/runtime/vort2x-install
 
 # macOS Bash 3.2 treats an expanded empty array as unbound under `set -u`.
 grep -Fq 'ORIGINAL_ARGC=$#' scripts/macos/prepare-fedora-installer.sh
@@ -252,7 +252,7 @@ grep -Fq 'The ISO was verified OK.' scripts/macos/prepare-fedora-installer.sh
 grep -Fq 'Next steps:' scripts/macos/prepare-fedora-installer.sh
 grep -Fq 'Select the orange EFI Boot entry for this USB drive.' \
 	scripts/macos/prepare-fedora-installer.sh
-grep -Fq 'The KaiT2en installation will continue automatically in a terminal.' \
+grep -Fq 'The VorT2x installation will continue automatically in a terminal.' \
 	scripts/macos/prepare-fedora-installer.sh
 grep -Fq 'Good: Secure Boot has been disabled.' \
 	scripts/macos/prepare-fedora-installer.sh
@@ -273,7 +273,7 @@ grep -Fq 'FEDORA_ARCHIVE_BASEURL=' auto-installer/targets/fedora-45.conf
 ! grep -Fq 'Keep no second driver disk connected' scripts/macos/prepare-fedora-installer.sh
 ! grep -Fq 'before the intentional EFI customization' scripts/macos/prepare-fedora-installer.sh
 grep -Fq 'shasum -a 256 -c' auto-installer/macos-release-bootstrap.sh.in
-grep -Fq 'KAIT2EN_TTY:-/dev/tty' auto-installer/macos-release-bootstrap.sh.in
+grep -Fq 'VORT2X_TTY:-/dev/tty' auto-installer/macos-release-bootstrap.sh.in
 grep -Fq 'uses: actions/upload-artifact@v6' .github/workflows/installer.yml
 grep -Fq 'uses: actions/download-artifact@v7' .github/workflows/installer.yml
 ! grep -InE 'uses: actions/(checkout|upload-artifact|download-artifact)@v4' \

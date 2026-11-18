@@ -44,5 +44,5 @@ impl Config {
 pub fn config_path() -> PathBuf {
     env::var_os("T2_KBD_BACKLIGHT_CONFIG")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/etc/kait2en/kbd-backlight.toml"))
+        .unwrap_or_else(|| PathBuf::from("/etc/vort2x/kbd-backlight.toml"))
 }

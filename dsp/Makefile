@@ -24,7 +24,7 @@ install: build
 	install -D -m 0644 integration/wireplumber/t2-default-output.lua '$(DESTDIR)$(DATADIR)/wireplumber/scripts/t2-default-output.lua'
 	install -D -m 0644 build/89-t2-dsp.rules '$(DESTDIR)$(UDEVDIR)/89-t2-dsp.rules'
 	install -D -m 0755 integration/libexec/package-actions '$(DESTDIR)$(LIBEXECDIR)/t2-dsp/package-actions'
-	install -D -m 0755 ../packaging/lifecycle/kait2en-lifecycle.py '$(DESTDIR)$(LIBEXECDIR)/t2-dsp/lifecycle.py'
+	install -D -m 0755 ../packaging/lifecycle/vort2x-lifecycle.py '$(DESTDIR)$(LIBEXECDIR)/t2-dsp/lifecycle.py'
 	install -D -m 0644 ../LICENSE '$(DESTDIR)$(DATADIR)/licenses/t2-dsp/LICENSE'
 	install -m 0644 ../LICENSING.md ../LICENSES/GPL-3.0-or-later.txt '$(DESTDIR)$(DATADIR)/licenses/t2-dsp/'
 clean:

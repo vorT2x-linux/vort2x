@@ -53,8 +53,8 @@ RETIRED_BCE_DKMS_PACKAGES=(
 	t2bce_audio
 )
 
-DKMS_POST_TRANSACTION_OVERRIDE="/etc/dkms/framework.conf.d/kait2en-disable-post-transaction.conf"
-DKMS_KERNEL_INSTALL_HOOK="/etc/kernel/install.d/39-kait2en-dkms-cleanup.install"
+DKMS_POST_TRANSACTION_OVERRIDE="/etc/dkms/framework.conf.d/vort2x-disable-post-transaction.conf"
+DKMS_KERNEL_INSTALL_HOOK="/etc/kernel/install.d/39-vort2x-dkms-cleanup.install"
 
 restore_dkms_post_transaction() {
 	rm -f "$DKMS_POST_TRANSACTION_OVERRIDE"
@@ -112,7 +112,7 @@ for name in "${modules[@]}"; do
 		tree="/var/lib/dkms/$name/$version/$kernelver"
 		[[ "$tree" == /var/lib/dkms/*/*/* && -d "$tree" ]] || continue
 
-		printf '[kait2en] removing stale DKMS build tree %s/%s for %s\n' \
+		printf '[vort2x] removing stale DKMS build tree %s/%s for %s\n' \
 			"$name" "$version" "$kernelver"
 		dkms remove --no-depmod -m "$name" -v "$version" -k "$kernelver" \
 			>/dev/null 2>&1 || rm -rf "$tree"

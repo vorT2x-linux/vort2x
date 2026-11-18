@@ -17,7 +17,7 @@ Usage: $0 --buildid SUFFIX [options]
 Options:
   --kernel-release RELEASE   Fedora kernel series (for example 7.2) or exact
                              NVR.arch (default: latest in Fedora repos)
-  --buildid SUFFIX           Unique suffix after .kait2en (required)
+  --buildid SUFFIX           Unique suffix after .vort2x (required)
   --patch-dir DIRECTORY      Experiment directory containing patches (required)
   --out DIRECTORY            Output directory (default: ./out)
   --full-config              Do not append the T2 config reduction
@@ -262,7 +262,7 @@ done
 
 if ((!full_config)); then
 	{
-		printf '\n# KaiT2en T2-only test-kernel reduction\n'
+		printf '\n# VorT2x T2-only test-kernel reduction\n'
 		while IFS= read -r symbol || [[ -n $symbol ]]; do
 			[[ -n $symbol && $symbol != \#* ]] || continue
 			[[ $symbol =~ ^CONFIG_[A-Z0-9_]+$ ]] || {
@@ -276,7 +276,7 @@ fi
 
 macro_file=$work/kernel-copr-macros
 {
-	printf '%%global buildid .kait2en.%s\n' "$buildid"
+	printf '%%global buildid .vort2x.%s\n' "$buildid"
 	for feature in debug debuginfo perf libperf tools doc headers cross_headers \
 		selftests kabichk kernel_abi_stablelists configchecks; do
 		printf '%%global _without_%s 1\n' "$feature"

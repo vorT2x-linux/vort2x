@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Personal keys for the free space of the special row, read from
-//! `$XDG_CONFIG_HOME/kait2en-touchbar/keys.toml`. The file lives in the home
+//! `$XDG_CONFIG_HOME/vort2x-touchbar/keys.toml`. The file lives in the home
 //! directory, so installs and updates never touch it.
 //!
 //! ```toml
@@ -76,7 +76,7 @@ impl CustomKey {
             Ok(mut child) => {
                 thread::spawn(move || child.wait());
             }
-            Err(error) => eprintln!("kait2en-touchbar: could not start {command:?}: {error}"),
+            Err(error) => eprintln!("vort2x-touchbar: could not start {command:?}: {error}"),
         }
     }
 }
@@ -90,7 +90,7 @@ pub fn path() -> PathBuf {
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join(".config")
         })
-        .join("kait2en-touchbar/keys.toml")
+        .join("vort2x-touchbar/keys.toml")
 }
 
 /// Written once when no keys file exists, so the format is discoverable
@@ -98,7 +98,7 @@ pub fn path() -> PathBuf {
 /// the user adds some.
 const TEMPLATE: &str = r#"# Personal keys for the free space of the third Touch Bar row (swipe with
 # two fingers to reach it). Up to four keys fit. Further entries are ignored.
-# Restart after editing:  systemctl --user restart kait2en-touchbar
+# Restart after editing:  systemctl --user restart vort2x-touchbar
 #
 # Every key has a text label (1-12 characters) and exactly one action:
 #   send = "<combination>"   modifiers ctrl, shift, alt (option), altgr, super
@@ -140,7 +140,7 @@ fn create_template(path: &Path) {
         .and_then(|mut file| file.write_all(TEMPLATE.as_bytes()));
     if let Err(error) = created {
         eprintln!(
-            "kait2en-touchbar: could not create {}: {error}",
+            "vort2x-touchbar: could not create {}: {error}",
             path.display()
         );
     }
@@ -158,14 +158,14 @@ pub fn load() -> Vec<CustomKey> {
             return Vec::new();
         }
         Err(error) => {
-            eprintln!("kait2en-touchbar: read {}: {error}", path.display());
+            eprintln!("vort2x-touchbar: read {}: {error}", path.display());
             return Vec::new();
         }
     };
     match parse(&body) {
         Ok(keys) => keys,
         Err(error) => {
-            eprintln!("kait2en-touchbar: {}: {error:#}", path.display());
+            eprintln!("vort2x-touchbar: {}: {error:#}", path.display());
             Vec::new()
         }
     }
@@ -177,7 +177,7 @@ fn parse(body: &str) -> Result<Vec<CustomKey>> {
     for (index, entry) in file.key.into_iter().enumerate() {
         match entry_key(entry) {
             Ok(key) => keys.push(key),
-            Err(error) => eprintln!("kait2en-touchbar: key {}: {error:#}", index + 1),
+            Err(error) => eprintln!("vort2x-touchbar: key {}: {error:#}", index + 1),
         }
     }
     Ok(keys)
@@ -394,8 +394,8 @@ mod tests {
 
     #[test]
     fn template_never_replaces_an_existing_file() {
-        let dir = env::temp_dir().join(format!("kait2en-keys-{}", std::process::id()));
-        let path = dir.join("kait2en-touchbar/keys.toml");
+        let dir = env::temp_dir().join(format!("vort2x-keys-{}", std::process::id()));
+        let path = dir.join("vort2x-touchbar/keys.toml");
         create_template(&path);
         assert_eq!(fs::read_to_string(&path).unwrap(), TEMPLATE);
         fs::write(&path, "# mine").unwrap();

@@ -8,13 +8,13 @@ APP_ID="org.t2powertune.gtk"
 APP_VERSION="0.02"
 HELPER="/usr/local/libexec/t2-power-tune-helper"
 STATUS="/usr/local/libexec/t2-power-tune-status"
-SERVICE="/etc/systemd/system/kait2en-power-tune.service"
+SERVICE="/etc/systemd/system/vort2x-power-tune.service"
 
-def kait2en_brand():
+def vort2x_brand():
     # White type for dark surfaces, dark type for light ones. Without the
     # light file the white one is used.
-    dark=GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
-    try: light=GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+    dark=GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
+    try: light=GdkPixbuf.Pixbuf.new_from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
     except GLib.Error: light=dark
     manager=Adw.StyleManager.get_default()
     brand=Gtk.DrawingArea(content_width=80,content_height=21)
@@ -49,7 +49,7 @@ CSTATE_HELP={
 }
 
 ACTION_HELP=("Actions",
-    "Apply selected changes writes the currently chosen values for this boot and verifies them. Nothing is written merely by changing a checkbox.\n\nCreate or Update systemd service stores the same selection in kait2en-power-tune.service so it is restored at boot. Unselected managed values are removed from the service.\n\nRescan reads the current hardware state again. It does not apply settings, but hardware values such as LTR can change dynamically while devices are active.")
+    "Apply selected changes writes the currently chosen values for this boot and verifies them. Nothing is written merely by changing a checkbox.\n\nCreate or Update systemd service stores the same selection in vort2x-power-tune.service so it is restored at boot. Unselected managed values are removed from the service.\n\nRescan reads the current hardware state again. It does not apply settings, but hardware values such as LTR can change dynamically while devices are active.")
 
 def palette_css(dark):
     if dark: window,fg,panel,line,rim,hairline="#151517","#e8e8e8","#0d0d0f","rgba(255,255,255,0.13)","rgba(255,255,255,0.24)","rgba(255,255,255,0.06)"
@@ -67,7 +67,7 @@ class PowerTune(Adw.Application):
         manager.connect("notify::dark",lambda m,_p:css.load_from_string(palette_css(m.get_dark())))
         root=Gtk.Box(orientation=Gtk.Orientation.VERTICAL); root.add_css_class("app-background")
         header=Adw.HeaderBar(); header.set_title_widget(Adw.WindowTitle(title="Power Tune",subtitle="PCIe ASPM and power tunables"))
-        brand=kait2en_brand(); brand.set_margin_start(10); brand.set_margin_end(10); header.pack_start(brand); root.append(header)
+        brand=vort2x_brand(); brand.set_margin_start(10); brand.set_margin_end(10); header.pack_start(brand); root.append(header)
         metrics=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=8); metrics.add_css_class("sticky-bar"); metrics.set_margin_bottom(8)
         title=Gtk.Label(label="Package C-states",xalign=0); title.add_css_class("heading"); metrics.append(title)
         self.cstate_values={}
@@ -245,7 +245,7 @@ class PowerTune(Adw.Application):
             if changes:GLib.timeout_add_seconds(2,self.rescan_after_apply)
         elif any(item["enabled"] for item in self.payload()):
             verb="updated" if self.service_existed else "created"
-            self.notice.set_text(f"kait2en-power-tune.service was {verb} and enabled.")
+            self.notice.set_text(f"vort2x-power-tune.service was {verb} and enabled.")
         else:self.notice.set_text("The empty service configuration was removed.")
         if action=="persist" and not code:self.update_service_button()
         return False

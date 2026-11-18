@@ -1,6 +1,6 @@
 [Unit]
 Description=T2 Drop, AirDrop to Apple devices over AWDL
-Documentation=https://github.com/kaiT2en/KaiT2en-Fedora
+Documentation=https://github.com/vorT2x-linux/vort2x
 
 [Service]
 # Started by D-Bus activation when a program looks for AirDrop receivers or

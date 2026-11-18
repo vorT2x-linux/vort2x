@@ -26,8 +26,8 @@ for argument in "$@"; do
 			;;
 	esac
 done
-HOOK_HOME="/usr/local/libexec/kait2en/kernel-source"
-KERNEL_INSTALL_HOOK="/etc/kernel/install.d/44-kait2en-kernel-source.install"
+HOOK_HOME="/usr/local/libexec/vort2x/kernel-source"
+KERNEL_INSTALL_HOOK="/etc/kernel/install.d/44-vort2x-kernel-source.install"
 FROM_REPO=1
 [[ -d "$SCRIPT_DIR/../../patches" ]] || FROM_REPO=0
 
@@ -45,15 +45,15 @@ install_kernel_hook() {
 
 command=\${1:-}
 kernelver=\${2:-}
-log=/var/log/kait2en-kernel-source.log
+log=/var/log/vort2x-kernel-source.log
 
 [[ -n "\$kernelver" ]] || exit 0
 case "\$command" in
 	add)
-		printf '[kait2en] preparing the kernel source for %s\\n' "\$kernelver"
+		printf '[vort2x] preparing the kernel source for %s\\n' "\$kernelver"
 		if ! "$HOOK_HOME/install-kernel-source.sh" install "\$kernelver" \\
 				--no-deps >>"\$log" 2>&1; then
-			printf '[kait2en] kernel source for %s is unavailable, see %s\\n' \\
+			printf '[vort2x] kernel source for %s is unavailable, see %s\\n' \\
 				"\$kernelver" "\$log"
 		fi
 		;;

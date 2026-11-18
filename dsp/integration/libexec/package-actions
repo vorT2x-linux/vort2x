@@ -5,7 +5,7 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 helper="$script_dir/lifecycle.py"
 # Source-tree tests use the same engine as the installed package.
 if [[ ! -f "$helper" ]]; then
-    helper="$script_dir/../../../packaging/lifecycle/kait2en-lifecycle.py"
+    helper="$script_dir/../../../packaging/lifecycle/vort2x-lifecycle.py"
 fi
 args=()
 if [[ -n "${T2_DSP_TEST_ROOT:-}" ]]; then args=(--root "$T2_DSP_TEST_ROOT"); fi
@@ -20,8 +20,8 @@ if ! python3 "$helper" t2-dsp "$action" "${args[@]}"; then
     if ! printf 'lifecycle %s reported errors\n' "$action" >>"$log_file"; then
         printf '[t2-dsp] error: cannot save lifecycle failure report\n' >&2
     fi
-    if [[ -n "${KAIT2EN_INSTALL_ERRORS:-}" ]]; then
-        if ! printf 't2-dsp: lifecycle %s reported errors\n' "$action" >>"$KAIT2EN_INSTALL_ERRORS"; then
+    if [[ -n "${VORT2X_INSTALL_ERRORS:-}" ]]; then
+        if ! printf 't2-dsp: lifecycle %s reported errors\n' "$action" >>"$VORT2X_INSTALL_ERRORS"; then
             printf '[t2-dsp] error: cannot append installer failure report\n' >&2
         fi
     fi

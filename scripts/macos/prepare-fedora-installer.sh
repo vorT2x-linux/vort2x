@@ -181,7 +181,7 @@ collect_macos_firmware() {
 
 collect_macos_bluetooth_firmware() {
 	local destination=$1
-	local firmware_root=${KAIT2EN_BT_FIRMWARE_ROOT:-/usr/share/firmware/bluetooth}
+	local firmware_root=${VORT2X_BT_FIRMWARE_ROOT:-/usr/share/firmware/bluetooth}
 	local chipset firmware_path found=0
 
 	# T2 Macs use one of two Bluetooth architectures. Only BCM4377 talks over
@@ -244,7 +244,7 @@ load_editions() {
 		[[ "$seen" != *" $id "* ]] || die "duplicate edition ID: $id"
 		[[ -n "$display" && -n "$variant" && -n "$subvariant" ]] ||
 			die "incomplete edition entry: $id"
-		release_path=$(kait2en_fedora_release_path "$url") ||
+		release_path=$(vort2x_fedora_release_path "$url") ||
 			die "invalid Fedora download for edition: $id"
 		[[ "$filename" == *.iso && "${release_path##*/}" == "$filename" &&
 			"$release_path" == "$FEDORA_RELEASE/"* ]] ||
@@ -409,7 +409,7 @@ while (($# > 0)); do
 done
 
 for file in installer-target.conf installer-editions.tsv grub.cfg.in \
-	kait2en-input-initramfs.img scripts/macos/download-fedora-iso.sh; do
+	vort2x-input-initramfs.img scripts/macos/download-fedora-iso.sh; do
 	[[ -s "$KIT_ROOT/$file" ]] || die "installer kit file is missing: $file"
 done
 # shellcheck disable=SC1091
@@ -468,7 +468,7 @@ expected_url=${EDITION_URLS[EDITION_INDEX]}
 expected_size=${EDITION_SIZES[EDITION_INDEX]}
 expected_sha=${EDITION_SHAS[EDITION_INDEX]}
 if [[ -n "$ISO_PATH" ]]; then
-	kait2en_verify_iso "$ISO_PATH" "$expected_size" "$expected_sha" ||
+	vort2x_verify_iso "$ISO_PATH" "$expected_size" "$expected_sha" ||
 		die "ISO verification failed for $expected_name"
 fi
 
@@ -494,11 +494,11 @@ if [[ -z "$ISO_PATH" ]]; then
 	fi
 	[[ -d "$DOWNLOAD_DIR" ]] || die "download directory not found: $DOWNLOAD_DIR"
 	ISO_PATH="$DOWNLOAD_DIR/$expected_name"
-	kait2en_download_iso "$ISO_PATH" "$expected_url" "$expected_size" "$expected_sha" ||
+	vort2x_download_iso "$ISO_PATH" "$expected_url" "$expected_size" "$expected_sha" ||
 		die 'could not download and verify the Fedora ISO; the target disk was not changed'
 fi
 
-WORK=$(mktemp -d /tmp/kait2en-installer.XXXXXX)
+WORK=$(mktemp -d /tmp/vort2x-installer.XXXXXX)
 pvd_sector="$WORK/iso-pvd-sector"
 LC_ALL=C dd if="$ISO_PATH" of="$pvd_sector" bs=512 skip=64 count=1 2>/dev/null
 pvd_magic=$(LC_ALL=C dd if="$pvd_sector" bs=1 skip=1 count=5 2>/dev/null)
@@ -516,7 +516,7 @@ sed "s|@ISO_VOLUME_LABEL@|$iso_volume_label|g" \
 
 firmware_stage="$WORK/firmware"
 archive_root="$WORK/archive-root"
-mkdir -p "$firmware_stage" "$archive_root/kait2en-wifi-firmware"
+mkdir -p "$firmware_stage" "$archive_root/vort2x-wifi-firmware"
 if [[ -n "$FIRMWARE_DIR" ]]; then
 	copy_firmware_candidates "$FIRMWARE_DIR" "$firmware_stage"
 else
@@ -545,7 +545,7 @@ printf 'Validated Apple Wi-Fi firmware:\n'
 printf '  %s\n' "${trx_file##*/}" "${clm_file##*/}" \
 	"${txcap_file##*/}" "${nvram_file##*/}"
 
-firmware_archive_dir="$archive_root/kait2en-wifi-firmware"
+firmware_archive_dir="$archive_root/vort2x-wifi-firmware"
 install -m 0644 "$trx_file" "$clm_file" "$txcap_file" "$nvram_file" \
 	"$firmware_archive_dir/"
 
@@ -571,7 +571,7 @@ fi
 	cd "$firmware_archive_dir"
 	shasum -a 256 "${firmware_names[@]}" >SHA256SUMS
 )
-firmware_image="$WORK/kait2en-wifi-initramfs.img"
+firmware_image="$WORK/vort2x-wifi-initramfs.img"
 (
 	cd "$archive_root"
 	export COPYFILE_DISABLE=1
@@ -609,7 +609,7 @@ DISK_TOUCHED=1
 diskutil unmountDisk "$FEDORA_DISK" >/dev/null
 raw_disk="/dev/r${FEDORA_DISK#/dev/}"
 if ((REUSE_MEDIA == 1)); then
-	printf 'Validating the existing Fedora image before adding KaiT2en...\n'
+	printf 'Validating the existing Fedora image before adding VorT2x...\n'
 else
 	printf 'Writing the verified Fedora ISO. This can take several minutes...\n'
 	dd if="$ISO_PATH" of="$raw_disk" bs=4m
@@ -651,39 +651,39 @@ done
 
 grub_destination="$efi_mount/EFI/BOOT/grub.cfg"
 [[ -f "$grub_destination" ]] || die 'the original Fedora GRUB configuration is missing'
-kait2en_directory="$efi_mount/EFI/BOOT/kait2en"
+vort2x_directory="$efi_mount/EFI/BOOT/vort2x"
 required_bytes=$((
 	$(stat -f %z "$WORK/grub.cfg") +
-	$(stat -f %z "$KIT_ROOT/kait2en-input-initramfs.img") +
+	$(stat -f %z "$KIT_ROOT/vort2x-input-initramfs.img") +
 	$(stat -f %z "$firmware_image") + 1048576
 ))
 available_kib=$(df -k "$efi_mount" | awk 'END {print $4}')
 [[ "$available_kib" =~ ^[0-9]+$ && $((available_kib * 1024)) -ge $required_bytes ]] ||
-	die 'the Fedora EFI partition does not have enough free space for KaiT2en'
-install -d -m 0755 "$kait2en_directory"
+	die 'the Fedora EFI partition does not have enough free space for VorT2x'
+install -d -m 0755 "$vort2x_directory"
 cp -p "$grub_destination" "$grub_destination.fedora-original"
 install -m 0644 "$WORK/grub.cfg" "$grub_destination"
-install -m 0644 "$KIT_ROOT/kait2en-input-initramfs.img" \
-	"$kait2en_directory/kait2en-input-initramfs.img"
+install -m 0644 "$KIT_ROOT/vort2x-input-initramfs.img" \
+	"$vort2x_directory/vort2x-input-initramfs.img"
 install -m 0644 "$firmware_image" \
-	"$kait2en_directory/kait2en-wifi-initramfs.img"
+	"$vort2x_directory/vort2x-wifi-initramfs.img"
 install -m 0644 "$firmware_archive_dir/SHA256SUMS" \
-	"$kait2en_directory/wifi-firmware.sha256"
+	"$vort2x_directory/wifi-firmware.sha256"
 
 cmp "$WORK/grub.cfg" "$grub_destination"
-cmp "$KIT_ROOT/kait2en-input-initramfs.img" \
-	"$kait2en_directory/kait2en-input-initramfs.img"
-cmp "$firmware_image" "$kait2en_directory/kait2en-wifi-initramfs.img"
+cmp "$KIT_ROOT/vort2x-input-initramfs.img" \
+	"$vort2x_directory/vort2x-input-initramfs.img"
+cmp "$firmware_image" "$vort2x_directory/vort2x-wifi-initramfs.img"
 sync
 /sbin/umount "$efi_mount"
 EFI_MOUNT=
 diskutil unmountDisk "$FEDORA_DISK" >/dev/null 2>&1 || :
 DISK_TOUCHED=0
 
-printf '\nKaiT2en Fedora installer prepared successfully.\n'
+printf '\nVorT2x Fedora installer prepared successfully.\n'
 printf 'The ISO was verified OK.\n'
 printf '\nNext steps:\n'
 printf '  - Reboot the Mac and hold Option during startup.\n'
 printf '  - Select the orange EFI Boot entry for this USB drive.\n'
 printf '  - Complete the Fedora installation, remove the USB drive, and boot the installed system.\n'
-printf '  - Sign in to Fedora. The KaiT2en installation will continue automatically in a terminal.\n'
+printf '  - Sign in to Fedora. The VorT2x installation will continue automatically in a terminal.\n'

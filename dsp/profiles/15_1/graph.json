@@ -281,9 +281,9 @@
                 "name": "xtc_side_fir",
                 "config": {
                     "filename": [
-                        "/usr/share/kait2en/audio-dsp/15_1/xtc-side-44k.wav",
-                        "/usr/share/kait2en/audio-dsp/15_1/xtc-side-48k.wav",
-                        "/usr/share/kait2en/audio-dsp/15_1/xtc-side-96k.wav"
+                        "/usr/share/vort2x/audio-dsp/15_1/xtc-side-44k.wav",
+                        "/usr/share/vort2x/audio-dsp/15_1/xtc-side-48k.wav",
+                        "/usr/share/vort2x/audio-dsp/15_1/xtc-side-96k.wav"
                     ],
                     "channel": 0,
                     "gain": 1.0

@@ -1,4 +1,4 @@
-# KAIT2EN audio DSP profile 15_3 (MacBookPro15,3)
+# VORT2X audio DSP profile 15_3 (MacBookPro15,3)
 
 Speaker DSP for the internal speakers of the MacBookPro15,3: `graph.json` is the
 PipeWire filter-chain graph, the `xtc-side-*.wav` files are the crosstalk

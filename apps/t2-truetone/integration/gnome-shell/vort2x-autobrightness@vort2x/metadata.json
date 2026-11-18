@@ -1,0 +1,7 @@
+{
+  "uuid": "vort2x-autobrightness@vort2x",
+  "name": "VorT2x Auto Brightness",
+  "description": "Keeps the brightness slider on the real brightness while t2-truetone adjusts the panel. No settings.",
+  "shell-version": ["50", "51"],
+  "url": "https://github.com/vorT2x-linux/vort2x"
+}

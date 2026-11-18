@@ -56,7 +56,7 @@ pub fn watch() -> Result<(Receiver<TouchIdState>, UnixStream)> {
         .spawn(move || {
             loop {
                 if let Err(error) = listen(&sender, &mut wake_writer) {
-                    eprintln!("kait2en-touchbar: Touch ID signal listener: {error:#}");
+                    eprintln!("vort2x-touchbar: Touch ID signal listener: {error:#}");
                     thread::sleep(std::time::Duration::from_secs(2));
                 }
             }
@@ -68,9 +68,9 @@ fn listen(sender: &mpsc::Sender<TouchIdState>, wake: &mut UnixStream) -> Result<
     let connection = Connection::system().context("connect system bus")?;
     let rule = MatchRule::builder()
         .msg_type(Type::Signal)
-        .sender("org.kait2en.TouchId")?
-        .path("/org/kait2en/TouchId")?
-        .interface("org.kait2en.TouchId")?
+        .sender("org.vort2x.TouchId")?
+        .path("/org/vort2x/TouchId")?
+        .interface("org.vort2x.TouchId")?
         .member("Changed")?
         .build();
     let iterator = MessageIterator::for_match_rule(rule, &connection, None)?;

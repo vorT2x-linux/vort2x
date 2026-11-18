@@ -225,7 +225,7 @@ jobs:
           set -Eeuo pipefail
           comment=/tmp/kernel-copr-comment.md
           {
-            echo '<!-- kait2en-copr -->'
+            echo '<!-- vort2x-copr -->'
             echo 'COPR test kernel build started.'
             echo
             echo "- Experiment: \`$EXPERIMENT\`"
@@ -238,7 +238,7 @@ jobs:
           cat "$comment" >>"$GITHUB_STEP_SUMMARY"
           comment_id=$(gh api --paginate \
             "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- kait2en-copr -->")) | .id' |
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- vort2x-copr -->")) | .id' |
             tail -n 1)
           if [[ -n $comment_id ]]; then
             gh api --method PATCH \
@@ -331,7 +331,7 @@ jobs:
           if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
             comment_id=$(gh api --paginate \
               "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-              --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- kait2en-copr -->")) | .id' |
+              --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- vort2x-copr -->")) | .id' |
               tail -n 1)
             [[ -n $comment_id ]]
             gh api --method PATCH \
@@ -352,7 +352,7 @@ jobs:
           set -Eeuo pipefail
           comment=/tmp/kernel-copr-comment.md
           {
-            echo '<!-- kait2en-copr -->'
+            echo '<!-- vort2x-copr -->'
             echo 'COPR test kernel build failed.'
             echo
             echo "- Experiment: \`$EXPERIMENT\`"
@@ -363,7 +363,7 @@ jobs:
           if [[ $GITHUB_EVENT_NAME == pull_request ]]; then
             comment_id=$(gh api --paginate \
               "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
-              --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- kait2en-copr -->")) | .id' |
+              --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- vort2x-copr -->")) | .id' |
               tail -n 1)
             if [[ -n $comment_id ]]; then
               gh api --method PATCH \

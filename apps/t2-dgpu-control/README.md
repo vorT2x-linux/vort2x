@@ -9,7 +9,7 @@ The privileged helper accepts only fixed configuration operations. It refuses
 to power off the discrete GPU unless vgaswitcheroo reports the integrated GPU as
 active.
 
-The main KaiT2en installer invokes the app-specific installer automatically on
+The main VorT2x installer invokes the app-specific installer automatically on
 supported hardware. It can also be run directly from the repository:
 
 ```bash

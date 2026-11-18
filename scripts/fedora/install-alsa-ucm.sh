@@ -95,20 +95,20 @@ reset_wireplumber_t2_profile_state() {
 		node_tag="${node_tag//./\\.}"
 
 		if [[ -f "$default_profile" ]]; then
-			[[ -e "$default_profile.kait2en.bak" ]] || cp -p "$default_profile" "$default_profile.kait2en.bak"
+			[[ -e "$default_profile.vort2x.bak" ]] || cp -p "$default_profile" "$default_profile.vort2x.bak"
 			sed -i "/^${escaped}=/d" "$default_profile"
 			changed=1
 		fi
 
 		if [[ -f "$default_nodes" ]]; then
-			[[ -e "$default_nodes.kait2en.bak" ]] || cp -p "$default_nodes" "$default_nodes.kait2en.bak"
+			[[ -e "$default_nodes.vort2x.bak" ]] || cp -p "$default_nodes" "$default_nodes.vort2x.bak"
 			sed -i -e "/${escaped}/d" -e "/${node_tag}/d" \
 				-e '/\.t2-/d' "$default_nodes"
 			changed=1
 		fi
 
 		if [[ -f "$default_routes" ]]; then
-			[[ -e "$default_routes.kait2en.bak" ]] || cp -p "$default_routes" "$default_routes.kait2en.bak"
+			[[ -e "$default_routes.vort2x.bak" ]] || cp -p "$default_routes" "$default_routes.vort2x.bak"
 			sed -i "/^${escaped}:/d" "$default_routes"
 			changed=1
 		fi
@@ -133,7 +133,7 @@ done
 
 install -d -o root -g root -m 0755 "$UCM_DST/AppleT2"
 
-# Remove KaiT2en profile files superseded by the split UCM layout. Keep this
+# Remove VorT2x profile files superseded by the split UCM layout. Keep this
 # list explicit: /usr/share/alsa/ucm2 may also contain distribution files.
 rm -f \
 	"$UCM_DST/AppleT2/HiFi.conf" \

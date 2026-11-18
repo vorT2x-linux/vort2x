@@ -30,7 +30,7 @@ impl Haptic {
             .then(|| OpenOptions::new().write(true).open(Path::new(PLAY)).ok())
             .flatten();
         if enabled && file.is_none() {
-            eprintln!("kait2en-touchbar: haptic actuator is unavailable");
+            eprintln!("vort2x-touchbar: haptic actuator is unavailable");
         }
         let worker = file.and_then(|file| spawn(file).ok());
         Self {

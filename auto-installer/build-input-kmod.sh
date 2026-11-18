@@ -26,12 +26,12 @@ for command in make rpmbuild tar; do
 		exit 1
 	}
 done
-if [[ -n ${KAIT2EN_KMOD_WORK_ROOT:-} ]]; then
-	work=$KAIT2EN_KMOD_WORK_ROOT
+if [[ -n ${VORT2X_KMOD_WORK_ROOT:-} ]]; then
+	work=$VORT2X_KMOD_WORK_ROOT
 	rm -rf "$work"
 	mkdir -p "$work"
 else
-	work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-input-kmod.XXXXXX")
+	work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-input-kmod.XXXXXX")
 fi
 cleanup() {
 	rm -rf "$work"
@@ -39,7 +39,7 @@ cleanup() {
 trap cleanup EXIT
 
 rpm_root="$work/rpmbuild"
-source_stage="$work/kait2en-input-0.1"
+source_stage="$work/vort2x-input-0.1"
 mkdir -p "$rpm_root"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS} \
 	"$source_stage/modules" "$OUTPUT_DIR"
 
@@ -51,24 +51,24 @@ done
 tar --sort=name \
 	--mtime="@$SOURCE_DATE_EPOCH" \
 	--owner=0 --group=0 --numeric-owner \
-	-C "$work" -czf "$rpm_root/SOURCES/kait2en-input-0.1.tar.gz" \
-	kait2en-input-0.1
+	-C "$work" -czf "$rpm_root/SOURCES/vort2x-input-0.1.tar.gz" \
+	vort2x-input-0.1
 install -m 0644 \
-	"$SOURCE_ROOT/auto-installer/kmod-kait2en-input.spec" \
+	"$SOURCE_ROOT/auto-installer/kmod-vort2x-input.spec" \
 	"$rpm_root/SPECS/"
 
 export SOURCE_DATE_EPOCH
 rpmbuild -bb \
 	--target "$ARCH" \
 	--define "_topdir $rpm_root" \
-	--define "_buildhost kait2en-installer.invalid" \
+	--define "_buildhost vort2x-installer.invalid" \
 	--define "_buildtime $SOURCE_DATE_EPOCH" \
 	--define "build_mtime_policy clamp_to_source_date_epoch" \
 	--define "kernel_release $KERNEL_RELEASE" \
-	"$rpm_root/SPECS/kmod-kait2en-input.spec"
+	"$rpm_root/SPECS/kmod-vort2x-input.spec"
 
 rpm_path=$(find "$rpm_root/RPMS/$ARCH" -maxdepth 1 -type f \
-	-name 'kmod-kait2en-input-*.rpm' -print -quit)
+	-name 'kmod-vort2x-input-*.rpm' -print -quit)
 [[ -n "$rpm_path" && -f "$rpm_path" ]] || {
 	printf 'input-kmod RPM was not produced for %s\n' "$KERNEL_RELEASE" >&2
 	exit 1

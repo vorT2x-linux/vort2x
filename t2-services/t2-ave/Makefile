@@ -17,8 +17,8 @@ install-bin:
 	install -D -m 0755 $(TARGET_DIR)/release/t2remote $(DESTDIR)$(BINDIR)/t2remote
 install-integration:
 	install -d $(DESTDIR)$(SYSTEMD_UNIT_DIR)
-	sed 's|@BINDIR@|$(BINDIR)|g' integration/systemd/kait2en-t2-remote.service >$(DESTDIR)$(SYSTEMD_UNIT_DIR)/kait2en-t2-remote.service
-	chmod 0644 $(DESTDIR)$(SYSTEMD_UNIT_DIR)/kait2en-t2-remote.service
+	sed 's|@BINDIR@|$(BINDIR)|g' integration/systemd/vort2x-t2-remote.service >$(DESTDIR)$(SYSTEMD_UNIT_DIR)/vort2x-t2-remote.service
+	chmod 0644 $(DESTDIR)$(SYSTEMD_UNIT_DIR)/vort2x-t2-remote.service
 	install -D -m 0755 integration/systemd/t2-ave-suspend $(DESTDIR)$(LIBEXECDIR)/t2-services/sleep.d/t2-ave
 clean:
 	$(CARGO) clean --target-dir $(TARGET_DIR)

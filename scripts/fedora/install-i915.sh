@@ -29,9 +29,9 @@ for argument in "$@"; do
 			;;
 	esac
 done
-MODULE_DIR="/usr/lib/modules/$KVER/updates/kait2en-i915"
-HOOK_HOME="/usr/local/libexec/kait2en/i915"
-KERNEL_INSTALL_HOOK="/etc/kernel/install.d/47-kait2en-i915.install"
+MODULE_DIR="/usr/lib/modules/$KVER/updates/vort2x-i915"
+HOOK_HOME="/usr/local/libexec/vort2x/i915"
+KERNEL_INSTALL_HOOK="/etc/kernel/install.d/47-vort2x-i915.install"
 if [[ -f "$SCRIPT_DIR/patches/series" ]]; then
 	# The copy the kernel-install hook runs carries its own patches.
 	PATCH_DIR="$SCRIPT_DIR/patches"
@@ -98,22 +98,22 @@ install_kernel_hook() {
 
 command=\${1:-}
 kernelver=\${2:-}
-log=/var/log/kait2en-i915.log
+log=/var/log/vort2x-i915.log
 
 [[ -n "\$kernelver" ]] || exit 0
 case "\$command" in
 	add)
-		printf '[kait2en] building patched i915 for %s\\n' "\$kernelver"
+		printf '[vort2x] building patched i915 for %s\\n' "\$kernelver"
 		if ! "$HOOK_HOME/install-i915.sh" install "\$kernelver" \\
 				--defer-initramfs --no-deps >>"\$log" 2>&1; then
-			printf '[kait2en] i915 build for %s failed, see %s\\n' \\
+			printf '[vort2x] i915 build for %s failed, see %s\\n' \\
 				"\$kernelver" "\$log"
-			printf '[kait2en] retry with: sudo %s install %s\\n' \\
+			printf '[vort2x] retry with: sudo %s install %s\\n' \\
 				"$HOOK_HOME/install-i915.sh" "\$kernelver"
 		fi
 		;;
 	remove)
-		rm -rf "/usr/lib/modules/\$kernelver/updates/kait2en-i915"
+		rm -rf "/usr/lib/modules/\$kernelver/updates/vort2x-i915"
 		;;
 esac
 exit 0
@@ -184,7 +184,7 @@ if ((local_kernel_tree == 0)); then
 fi
 
 info "using /var/tmp for kernel sources and module build"
-workdir=$(mktemp -d /var/tmp/kait2en-i915.XXXXXXXXXX)
+workdir=$(mktemp -d /var/tmp/vort2x-i915.XXXXXXXXXX)
 trap 'rm -rf "$workdir"' EXIT
 if ((local_kernel_tree)); then
 	kernel_tree=$build_tree

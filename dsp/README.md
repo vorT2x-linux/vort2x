@@ -9,7 +9,7 @@ to the internal speakers: equalization and crossovers as `bq_raw` biquads,
 the multiband compressor as lsp `mb_compressor_stereo`, the limiters as lsp
 `limiter_stereo`, crosstalk cancellation as a side channel FIR
 (`xtc-side-*.wav` or `XTC-side-*.wav`) and virtual bass as bankstown. The
-graphs are generated. Changes go through the KaiT2en maintainers.
+graphs are generated. Changes go through the VorT2x maintainers.
 
 The `t2-dsp` RPM/Debian package and `scripts/fedora/install-dsp.sh` install
 all profiles to `/usr/share/t2-dsp/profiles/<profile>/`. At install time the

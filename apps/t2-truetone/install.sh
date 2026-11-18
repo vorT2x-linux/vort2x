@@ -11,7 +11,7 @@ require_fedora
 has_ambient_light_sensor || fail "this Mac has no ambient light sensor"
 
 UNIT=t2-truetone.service
-OLD_UNIT=kait2en-t2-autobrightness.service
+OLD_UNIT=vort2x-t2-autobrightness.service
 OLD_BIN=/usr/local/bin/t2-autobrightness
 OLD_UNIT_FILE=/usr/local/lib/systemd/user/$OLD_UNIT
 TARGET_USER=${SUDO_USER:-}
@@ -70,7 +70,7 @@ replace_autobrightness() {
 		in_session "systemctl --user stop $OLD_UNIT" || warn "could not stop $OLD_UNIT in the running session"
 		systemctl --global disable "$OLD_UNIT" || warn "could not disable $OLD_UNIT globally"
 	fi
-	rm -f "$OLD_BIN" "$OLD_UNIT_FILE" /var/lib/kait2en-installer/applied/install-autobrightness.sh
+	rm -f "$OLD_BIN" "$OLD_UNIT_FILE" /var/lib/vort2x-installer/applied/install-autobrightness.sh
 	in_session "systemctl --user daemon-reload" || warn "could not reload the user units of $TARGET_USER"
 	if (( was_enabled )) && [[ -n "$TARGET_USER" && "$TARGET_USER" != root ]]; then
 		write_config_if_missing || warn "could not write the t2-truetone configuration for $TARGET_USER"

@@ -8,9 +8,9 @@
 
 use zbus::blocking::Connection;
 
-const NAME: &str = "org.kait2en.TouchId";
-const PATH: &str = "/org/kait2en/TouchId";
-const IFACE: &str = "org.kait2en.TouchId";
+const NAME: &str = "org.vort2x.TouchId";
+const PATH: &str = "/org/vort2x/TouchId";
+const IFACE: &str = "org.vort2x.TouchId";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum State {

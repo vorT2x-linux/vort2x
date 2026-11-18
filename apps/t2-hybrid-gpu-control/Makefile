@@ -12,12 +12,12 @@ STATUS_HELPER_SRC := contrib/t2-hybrid-gpu-control-status
 STATUS_HELPER_NAME := t2-hybrid-gpu-control-status
 POLICY_SRC := contrib/org.t2hybridgpucontrol.policy
 STATUS_POLICY_SRC := contrib/org.t2hybridgpucontrol.status.policy
-LEGACY_UNITS := kait2en-dgpu-off.service kait2en-dgpu-suspend.service \
-	kait2en-amdgpu-profile.service kait2en-amdgpu-profile-resume.service
+LEGACY_UNITS := vort2x-dgpu-off.service vort2x-dgpu-suspend.service \
+	vort2x-amdgpu-profile.service vort2x-amdgpu-profile-resume.service
 ICON_SRC := assets/icons/hicolor/scalable/apps/$(APP_ID).svg
 PREBOOT_TARGET := x86_64-unknown-uefi
 PREBOOT_SRC := $(or $(CARGO_TARGET_DIR),preboot/target)/$(PREBOOT_TARGET)/release/t2-gpu-preboot.efi
-PREBOOT_DIR ?= /boot/efi/EFI/kait2en
+PREBOOT_DIR ?= /boot/efi/EFI/vort2x
 
 PREFIX ?= /usr/local
 BIN_DIR := $(PREFIX)/bin
@@ -26,9 +26,9 @@ APPS_DIR := $(PREFIX)/share/applications
 ICONS_DIR := $(PREFIX)/share/icons/hicolor/scalable/apps
 ICON_THEME_DIR := $(PREFIX)/share/icons/hicolor
 POLICY_DIR ?= /usr/share/polkit-1/actions
-ENV_SRC := contrib/90-kait2en-gsk-renderer.conf
+ENV_SRC := contrib/90-vort2x-gsk-renderer.conf
 ENV_DIR ?= /etc/environment.d
-ENV_FILE := $(ENV_DIR)/90-kait2en-gsk-renderer.conf
+ENV_FILE := $(ENV_DIR)/90-vort2x-gsk-renderer.conf
 FLATPAK_OVERRIDES := /var/lib/flatpak/overrides/global
 
 .PHONY: build check-build install uninstall clean

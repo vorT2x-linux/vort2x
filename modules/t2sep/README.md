@@ -5,7 +5,7 @@ way to reach **AppleKeyStore** from Linux.
 
 ## Status: not shipped
 
-Nothing in KAIT2EN consumes it, so it is not installed by
+Nothing in VORT2X consumes it, so it is not installed by
 `install-dkms-modules.sh` (it is listed there for removal instead),
 `AUTOINSTALL` is `no`, and the module carries no `MODULE_DEVICE_TABLE`. It
 therefore never autoloads and never binds on a user machine. Load it by hand

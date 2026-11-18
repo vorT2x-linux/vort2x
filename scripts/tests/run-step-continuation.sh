@@ -2,11 +2,11 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-test_dir=$(mktemp -d /tmp/kait2en-run-step-test.XXXXXX)
+test_dir=$(mktemp -d /tmp/vort2x-run-step-test.XXXXXX)
 
 # Model main installer -> install-apps -> standalone component installer with
 # the same shared ledger used in production.
-export KAIT2EN_INSTALL_ERRORS="$test_dir/errors"
+export VORT2X_INSTALL_ERRORS="$test_dir/errors"
 source "$repo_root/scripts/fedora/lib.sh"
 trap 'rm -rf -- "$test_dir"' EXIT
 
@@ -27,10 +27,10 @@ downstream_step() {
 	component_status=$STEP_STATUS
 	(( component_status != 0 ))
 
-	run_step "simulated later KAIT2EN step" downstream_step
+	run_step "simulated later VORT2X step" downstream_step
 	(( STEP_STATUS == 0 ))
 } >"$test_dir/run.log" 2>&1
 [[ -f "$test_dir/downstream-ran" ]]
-[[ -s "$KAIT2EN_INSTALL_HARD_ERRORS" ]]
+[[ -s "$VORT2X_INSTALL_HARD_ERRORS" ]]
 
 echo "Nested installer failure-continuation checks passed."

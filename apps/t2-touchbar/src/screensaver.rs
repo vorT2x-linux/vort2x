@@ -34,7 +34,7 @@ pub fn watch() -> Result<(Receiver<bool>, UnixStream)> {
                 if let Err(error) = listen(&sender, &mut wake_writer) {
                     // Without it the screen just counts as on.
                     if !reported {
-                        eprintln!("kait2en-touchbar: screensaver listener: {error:#}");
+                        eprintln!("vort2x-touchbar: screensaver listener: {error:#}");
                         reported = true;
                     }
                     thread::sleep(Duration::from_secs(30));

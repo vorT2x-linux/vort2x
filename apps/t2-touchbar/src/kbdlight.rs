@@ -48,7 +48,7 @@ pub fn watch() -> Result<UnixStream> {
                 if let Err(error) = listen(&mut wake_writer) {
                     // Without UPower the level is still read on every wake.
                     if !reported {
-                        eprintln!("kait2en-touchbar: keyboard backlight listener: {error:#}");
+                        eprintln!("vort2x-touchbar: keyboard backlight listener: {error:#}");
                         reported = true;
                     }
                     thread::sleep(Duration::from_secs(30));

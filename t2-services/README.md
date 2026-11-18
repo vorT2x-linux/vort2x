@@ -52,7 +52,7 @@ touches it. The AVE hook closes/reopens only its own sessions, and skips an
 inactive AVE daemon. Touch ID uses its existing logind resume watcher and
 connection retry loop. Journal holds no persistent daemon session.
 
-The remaining `kait2en-suspend.service` handles WLAN/Bluetooth only.
+The remaining `vort2x-suspend.service` handles WLAN/Bluetooth only.
 
 ## Kernel boundary
 

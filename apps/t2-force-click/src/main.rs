@@ -42,12 +42,12 @@ fn action_kind_from_selection(selected: u32) -> ActionKind {
     }
 }
 
-fn kait2en_brand() -> gtk4::DrawingArea {
+fn vort2x_brand() -> gtk4::DrawingArea {
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let dark = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
-        .expect("failed to load kait2en wordmark");
-    let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+    let dark = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
+        .expect("failed to load vort2x wordmark");
+    let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
         .unwrap_or_else(|_| dark.clone());
     let brand = gtk4::DrawingArea::new();
     brand.set_content_width(80);
@@ -326,8 +326,8 @@ fn build_ui(app: &Application) {
     root.set_margin_end(18);
 
     let header = adw::HeaderBar::new();
-    if std::path::Path::new("/usr/local/share/kait2en/kait2en-wordmark.png").exists() {
-        let brand = kait2en_brand();
+    if std::path::Path::new("/usr/local/share/vort2x/vort2x-wordmark.png").exists() {
+        let brand = vort2x_brand();
         brand.set_margin_start(10);
         brand.set_margin_end(10);
         header.pack_start(&brand);

@@ -3,8 +3,8 @@
  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <vendor>KaiT2en</vendor>
-  <vendor_url>https://kait2en.github.io/</vendor_url>
+  <vendor>VorT2x</vendor>
+  <vendor_url>https://vort2x.org/</vendor_url>
   <action id="org.t2hybridgpucontrol.status">
     <description>Read the GPU switch state in this MacBook Pro</description>
     <message>Authentication is required to read the GPU switch state</message>

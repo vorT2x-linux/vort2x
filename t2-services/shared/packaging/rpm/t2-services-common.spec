@@ -3,7 +3,7 @@ Version: 0.1.0
 Release: 1%{?dist}
 Summary: Shared Apple T2 network and suspend integration
 License: GPL-3.0-or-later
-URL: https://github.com/kaiT2en/KaiT2en-Fedora
+URL: https://github.com/vorT2x-linux/vort2x
 Source0: t2-services-%{version}.tar.gz
 BuildRequires: make
 BuildRequires: python3

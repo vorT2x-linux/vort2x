@@ -1,6 +1,6 @@
 [Unit]
 Description=T2 TrueTone ambient white point, evening mode and automatic brightness
-Documentation=https://kait2en.org/documentation.html
+Documentation=https://vort2x.org/documentation.html
 PartOf=graphical-session.target
 After=graphical-session.target
 

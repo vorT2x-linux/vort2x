@@ -1,4 +1,4 @@
-# KaiT2en Fedora installer USB
+# VorT2x Fedora installer USB
 
 This kit prepares one Fedora USB stick on macOS. It adds the T2 keyboard and
 trackpad drivers, brings up Wi-Fi in the live system, and carries the Apple
@@ -8,7 +8,7 @@ PCIe (BCM4377) it does the same for the Apple Bluetooth firmware.
 For a published release, download, verify, and start the complete kit with:
 
 ```bash
-curl -fsSL https://github.com/kaiT2en/KaiT2en-Fedora/releases/latest/download/install-kait2en-fedora.sh | bash
+curl -fsSL https://github.com/vorT2x-linux/vort2x/releases/latest/download/install-vort2x-fedora.sh | bash
 ```
 
 The repository checkout method remains available below for development builds.
@@ -25,23 +25,23 @@ The repository checkout method remains available below for development builds.
 3. Boot the T2 Mac from that USB drive and install Fedora normally. Format an
    existing Linux `/boot` partition when doing a clean reinstall. Wi-Fi is
    available in the live system itself, which also makes the stick usable for
-   rescue work. Run `sudo /run/kait2en/kait2en-live-wifi` if no wireless network
-   shows up there, `sudo /run/kait2en/kait2en-live-bluetooth` if a BCM4377 Mac
+   rescue work. Run `sudo /run/vort2x/vort2x-live-wifi` if no wireless network
+   shows up there, `sudo /run/vort2x/vort2x-live-bluetooth` if a BCM4377 Mac
    finds no Bluetooth controller, and
-   `sudo /run/kait2en/kait2en-live-diagnostics --rerun` to write one diagnostics
-   archive to a second USB drive. `sudo kait2en-rescue` mounts an already
+   `sudo /run/vort2x/vort2x-live-diagnostics --rerun` to write one diagnostics
+   archive to a second USB drive. `sudo vort2x-rescue` mounts an already
    installed Fedora and chroots into it.
-4. Connect to Wi-Fi after the first login. One guided KaiT2en installer opens
+4. Connect to Wi-Fi after the first login. One guided VorT2x installer opens
    automatically and updates Fedora. Reboot when its first phase prepares a
    newer kernel.
-   If no terminal appears, open one and run `kait2en-install` without
+   If no terminal appears, open one and run `vort2x-install` without
    `sudo`; the installer requests administrator access when needed.
 5. After the reboot, the same installer continues automatically with the
-   regular, unchanged KaiT2en installer from GitHub `main`. Review its output
+   regular, unchanged VorT2x installer from GitHub `main`. Review its output
    and reboot after success. If the prepared kernel is already running, setup
    continues in the same window.
 
-Run `kait2en-install` again at any later time to fast-forward the clean Git
+Run `vort2x-install` again at any later time to fast-forward the clean Git
 checkout and rerun the regular project installer.
 
 The standard Fedora boot entry remains available on the USB stick as a fallback.

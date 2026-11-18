@@ -1,0 +1,1 @@
+/run/t2-touchid(/.*)?	system_u:object_r:vort2x_touchid_runtime_t:s0

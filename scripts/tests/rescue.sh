@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-script="$repo_root/auto-installer/runtime/kait2en-rescue"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-rescue-test.XXXXXX")
+script="$repo_root/auto-installer/runtime/vort2x-rescue"
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-rescue-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 make_case() {
@@ -120,9 +120,9 @@ run_case() {
 	shift
 
 	PATH="$case_dir/bin:$PATH" \
-		KAIT2EN_TEST_MODE=1 \
-		KAIT2EN_RESCUE_ROOT="$case_dir/mnt" \
-		KAIT2EN_RESCUE_PROBE="$case_dir/probe" \
+		VORT2X_TEST_MODE=1 \
+		VORT2X_RESCUE_ROOT="$case_dir/mnt" \
+		VORT2X_RESCUE_PROBE="$case_dir/probe" \
 		bash "$script" "$@"
 }
 

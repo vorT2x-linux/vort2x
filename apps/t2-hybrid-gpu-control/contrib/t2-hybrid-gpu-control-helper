@@ -6,9 +6,9 @@ readonly SWITCH_PATH=/sys/kernel/debug/vgaswitcheroo/switch
 # Wanted boot mode for t2-gpu-preboot: mode byte (1 = hybrid), attempt counter.
 readonly PREBOOT_VAR=/sys/firmware/efi/efivars/boot-gpu-cf9aa22b-9505-4c88-aed0-5673e31b00c2
 readonly ESP_MOUNT=/boot/efi
-readonly PREBOOT_FILE=$ESP_MOUNT/EFI/kait2en/t2-gpu-preboot.efi
-readonly PREBOOT_LOADER='\EFI\kait2en\t2-gpu-preboot.efi'
-readonly PREBOOT_LABEL='KaiT2en GPU'
+readonly PREBOOT_FILE=$ESP_MOUNT/EFI/vort2x/t2-gpu-preboot.efi
+readonly PREBOOT_LOADER='\EFI\vort2x\t2-gpu-preboot.efi'
+readonly PREBOOT_LABEL='VorT2x GPU'
 
 fail() {
 	printf 't2-hybrid-gpu-control: %s\n' "$*" >&2

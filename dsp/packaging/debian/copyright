@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: KaiT2en DSP
-Source: https://github.com/kaiT2en/KaiT2en-Fedora
+Upstream-Name: VorT2x DSP
+Source: https://github.com/vorT2x-linux/vort2x
 
 Files: *
 Copyright: 2026 André Eikmeyer <andre.eikmeyer@kait2en.org>
-           2026 KaiT2en contributors
+           2026 VorT2x contributors
 License: GPL-3+
 Comment: Preserve author attribution under GPL-3 section 7(b).
  See LICENSING.md and the per-profile README.md notices.

@@ -14,9 +14,9 @@ if not Path("/run/.containerenv").exists() and not Path("/.dockerenv").exists():
 
 old_unit = Path("/etc/systemd/system/t2-services-suspend.service")
 old_helper = Path("/usr/local/libexec/t2-services/t2-ncm-sleep")
-old_profile = Path("/etc/NetworkManager/system-connections/old-kait2en.nmconnection")
-old_dsp = Path("/usr/share/kait2en/audio-dsp")
-old_conf = Path("/etc/wireplumber/wireplumber.conf.d/51-kait2en-t2-dsp.conf")
+old_profile = Path("/etc/NetworkManager/system-connections/old-vort2x.nmconnection")
+old_dsp = Path("/usr/share/vort2x/audio-dsp")
+old_conf = Path("/etc/wireplumber/wireplumber.conf.d/51-vort2x-t2-dsp.conf")
 uuid = "7de922f7-0659-4f15-8c82-36c45450b78c"
 
 if args.action == "seed":
@@ -40,12 +40,12 @@ elif args.action == "installed":
     assert Path("/usr/lib/udev/rules.d/90-t2-services-ncm.rules").is_file()
     assert Path("/etc/systemd/system/sleep.target.wants/t2-services-suspend.service").resolve().is_file()
     for component in ("t2-services-common", "t2-dsp"):
-        assert Path(f"/var/lib/kait2en/ownership/{component}.json").is_file()
-        assert any(Path(f"/var/lib/kait2en/migration/{component}").iterdir())
+        assert Path(f"/var/lib/vort2x/ownership/{component}.json").is_file()
+        assert any(Path(f"/var/lib/vort2x/migration/{component}").iterdir())
 else:
     for component in ("t2-services-common", "t2-dsp"):
-        assert not Path(f"/var/lib/kait2en/ownership/{component}.json").exists()
-        assert not Path(f"/var/lib/kait2en/migration/{component}").exists()
+        assert not Path(f"/var/lib/vort2x/ownership/{component}.json").exists()
+        assert not Path(f"/var/lib/vort2x/migration/{component}").exists()
     for path in (old_unit, old_helper, old_profile, old_conf, old_dsp):
         assert not path.exists()
 print(f"PASS: source/package fixture {args.action}")

@@ -1,0 +1,7 @@
+{
+  "uuid": "vort2x-eddy@vort2x",
+  "name": "VorT2x Eddy",
+  "description": "VorT2x Eddy, an opinionated take on how GNOME should look and feel. No settings.",
+  "shell-version": ["50", "51"],
+  "url": "https://github.com/vorT2x-linux/vort2x"
+}

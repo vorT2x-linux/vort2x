@@ -3,15 +3,15 @@
 ## Reset
 
 ```sh
-sudo systemctl disable --now kait2en-power-tune-resume.service kait2en-power-tune.service
-sudo rm -f /etc/systemd/system/kait2en-power-tune-resume.service
-sudo rm /etc/systemd/system/kait2en-power-tune.service
+sudo systemctl disable --now vort2x-power-tune-resume.service vort2x-power-tune.service
+sudo rm -f /etc/systemd/system/vort2x-power-tune-resume.service
+sudo rm /etc/systemd/system/vort2x-power-tune.service
 sudo rm -f /run/t2-power-tune/items.json
 sudo systemctl daemon-reload
 ```
 
 `--now` runs the unit's `ExecStop` commands and restores the saved values.
-`kait2en-power-tune-resume.service` applies the same selection again after
+`vort2x-power-tune-resume.service` applies the same selection again after
 every resume.
 
 ## Recovery when the system does not boot
@@ -19,15 +19,15 @@ every resume.
 Add this kernel parameter once in the bootloader:
 
 ```text
-systemd.mask=kait2en-power-tune.service systemd.mask=kait2en-power-tune-resume.service
+systemd.mask=vort2x-power-tune.service systemd.mask=vort2x-power-tune-resume.service
 ```
 
 After booting:
 
 ```sh
-sudo systemctl disable kait2en-power-tune-resume.service kait2en-power-tune.service
-sudo rm -f /etc/systemd/system/kait2en-power-tune-resume.service
-sudo rm /etc/systemd/system/kait2en-power-tune.service
+sudo systemctl disable vort2x-power-tune-resume.service vort2x-power-tune.service
+sudo rm -f /etc/systemd/system/vort2x-power-tune-resume.service
+sudo rm /etc/systemd/system/vort2x-power-tune.service
 sudo systemctl daemon-reload
 sudo reboot
 ```

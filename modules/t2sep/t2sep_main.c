@@ -4,7 +4,7 @@
  *
  * Reaches the SEP mailbox on device 106b:1802 and, with register_ool=1,
  * exposes /dev/t2sep for opaque request/response exchanges with the
- * AppleKeyStore endpoint. Nothing in KAIT2EN consumes it yet, so it is not
+ * AppleKeyStore endpoint. Nothing in VORT2X consumes it yet, so it is not
  * shipped and does not autoload; see README.md.
  */
 

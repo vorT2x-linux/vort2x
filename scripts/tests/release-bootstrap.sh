@@ -4,19 +4,19 @@ set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 template="$repo_root/auto-installer/macos-release-bootstrap.sh.in"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-bootstrap-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-bootstrap-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 release="$work/release"
 payload="$work/payload"
 fake_bin="$work/bin"
 result="$work/result"
-artifact=KaiT2en-Test-Installer
+artifact=VorT2x-Test-Installer
 mkdir -p "$release" "$payload/scripts/macos" "$fake_bin"
 
 cat >"$payload/scripts/macos/prepare-fedora-installer.sh" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >"$KAIT2EN_TEST_RESULT"
+printf '%s\n' "$*" >"$VORT2X_TEST_RESULT"
 EOF
 (
 	cd "$payload"
@@ -42,7 +42,7 @@ while (($# > 0)); do
 		*) shift ;;
 	esac
 done
-cp "$KAIT2EN_TEST_RELEASE/${url##*/}" "$output"
+cp "$VORT2X_TEST_RELEASE/${url##*/}" "$output"
 EOF
 cat >"$fake_bin/ditto" <<'EOF'
 #!/usr/bin/env bash
@@ -57,15 +57,15 @@ EOF
 chmod 0755 "$fake_bin"/*
 
 sed \
-	-e 's|@GITHUB_REPOSITORY@|example/KaiT2en-Fedora|g' \
+	-e 's|@GITHUB_REPOSITORY@|example/VorT2x-Fedora|g' \
 	-e "s|@ARTIFACT_BASENAME@|$artifact|g" \
 	"$template" >"$work/bootstrap.sh"
 
 PATH="$fake_bin:/usr/bin:/bin" \
-	KAIT2EN_RELEASE_BASE_URL=https://example.invalid/release \
-	KAIT2EN_TEST_RELEASE="$release" \
-	KAIT2EN_TEST_RESULT="$result" \
-	KAIT2EN_TTY=/dev/null \
+	VORT2X_RELEASE_BASE_URL=https://example.invalid/release \
+	VORT2X_TEST_RELEASE="$release" \
+	VORT2X_TEST_RESULT="$result" \
+	VORT2X_TTY=/dev/null \
 	bash "$work/bootstrap.sh" --edition kde >/dev/null
 
 grep -Fxq -- '--edition kde' "$result"

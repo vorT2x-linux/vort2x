@@ -2,10 +2,10 @@
 set -euo pipefail
 
 readonly EFI_VAR=/sys/firmware/efi/efivars/gpu-power-prefs-fa4ce28d-b62f-4c99-9cc3-6815686e30f9
-readonly DGPU_OFF_SERVICE=kait2en-dgpu-off.service
-readonly DGPU_SUSPEND_SERVICE=kait2en-dgpu-suspend.service
-readonly POWER_PROFILE_SERVICE=kait2en-amdgpu-profile.service
-readonly POWER_PROFILE_RESUME_SERVICE=kait2en-amdgpu-profile-resume.service
+readonly DGPU_OFF_SERVICE=vort2x-dgpu-off.service
+readonly DGPU_SUSPEND_SERVICE=vort2x-dgpu-suspend.service
+readonly POWER_PROFILE_SERVICE=vort2x-amdgpu-profile.service
+readonly POWER_PROFILE_RESUME_SERVICE=vort2x-amdgpu-profile-resume.service
 readonly SWITCH_PATH=/sys/kernel/debug/vgaswitcheroo/switch
 readonly STATE_DIR=/run/t2-dgpu-control
 readonly SUSPEND_STATE="$STATE_DIR/dgpu-was-off"

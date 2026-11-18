@@ -3,7 +3,7 @@
 //! Tab 1 is a per-process "top" (sysmontap) with deviceinfo selector buttons;
 //! tab 2 is the decoded live os_log stream (activitytracetap) with a regex
 //! filter and clickable subsystem chips. Read/observe only. Visual style mirrors
-//! the other kait2en gtk apps.
+//! the other vort2x gtk apps.
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -107,7 +107,7 @@ fn build_ui(app: &adw::Application) {
 
     let header = adw::HeaderBar::new();
     header.set_title_widget(Some(&gtk4::Label::new(Some("T2 Debug"))));
-    let brand = kait2en_brand();
+    let brand = vort2x_brand();
     brand.set_margin_start(10);
     brand.set_margin_end(10);
     header.pack_start(&brand);
@@ -806,7 +806,7 @@ impl LogTab {
 }
 
 // ---------------------------------------------------------------------------
-// Style and resources (mirrors the other kait2en gtk apps)
+// Style and resources (mirrors the other vort2x gtk apps)
 // ---------------------------------------------------------------------------
 
 fn register_embedded_resources() {
@@ -814,16 +814,16 @@ fn register_embedded_resources() {
         .expect("failed to register embedded resources");
 }
 
-fn kait2en_brand() -> gtk4::DrawingArea {
+fn vort2x_brand() -> gtk4::DrawingArea {
     let brand = gtk4::DrawingArea::new();
     brand.set_content_width(80);
     brand.set_content_height(21);
     brand.set_size_request(80, 21);
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let pixbuf = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png");
+    let pixbuf = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png");
     if let Ok(dark) = pixbuf {
-        let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+        let light = gtk4::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
             .unwrap_or_else(|_| dark.clone());
         brand.set_draw_func(move |_area, context, width, height| {
             let pixbuf = if adw::StyleManager::default().is_dark() { &dark } else { &light };

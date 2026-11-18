@@ -425,7 +425,7 @@ if [[ ! -f $WORK/.prepared ]]; then
 			--disable PATA_AMD --disable PATA_ATIIXP --disable PATA_JMICRON
 	fi
 	if ((LOCALMODCONFIG)); then
-		printf '[kait2en-progress] phase=localmodconfig\n'
+		printf '[vort2x-progress] phase=localmodconfig\n'
 		# Fedora's localmodconfig invokes oldconfig and otherwise waits forever
 		# for answers when new symbols remain after module streamlining.
 		set +o pipefail
@@ -446,7 +446,7 @@ if [[ ! -f $WORK/.prepared ]]; then
 		# t2-ave in the apple-t2-bridge DKMS build links against v4l2-mem2mem.
 		# That helper has no prompt and only survives localmodconfig while
 		# t2-ave is loaded, so VIDEO_VIM2M is kept as its selecting driver.
-		# The initcall and module blacklists used by Kait2en replace drivers at
+		# The initcall and module blacklists used by Vort2x replace drivers at
 		# runtime; they do not make those drivers optional at build time.
 		"$TREE/scripts/config" --file "$TREE/.config" \
 			--enable INPUT_SPARSEKMAP \
@@ -471,9 +471,9 @@ if [[ ! -f $WORK/.prepared ]]; then
 		"$TREE/scripts/config" --file "$TREE/.config" --enable "$symbol"
 	done
 	if ((T2_CONFIG)); then
-		# Keep the upstream drivers replaced by Kait2en as modules.  Their Kconfig
+		# Keep the upstream drivers replaced by Vort2x as modules.  Their Kconfig
 		# entries select infrastructure needed by the DKMS replacements, while
-		# Kait2en's module_blacklist prevents the upstream modules from binding.
+		# Vort2x's module_blacklist prevents the upstream modules from binding.
 		# This must come after GUI overrides so none can accidentally become
 		# built-in and bypass the module blacklist.
 		for symbol in "${T2_REQUIRED_MODULES[@]}"; do
@@ -568,7 +568,7 @@ if ((LOCAL_INSTALL)); then
 		printf 'Built kernel release: %s\n' "$KERNELRELEASE"
 		exit 0
 	fi
-	printf '[kait2en-progress] phase=installing\n'
+	printf '[vort2x-progress] phase=installing\n'
 	printf 'Installing %s locally\n' "$KERNELRELEASE"
 	pkexec /usr/local/libexec/t2-kernel-builder-cleanup install-kernel "$TREE" "$KERNELRELEASE"
 	printf '\nInstalled kernel release: %s\n' "$KERNELRELEASE"

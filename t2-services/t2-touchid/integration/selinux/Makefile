@@ -1,4 +1,4 @@
-MODULE := kait2en-t2-touchid
+MODULE := vort2x-t2-touchid
 
 .PHONY: all install clean
 all: $(MODULE).pp

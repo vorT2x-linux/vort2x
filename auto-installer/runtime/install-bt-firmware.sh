@@ -9,7 +9,7 @@ shopt -s nullglob
 
 source_dir=
 root=/
-pci_root=${KAIT2EN_PCI_ROOT:-/sys/bus/pci/devices}
+pci_root=${VORT2X_PCI_ROOT:-/sys/bus/pci/devices}
 
 usage() {
 	printf 'Usage: %s --source DIR [--root DIR]\n' "${0##*/}"
@@ -139,8 +139,8 @@ done
 ((${#bases[@]} > 0)) ||
 	die "no usable BCM4377 production firmware and PTB pair in $source_dir"
 
-if [[ -n ${KAIT2EN_BT_FIRMWARE_REQUEST:-} ]]; then
-	read -r -a requested <<<"$KAIT2EN_BT_FIRMWARE_REQUEST"
+if [[ -n ${VORT2X_BT_FIRMWARE_REQUEST:-} ]]; then
+	read -r -a requested <<<"$VORT2X_BT_FIRMWARE_REQUEST"
 else
 	read -r -a requested <<<"$(requested_names)"
 fi
@@ -191,5 +191,5 @@ install -d -m 0755 "$dest_dir"
 install -m 0644 "${bins[selected]}" "$dest_dir/$target_base.bin"
 install -m 0644 "${ptbs[selected]}" "$dest_dir/$target_base.ptb"
 
-printf 'KaiT2en Bluetooth firmware installed:\n'
+printf 'VorT2x Bluetooth firmware installed:\n'
 printf '  /usr/lib/firmware/brcm/%s\n' "$target_base.bin" "$target_base.ptb"

@@ -166,7 +166,7 @@ fn build_ui(app: &adw::Application) {
 
     let header = adw::HeaderBar::new();
     header.set_title_widget(Some(&gtk::Label::new(Some("T2 AirShare"))));
-    header.pack_start(&kait2en_brand());
+    header.pack_start(&vort2x_brand());
     let view = adw::ToolbarView::new();
     view.add_top_bar(&header);
     view.set_content(Some(&page));
@@ -185,18 +185,18 @@ fn build_ui(app: &adw::Application) {
     window.present();
 }
 
-/// The shared KaiT2en wordmark, drawn like in the other KaiT2en apps.
-fn kait2en_brand() -> gtk::DrawingArea {
+/// The shared VorT2x wordmark, drawn like in the other VorT2x apps.
+fn vort2x_brand() -> gtk::DrawingArea {
     let brand = gtk::DrawingArea::new();
     brand.set_content_width(80);
     brand.set_content_height(21);
     brand.set_size_request(80, 21);
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png");
+    let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png");
     if let Ok(dark) = pixbuf {
         let light =
-            gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+            gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
                 .unwrap_or_else(|_| dark.clone());
         brand.set_draw_func(move |_area, context, width, height| {
             let pixbuf = if adw::StyleManager::default().is_dark() { &dark } else { &light };

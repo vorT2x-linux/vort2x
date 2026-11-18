@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn gatt_advertisement_layout() {
-        let info = endpoint_info(DeviceType::Laptop, "kait2en");
+        let info = endpoint_info(DeviceType::Laptop, "vort2x");
         let adv = gatt_advertisement(*b"AbCd", &info, [1, 2, 3, 4, 5, 6], 0x81);
         assert_eq!(&adv[..4], &[0x48, 0xfc, 0x9f, 0x5e]);
         let len = u32::from_be_bytes(adv[4..8].try_into().unwrap()) as usize;

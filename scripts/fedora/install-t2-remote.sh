@@ -10,8 +10,8 @@ install_ave() {
 	[[ -n "$target_user" && "$target_user" != root ]] || fail "t2-ave must be built by the invoking user"
 	build_cargo_project "$REPO_ROOT/t2-services/t2-ave" "$target_user"
 	make -C "$REPO_ROOT/t2-services/t2-ave" install SYSTEMD_UNIT_DIR=/etc/systemd/system
-	python3 "$REPO_ROOT/packaging/lifecycle/kait2en-lifecycle.py" t2-ave record-source
+	python3 "$REPO_ROOT/packaging/lifecycle/vort2x-lifecycle.py" t2-ave record-source
 	systemctl daemon-reload
-	systemctl enable kait2en-t2-remote.service
+	systemctl enable vort2x-t2-remote.service
 }
 run_step "build and install t2-ave" install_ave

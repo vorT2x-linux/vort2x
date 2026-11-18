@@ -115,7 +115,7 @@ git diff --quiet HEAD -- && git diff --cached --quiet HEAD -- || {
 	exit 1
 }
 
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/kait2en-installer.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/vort2x-installer.XXXXXX")"
 cleanup() {
 	rm -rf "$WORK"
 }

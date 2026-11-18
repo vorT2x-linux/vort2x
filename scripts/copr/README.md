@@ -32,8 +32,8 @@ uses underscores instead of hyphens and includes the short source commit ID.
 The repository environment `copr` must contain the complete COPR API
 configuration as the `COPR_CONFIG` secret. The `COPR_PROJECT_TESTING`
 repository variable selects the target project without changing the workflow.
-Set it to `@kait2en/kernel-testing` in the upstream repository or to
-`4lex404/kait2en-kernel-testing` in the development fork. An authenticated run
+Set it to `@vort2x/kernel-testing` in the upstream repository or to
+`4lex404/vort2x-kernel-testing` in the development fork. An authenticated run
 fails if the variable is missing. Fork pull requests do not receive the
 credential and are not built automatically.
 

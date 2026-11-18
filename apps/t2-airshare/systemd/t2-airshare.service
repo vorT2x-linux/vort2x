@@ -1,6 +1,6 @@
 [Unit]
 Description=T2 AirShare receiver for Quick Share and AirDrop
-Documentation=https://kait2en.org/documentation.html
+Documentation=https://vort2x.org/documentation.html
 PartOf=graphical-session.target
 After=graphical-session.target
 

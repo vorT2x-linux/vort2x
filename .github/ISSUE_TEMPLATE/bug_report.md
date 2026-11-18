@@ -15,7 +15,7 @@ AI generated comments are not acceptable.
 If applicable, add screenshots to help explain your problem.
 
 **System information (mandatory):**
- - OS: [e.g. original KAIT2EN or upgraded Fedora from T2Linux]
+ - OS: [e.g. original VORT2X or upgraded Fedora from T2Linux]
  - Mac model [e.g. MacBookPro15,1, iMac]
  - Log file [run `journalctl -b` in terminal and upload as your_name.log] 
  - Commandline [run `cat /proc/cmdline` in terminal and paste here] 

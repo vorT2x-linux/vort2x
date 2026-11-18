@@ -3,9 +3,9 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-script="$repo_root/auto-installer/runtime/kait2en-live-wifi"
+script="$repo_root/auto-installer/runtime/vort2x-live-wifi"
 helper="$repo_root/auto-installer/runtime/install-wifi-firmware.sh"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-live-wifi-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-live-wifi-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 chip=4364b3
@@ -52,12 +52,12 @@ run_case() {
 	local case_dir="$work/$name"
 
 	PATH="$case_dir/bin:$PATH" \
-		KAIT2EN_LIVE_FIRMWARE_SOURCE="$case_dir/source" \
-		KAIT2EN_WIFI_HELPER="$helper" \
-		KAIT2EN_LIVE_ROOT="$case_dir/root" \
-		KAIT2EN_LIVE_NET_ROOT="$case_dir/net" \
-		KAIT2EN_LIVE_REQUEST_TIMEOUT=0 \
-		KAIT2EN_LIVE_LINK_TIMEOUT=0 \
+		VORT2X_LIVE_FIRMWARE_SOURCE="$case_dir/source" \
+		VORT2X_WIFI_HELPER="$helper" \
+		VORT2X_LIVE_ROOT="$case_dir/root" \
+		VORT2X_LIVE_NET_ROOT="$case_dir/net" \
+		VORT2X_LIVE_REQUEST_TIMEOUT=0 \
+		VORT2X_LIVE_LINK_TIMEOUT=0 \
 		bash "$script"
 }
 
@@ -112,11 +112,11 @@ grep -Fq 'no Apple Wi-Fi firmware on this boot medium' "$work/unequipped.out"
 # A packaging mistake has to be visible instead of silently skipped.
 make_case broken ''
 if PATH="$work/broken/bin:$PATH" \
-	KAIT2EN_LIVE_FIRMWARE_SOURCE="$work/broken/source" \
-	KAIT2EN_WIFI_HELPER="$work/broken/missing-helper" \
-	KAIT2EN_LIVE_ROOT="$work/broken/root" \
-	KAIT2EN_LIVE_REQUEST_TIMEOUT=0 \
-	KAIT2EN_LIVE_LINK_TIMEOUT=0 \
+	VORT2X_LIVE_FIRMWARE_SOURCE="$work/broken/source" \
+	VORT2X_WIFI_HELPER="$work/broken/missing-helper" \
+	VORT2X_LIVE_ROOT="$work/broken/root" \
+	VORT2X_LIVE_REQUEST_TIMEOUT=0 \
+	VORT2X_LIVE_LINK_TIMEOUT=0 \
 	bash "$script" >/dev/null 2>&1; then
 	printf 'a missing firmware helper was unexpectedly accepted\n' >&2
 	exit 1

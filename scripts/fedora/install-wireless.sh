@@ -29,9 +29,9 @@ for argument in "$@"; do
 			;;
 	esac
 done
-MODULE_DIR="/usr/lib/modules/$KVER/updates/kait2en-wireless"
-HOOK_HOME="/usr/local/libexec/kait2en/wireless"
-KERNEL_INSTALL_HOOK="/etc/kernel/install.d/46-kait2en-wireless.install"
+MODULE_DIR="/usr/lib/modules/$KVER/updates/vort2x-wireless"
+HOOK_HOME="/usr/local/libexec/vort2x/wireless"
+KERNEL_INSTALL_HOOK="/etc/kernel/install.d/46-vort2x-wireless.install"
 if [[ -f "$SCRIPT_DIR/patches/series" ]]; then
 	# The copy the kernel-install hook runs carries its own patches.
 	PATCH_DIR="$SCRIPT_DIR/patches"
@@ -114,7 +114,7 @@ remove_kernel_hook() {
 }
 
 # Rebuild the wireless modules for every kernel dnf installs later: after
-# 44-kait2en-kernel-source has prepared the source, before 50-depmod and
+# 44-vort2x-kernel-source has prepared the source, before 50-depmod and
 # 50-dracut. The hook never fails the transaction and cannot call dnf.
 install_kernel_hook() {
 	local entry
@@ -134,22 +134,22 @@ install_kernel_hook() {
 
 command=\${1:-}
 kernelver=\${2:-}
-log=/var/log/kait2en-wireless.log
+log=/var/log/vort2x-wireless.log
 
 [[ -n "\$kernelver" ]] || exit 0
 case "\$command" in
 	add)
-		printf '[kait2en] building wireless modules for %s\\n' "\$kernelver"
+		printf '[vort2x] building wireless modules for %s\\n' "\$kernelver"
 		if ! "$HOOK_HOME/install-wireless.sh" install "\$kernelver" \\
 				--defer-initramfs --no-deps >>"\$log" 2>&1; then
-			printf '[kait2en] wireless build for %s failed, see %s\\n' \\
+			printf '[vort2x] wireless build for %s failed, see %s\\n' \\
 				"\$kernelver" "\$log"
-			printf '[kait2en] retry with: sudo %s install %s\\n' \\
+			printf '[vort2x] retry with: sudo %s install %s\\n' \\
 				"$HOOK_HOME/install-wireless.sh" "\$kernelver"
 		fi
 		;;
 	remove)
-		rm -rf "/usr/lib/modules/\$kernelver/updates/kait2en-wireless"
+		rm -rf "/usr/lib/modules/\$kernelver/updates/vort2x-wireless"
 		;;
 esac
 exit 0
@@ -214,7 +214,7 @@ source_tree=$(kernel_source_tree "$KVER") ||
 	fail "kernel source for $KVER is unavailable"
 
 info "using /var/tmp for the wireless module build"
-workdir=$(mktemp -d /var/tmp/kait2en-wireless.XXXXXXXXXX)
+workdir=$(mktemp -d /var/tmp/vort2x-wireless.XXXXXXXXXX)
 trap 'rm -rf "$workdir"' EXIT
 tree="$workdir/linux"
 install -d "$tree/${BRCMFMAC_DIR%/*}" "$tree/${BLUETOOTH_DIR%/*}"

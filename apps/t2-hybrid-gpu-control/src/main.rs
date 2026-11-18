@@ -13,12 +13,12 @@ const STATUS_HELPER: &str = "/usr/local/libexec/t2-hybrid-gpu-control-status";
 const EFI_VAR: &str =
     "/sys/firmware/efi/efivars/gpu-power-prefs-fa4ce28d-b62f-4c99-9cc3-6815686e30f9";
 
-fn kait2en_brand() -> gtk::DrawingArea {
+fn vort2x_brand() -> gtk::DrawingArea {
     // White type for dark surfaces, dark type for light ones. Without the
     // light file the white one is used.
-    let dark = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark.png")
-        .expect("failed to load kait2en wordmark");
-    let light = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/kait2en/kait2en-wordmark-light.png")
+    let dark = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark.png")
+        .expect("failed to load vort2x wordmark");
+    let light = gtk::gdk_pixbuf::Pixbuf::from_file("/usr/local/share/vort2x/vort2x-wordmark-light.png")
         .unwrap_or_else(|_| dark.clone());
     let brand = gtk::DrawingArea::new();
     brand.set_content_width(80); brand.set_content_height(21); brand.set_size_request(80, 21);
@@ -233,7 +233,7 @@ fn build_ui(app: &adw::Application) {
 
     let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let header = adw::HeaderBar::new();
-    let brand = kait2en_brand();
+    let brand = vort2x_brand();
     brand.set_margin_start(10);
     brand.set_margin_end(10);
     header.pack_start(&brand);

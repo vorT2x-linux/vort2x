@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Detect, validate, and stage T2 Mac ACPI fixes for KaiT2en on Fedora.
+"""Detect, validate, and stage T2 Mac ACPI fixes for VorT2x on Fedora.
 
 The script reads the running machine's ACPI tables and current-boot kernel
 log. It only builds overrides for the documented CpuSSDT sub-table loading
@@ -11,7 +11,7 @@ DSDT recompilation is deliberately avoided because unrelated constructs in
 real Apple firmware tables do not reliably round-trip through iasl.
 
 Validated tables are installed below /usr/local/lib/firmware/acpi and enabled
-through a dracut configuration file. KaiT2en rebuilds the initramfs in the
+through a dracut configuration file. VorT2x rebuilds the initramfs in the
 following installer step; this script never rebuilds it itself. Every file
 changed here is backed up first and restored if deployment fails.
 """
@@ -60,7 +60,7 @@ class FixError(RuntimeError):
 
 
 class FixSkip(FixError):
-    """Benign condition: an existing non-KAIT2EN override is left untouched."""
+    """Benign condition: an existing non-VORT2X override is left untouched."""
 
 
 @dataclass(frozen=True)
@@ -103,7 +103,7 @@ class AmlMethod:
 
 
 def info(message: str) -> None:
-    print(f"[kait2en] {message}", flush=True)
+    print(f"[vort2x] {message}", flush=True)
 
 
 def output_summary(output: str) -> str:
@@ -137,7 +137,7 @@ def run(
 
 def require_root() -> None:
     if os.geteuid() != 0:
-        raise FixError("run the KaiT2en installer with sudo")
+        raise FixError("run the VorT2x installer with sudo")
 
 
 def require_fedora() -> None:
@@ -1411,7 +1411,7 @@ def atomic_copy(source: Path, destination: Path, mode: int = 0o644) -> None:
 
 
 def ownership_marker(target: Path) -> Path:
-    return target.with_name(f".kait2en-{target.stem}.sha256")
+    return target.with_name(f".vort2x-{target.stem}.sha256")
 
 
 def sha256_file(path: Path) -> str:
@@ -1446,12 +1446,12 @@ def verify_managed_or_absent(target: Path) -> None:
         )
     if not marker_exists:
         raise FixSkip(
-            f"Existing ACPI override is not owned by KAIT2EN: {target}. "
-            "It was left unchanged; move or remove it manually to let KAIT2EN manage it."
+            f"Existing ACPI override is not owned by VORT2X: {target}. "
+            "It was left unchanged; move or remove it manually to let VORT2X manage it."
         )
     if target.is_symlink() or marker.is_symlink() or not target.is_file() or not marker.is_file():
         raise FixError(
-            f"KAIT2EN refuses to manage a non-regular ACPI table or ownership marker: "
+            f"VORT2X refuses to manage a non-regular ACPI table or ownership marker: "
             f"{target}, {marker}"
         )
 
@@ -1459,7 +1459,7 @@ def verify_managed_or_absent(target: Path) -> None:
     actual = sha256_file(target)
     if actual != expected:
         raise FixError(
-            f"KAIT2EN-owned ACPI override was modified after installation: {target}. "
+            f"VORT2X-owned ACPI override was modified after installation: {target}. "
             "It was left unchanged; restore it or remove it and its ownership marker manually."
         )
 
@@ -1602,7 +1602,7 @@ def deploy_tables(
 
     manifest = backup_dir / "MANIFEST.txt"
     manifest.write_text(
-        "KaiT2en ACPI backup created before deployment.\n"
+        "VorT2x ACPI backup created before deployment.\n"
         + "\n".join(f"{path}: existed={existed_before[path]}" for path in tracked)
         + "\n",
         encoding="utf-8",
@@ -1673,7 +1673,7 @@ def main() -> int:
 
     deploy_tables(tables, timestamp, product_name, active)
     if not tables:
-        info("ACPI firmware fixes are not needed; removed obsolete KaiT2en overrides")
+        info("ACPI firmware fixes are not needed; removed obsolete VorT2x overrides")
     else:
         kinds = ", ".join(table.kind for table in tables)
         info(f"ACPI firmware fixes prepared for initramfs rebuild: {kinds}")
@@ -1681,7 +1681,7 @@ def main() -> int:
 
 
 def print_failure(message: str) -> None:
-    print(f"[kait2en] ACPI autofix could not be applied: {message}", file=sys.stderr)
+    print(f"[vort2x] ACPI autofix could not be applied: {message}", file=sys.stderr)
 
 
 if __name__ == "__main__":
@@ -1690,7 +1690,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         raise SystemExit(130)
     except FixSkip as exc:
-        print(f"[kait2en] ACPI autofix skipped: {exc}")
+        print(f"[vort2x] ACPI autofix skipped: {exc}")
         raise SystemExit(0)
     except FixError as exc:
         print_failure(str(exc))

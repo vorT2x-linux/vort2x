@@ -7,17 +7,17 @@ require_repo_root
 require_fedora
 require_command install systemctl readlink timeout
 
-SCRIPT_SRC="$REPO_ROOT/scripts/fedora/kait2en-suspend.sh"
+SCRIPT_SRC="$REPO_ROOT/scripts/fedora/vort2x-suspend.sh"
 
 [[ -f "$SCRIPT_SRC" ]] || fail "missing $SCRIPT_SRC"
 
-info "installing Kait2en suspend helper"
-install -d -o root -g root -m 0755 /usr/local/libexec/kait2en
-install -o root -g root -m 0755 "$SCRIPT_SRC" /usr/local/libexec/kait2en/kait2en-suspend.sh
+info "installing Vort2x suspend helper"
+install -d -o root -g root -m 0755 /usr/local/libexec/vort2x
+install -o root -g root -m 0755 "$SCRIPT_SRC" /usr/local/libexec/vort2x/vort2x-suspend.sh
 
-tee /etc/systemd/system/kait2en-suspend.service >/dev/null <<'EOF'
+tee /etc/systemd/system/vort2x-suspend.service >/dev/null <<'EOF'
 [Unit]
-Description=Kait2en T2 suspend and resume hardware fixes
+Description=Vort2x T2 suspend and resume hardware fixes
 Before=sleep.target
 After=NetworkManager.service t2-services-suspend.service
 StopWhenUnneeded=yes
@@ -26,15 +26,15 @@ StopWhenUnneeded=yes
 Type=oneshot
 RemainAfterExit=yes
 TimeoutStopSec=150
-ExecStart=/usr/local/libexec/kait2en/kait2en-suspend.sh pre
-ExecStop=/usr/local/libexec/kait2en/kait2en-suspend.sh post
+ExecStart=/usr/local/libexec/vort2x/vort2x-suspend.sh pre
+ExecStop=/usr/local/libexec/vort2x/vort2x-suspend.sh post
 
 [Install]
 WantedBy=sleep.target
 EOF
-chmod 0644 /etc/systemd/system/kait2en-suspend.service
+chmod 0644 /etc/systemd/system/vort2x-suspend.service
 
 systemctl daemon-reload
-systemctl enable kait2en-suspend.service
+systemctl enable vort2x-suspend.service
 
-info "Kait2en suspend helper installed"
+info "Vort2x suspend helper installed"

@@ -198,6 +198,6 @@ module_hid_driver(appletb_bl_hid_driver);
 
 MODULE_AUTHOR("Ronald Tschalär");
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
-MODULE_AUTHOR("kait2en");
-MODULE_DESCRIPTION("Kait2en T2 Touch Bar Backlight driver");
+MODULE_AUTHOR("vort2x");
+MODULE_DESCRIPTION("Vort2x T2 Touch Bar Backlight driver");
 MODULE_LICENSE("GPL");

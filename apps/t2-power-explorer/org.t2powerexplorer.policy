@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
 <policyconfig>
-  <vendor>KaiT2en</vendor>
-  <vendor_url>https://kait2en.github.io/</vendor_url>
+  <vendor>VorT2x</vendor>
+  <vendor_url>https://vort2x.org/</vendor_url>
   <action id="org.t2powerexplorer.status">
     <description>Read privileged display power diagnostics</description>
     <message>Authentication is required to inspect display power diagnostics</message>

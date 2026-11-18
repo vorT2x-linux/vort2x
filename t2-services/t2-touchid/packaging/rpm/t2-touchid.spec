@@ -3,7 +3,7 @@ Version: 0.1.0
 Release: 1%{?dist}
 Summary: Apple T2 Touch ID bridge for fprintd
 License: GPL-3.0-or-later
-URL: https://github.com/kaiT2en/KaiT2en-Fedora
+URL: https://github.com/vorT2x-linux/vort2x
 Source0: t2-services-%{version}.tar.gz
 BuildRequires: make
 BuildRequires: systemd-rpm-macros
@@ -32,7 +32,7 @@ make -C t2-services/t2-touchid test CARGO_FLAGS='--frozen'
 
 %install
 make -C t2-services/t2-touchid install PREFIX=/usr DESTDIR=%{buildroot} SYSTEMD_UNIT_DIR=%{_unitdir} LIBEXECDIR=%{_libexecdir}
-install -D -m 0644 t2-services/t2-touchid/integration/selinux/kait2en-t2-touchid.pp %{buildroot}%{_datadir}/selinux/packages/kait2en-t2-touchid.pp
+install -D -m 0644 t2-services/t2-touchid/integration/selinux/vort2x-t2-touchid.pp %{buildroot}%{_datadir}/selinux/packages/vort2x-t2-touchid.pp
 
 %post -p /bin/bash
 if source %{_libexecdir}/t2-services/package-actions; then
@@ -43,8 +43,8 @@ if source %{_libexecdir}/t2-services/package-actions; then
     if [ -d /run/systemd/system ]; then
         t2_run systemctl daemon-reload
         if [ "$migration_status" -eq 0 ] && [ "$policy_status" -eq 0 ]; then
-            if [ "$1" -eq 1 ] && ! systemctl is-enabled --quiet kait2en-t2-touchid.service; then t2_run systemctl preset kait2en-t2-touchid.service; fi
-            t2_run systemctl try-restart kait2en-t2-touchid.service
+            if [ "$1" -eq 1 ] && ! systemctl is-enabled --quiet vort2x-t2-touchid.service; then t2_run systemctl preset vort2x-t2-touchid.service; fi
+            t2_run systemctl try-restart vort2x-t2-touchid.service
         fi
     fi
     t2_summary
@@ -77,8 +77,8 @@ exit 0
 %license LICENSE
 %doc t2-services/README.md
 %{_bindir}/t2-touchid
-%{_unitdir}/kait2en-t2-touchid.service
-%{_unitdir}/fprintd.service.d/kait2en-t2-touchid.conf
-%{_datadir}/dbus-1/system.d/org.kait2en.TouchId.conf
-%config(noreplace) /etc/kait2en/t2-touchid.conf
-%{_datadir}/selinux/packages/kait2en-t2-touchid.pp
+%{_unitdir}/vort2x-t2-touchid.service
+%{_unitdir}/fprintd.service.d/vort2x-t2-touchid.conf
+%{_datadir}/dbus-1/system.d/org.vort2x.TouchId.conf
+%config(noreplace) /etc/vort2x/t2-touchid.conf
+%{_datadir}/selinux/packages/vort2x-t2-touchid.pp

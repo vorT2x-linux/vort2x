@@ -41,7 +41,7 @@ const MIN_STEP: Duration = Duration::from_millis(10);
 const WAKE: Duration = Duration::from_millis(50);
 const DEAD_BAND: f32 = 0.2;
 const STEPS_PER_UNIT: f32 = 1024.0;
-pub const EXTENSION: &str = "kait2en-autobrightness@kait2en";
+pub const EXTENSION: &str = "vort2x-autobrightness@vort2x";
 
 /// The built-in panel: written through mutter, read back from the kernel.
 /// Brightness inside the service is linear, `raw / max`.

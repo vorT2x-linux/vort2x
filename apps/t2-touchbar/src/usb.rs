@@ -55,7 +55,7 @@ pub fn ensure_display_configuration() -> Result<()> {
 
         if configuration != "2" || Instant::now() >= next_reprobe {
             if let Err(error) = switch_to_display(&device, &configuration) {
-                eprintln!("kait2en-touchbar: attach attempt failed: {error:#}");
+                eprintln!("vort2x-touchbar: attach attempt failed: {error:#}");
             }
             next_reprobe = Instant::now() + Duration::from_secs(2);
         }
@@ -94,7 +94,7 @@ pub fn restore_firmware_configuration() -> Result<()> {
                 Ok::<_, anyhow::Error>(())
             })();
             if let Err(error) = result {
-                eprintln!("kait2en-touchbar: detach attempt failed: {error:#}");
+                eprintln!("vort2x-touchbar: detach attempt failed: {error:#}");
             }
         }
         if Instant::now() >= deadline {

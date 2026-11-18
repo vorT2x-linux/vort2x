@@ -29,11 +29,11 @@ for argument in "$@"; do
 			;;
 	esac
 done
-MODULE_DIR="/usr/lib/modules/$KVER/updates/kait2en-gpu-runtime-pm"
-MODPROBE_CONF="/usr/lib/modprobe.d/kait2en-gpu-runtime-pm.conf"
-LEGACY_DRACUT_CONF="/etc/dracut.conf.d/90-kait2en-gpu-runtime-pm.conf"
-HOOK_HOME="/usr/local/libexec/kait2en/gpu-runtime-pm"
-KERNEL_INSTALL_HOOK="/etc/kernel/install.d/45-kait2en-gpu-runtime-pm.install"
+MODULE_DIR="/usr/lib/modules/$KVER/updates/vort2x-gpu-runtime-pm"
+MODPROBE_CONF="/usr/lib/modprobe.d/vort2x-gpu-runtime-pm.conf"
+LEGACY_DRACUT_CONF="/etc/dracut.conf.d/90-vort2x-gpu-runtime-pm.conf"
+HOOK_HOME="/usr/local/libexec/vort2x/gpu-runtime-pm"
+KERNEL_INSTALL_HOOK="/etc/kernel/install.d/45-vort2x-gpu-runtime-pm.install"
 if [[ -f "$SCRIPT_DIR/patches/series" ]]; then
 	# The copy the kernel-install hook runs carries its own patches.
 	PATCH_DIR="$SCRIPT_DIR/patches"
@@ -98,22 +98,22 @@ install_kernel_hook() {
 
 command=\${1:-}
 kernelver=\${2:-}
-log=/var/log/kait2en-gpu-runtime-pm.log
+log=/var/log/vort2x-gpu-runtime-pm.log
 
 [[ -n "\$kernelver" ]] || exit 0
 case "\$command" in
 	add)
-		printf '[kait2en] building GPU runtime PM AMDGPU for %s\\n' "\$kernelver"
+		printf '[vort2x] building GPU runtime PM AMDGPU for %s\\n' "\$kernelver"
 		if ! "$HOOK_HOME/install-gpu-runtime-pm.sh" install "\$kernelver" \\
 				--defer-initramfs --no-deps >>"\$log" 2>&1; then
-			printf '[kait2en] GPU runtime PM build for %s failed, see %s\\n' \\
+			printf '[vort2x] GPU runtime PM build for %s failed, see %s\\n' \\
 				"\$kernelver" "\$log"
-			printf '[kait2en] retry with: sudo %s install %s\\n' \\
+			printf '[vort2x] retry with: sudo %s install %s\\n' \\
 				"$HOOK_HOME/install-gpu-runtime-pm.sh" "\$kernelver"
 		fi
 		;;
 	remove)
-		rm -rf "/usr/lib/modules/\$kernelver/updates/kait2en-gpu-runtime-pm"
+		rm -rf "/usr/lib/modules/\$kernelver/updates/vort2x-gpu-runtime-pm"
 		;;
 esac
 exit 0
@@ -179,7 +179,7 @@ if ! modinfo -k "$KVER" t2gmux >/dev/null 2>&1 &&
 fi
 
 info "using /var/tmp for kernel sources and module build"
-workdir=$(mktemp -d /var/tmp/kait2en-gpu-runtime-pm.XXXXXXXXXX)
+workdir=$(mktemp -d /var/tmp/vort2x-gpu-runtime-pm.XXXXXXXXXX)
 trap 'rm -rf "$workdir"' EXIT
 if ((local_kernel_tree)); then
 	kernel_tree=$build_tree
@@ -223,11 +223,11 @@ info "installing GPU runtime PM modules for $KVER"
 install -d -m 0755 "$MODULE_DIR"
 install -m 0644 "$staging/amdgpu.ko.xz" "$MODULE_DIR/"
 rm -f "$MODULE_DIR/snd-hda-intel.ko.xz" "$MODULE_DIR/.build-id" "$LEGACY_DRACUT_CONF"
-cat >"$workdir/kait2en-gpu-runtime-pm.conf" <<'EOF'
+cat >"$workdir/vort2x-gpu-runtime-pm.conf" <<'EOF'
 # GMUX must provide the power callbacks before AMDGPU probes.
 softdep amdgpu pre: t2gmux
 EOF
-install -Dpm 0644 "$workdir/kait2en-gpu-runtime-pm.conf" "$MODPROBE_CONF"
+install -Dpm 0644 "$workdir/vort2x-gpu-runtime-pm.conf" "$MODPROBE_CONF"
 depmod -a "$KVER"
 if ((DEFER_INITRAMFS == 0)); then
 	dracut --force "/boot/initramfs-$KVER.img" "$KVER"

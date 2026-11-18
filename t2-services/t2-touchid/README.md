@@ -59,7 +59,7 @@ identity and gets its own binding.
 
 The daemon finds the macOS user whose fingers are enrolled by itself. The SEP
 answers with an empty inventory for a user id that has none. Set
-`T2_TOUCHID_UID` in `/etc/kait2en/t2-touchid.conf` only if several macOS users
+`T2_TOUCHID_UID` in `/etc/vort2x/t2-touchid.conf` only if several macOS users
 have Touch ID, and then to the **macOS** id (501 and up), not the Linux one.
 
 Nothing else is needed from macOS. The keybag and catacomb path is a separate

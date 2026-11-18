@@ -375,7 +375,7 @@ impl Runtime {
 
     fn save(&self) {
         if let Err(error) = self.state.save(&self.state_path) {
-            eprintln!("kait2en-touchbar: could not save state: {error:#}");
+            eprintln!("vort2x-touchbar: could not save state: {error:#}");
         }
     }
 
@@ -1238,7 +1238,7 @@ impl Runtime {
         self.activity_deadline_ms = None;
         if self.visible && self.touch_id == TouchIdState::Idle {
             if let Err(error) = self.go_dark(false) {
-                eprintln!("kait2en-touchbar: darken Touch Bar after inactivity: {error:#}");
+                eprintln!("vort2x-touchbar: darken Touch Bar after inactivity: {error:#}");
             }
         }
         if self.activity_esc_shown {

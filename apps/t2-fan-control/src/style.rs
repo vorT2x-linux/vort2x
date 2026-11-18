@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! KaiT2en app style: palette, cards, margins and graph colors.
+//! VorT2x app style: palette, cards, margins and graph colors.
 //!
 //! Self contained on purpose. The app looks right with or without the
 //! optional desktop look and builds without anything outside this crate.
@@ -89,7 +89,7 @@ pub fn pad(widget: &impl IsA<Widget>) {
 /// Wraps a widget in a rounded card that clips it to the rounding.
 pub fn card(child: &impl IsA<Widget>) -> gtk4::Box {
     let card = gtk4::Box::new(Orientation::Vertical, 0);
-    card.add_css_class("kait2en-card");
+    card.add_css_class("vort2x-card");
     card.set_overflow(Overflow::Hidden);
     card.append(child);
     card

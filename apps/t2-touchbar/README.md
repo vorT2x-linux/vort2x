@@ -20,7 +20,7 @@ switches between media keys and the other layer used last. The last layer is
 remembered.
 
 Up to four personal keys can fill the free space on the third layer. They live in
-`$XDG_CONFIG_HOME/kait2en-touchbar/keys.toml`, which updates and uninstalls 
+`$XDG_CONFIG_HOME/vort2x-touchbar/keys.toml`, which updates and uninstalls 
 never touch. The daemon creates it with commented examples on its
 first start. Each key has a text label and either sends a key
 combination or starts a command:
@@ -43,7 +43,7 @@ Modifiers are `ctrl`, `shift`, `alt` (or `option`), `altgr` and `super`. Key
 names follow the US key positions: letters, digits, `f1`–`f12`, punctuation
 such as `-`, `[`, `` ` `` or `\`, `iso` for the extra key next to the left
 shift, and names like `space`, `tab`, `enter`, `left` or `delete`. Restart the
-service after editing: `systemctl --user restart kait2en-touchbar`.
+service after editing: `systemctl --user restart vort2x-touchbar`.
 
 A two-finger swipe on the dark bar changes the volume without waking it: right
 is louder, left is quieter. A three-finger swipe there changes the
@@ -98,9 +98,9 @@ sudo ./apps/t2-touchbar/install.sh
 
 The script installs its build dependencies, configures device access and the
 user service and disables conflicting Touch Bar daemons. It builds into the
-shared KaiT2en Cargo target directory `~/.cache/kait2en/cargo-target`.
+shared VorT2x Cargo target directory `~/.cache/vort2x/cargo-target`.
 
-The Fedora installer creates the `kait2en-touchbar` device-access group, adds
+The Fedora installer creates the `vort2x-touchbar` device-access group, adds
 the invoking user, installs the global user unit, and replaces conflicting
 Touch Bar daemons. A reboot is required after the first
 group assignment.
@@ -109,22 +109,22 @@ To go back to Apple's native Touch Bar without uninstalling, disable the
 daemon and reboot:
 
 ```sh
-sudo systemctl --global disable kait2en-touchbar.service
+sudo systemctl --global disable vort2x-touchbar.service
 ```
 
 The attach service then leaves the firmware row in place at boot. Enable it
-again with `sudo systemctl --global enable kait2en-touchbar.service`.
+again with `sudo systemctl --global enable vort2x-touchbar.service`.
 
-State is stored at `$XDG_STATE_HOME/kait2en-touchbar/state.toml`. Inspect or
+State is stored at `$XDG_STATE_HOME/vort2x-touchbar/state.toml`. Inspect or
 reset it with:
 
 ```sh
-kait2en-touchbar --status
-kait2en-touchbar --reset-learning
+vort2x-touchbar --status
+vort2x-touchbar --reset-learning
 ```
 
-The installed defaults live in `/etc/kait2en/touchbar.toml`. A personal
-`$XDG_CONFIG_HOME/kait2en-touchbar/config.toml` replaces them when present.
+The installed defaults live in `/etc/vort2x/touchbar.toml`. A personal
+`$XDG_CONFIG_HOME/vort2x-touchbar/config.toml` replaces them when present.
 The learned values remain separate from configuration so editing the bounds
 does not destroy the history. Values outside new bounds are clamped on load.
 
@@ -138,7 +138,7 @@ is then allowed to runtime-suspend. The `05ac:8302` display/touch device remains
 awake, because suspending it would also remove touch-to-wake.
 
 The DRM setup and input architecture are derived from tiny-dfr under its MIT
-license. The KAIT2EN implementation is GPL-3.0-or-later. The upstream notice
+license. The VORT2X implementation is GPL-3.0-or-later. The upstream notice
 is in `THIRD-PARTY-NOTICES.md`.
 
 Touch ID is a trademark of Apple Inc. This project is not affiliated with Apple.

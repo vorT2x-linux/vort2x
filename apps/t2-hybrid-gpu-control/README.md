@@ -5,7 +5,7 @@ MacBookPro16,1 and MacBookPro16,4. The integrated GPU drives the display while
 PRIME offload wakes the AMD GPU on demand. Runtime PM returns the AMD GPU to
 D3cold when it is no longer in use, and suspend and resume work in this mode.
 
-The app requires the KaiT2en apple-gmux, AMDGPU, and HDA kernel patches. It
+The app requires the VorT2x apple-gmux, AMDGPU, and HDA kernel patches. It
 detects their runtime-PM support through vgaswitcheroo and does not fall back to
 the older manual dGPU power-off and suspend workaround.
 
@@ -33,15 +33,15 @@ suspend, and AMDGPU power-profile services.
 | `/usr/local/share/icons/hicolor/scalable/apps/org.t2hybridgpucontrol.gtk.svg` | icon |
 | `/usr/share/polkit-1/actions/org.t2hybridgpucontrol.gtk.policy` | polkit action for the helper |
 | `/usr/share/polkit-1/actions/org.t2hybridgpucontrol.gtk.status.policy` | polkit action for the status helper |
-| `/etc/environment.d/90-kait2en-gsk-renderer.conf` | GTK renderer setting |
-| `/boot/efi/EFI/kait2en/t2-gpu-preboot.efi` | t2-gpu-preboot UEFI image |
-| UEFI boot entry `KaiT2en GPU` | starts t2-gpu-preboot, created first in `BootOrder` when hybrid graphics is enabled |
+| `/etc/environment.d/90-vort2x-gsk-renderer.conf` | GTK renderer setting |
+| `/boot/efi/EFI/vort2x/t2-gpu-preboot.efi` | t2-gpu-preboot UEFI image |
+| UEFI boot entry `VorT2x GPU` | starts t2-gpu-preboot, created first in `BootOrder` when hybrid graphics is enabled |
 | EFI variable `boot-gpu-cf9aa22b-9505-4c88-aed0-5673e31b00c2` | wanted mode and restart counter for t2-gpu-preboot |
 
 `make uninstall` removes the boot entry, the UEFI image and the EFI variable
 together with the other files.
 
-The main KaiT2en installer invokes the app-specific installer automatically on
+The main VorT2x installer invokes the app-specific installer automatically on
 supported hardware. It can also be run directly from the repository:
 
 ```bash

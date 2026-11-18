@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Removes kait2en-touchbar and hands the Touch Bar back to Apple's native
+# Removes vort2x-touchbar and hands the Touch Bar back to Apple's native
 # firmware row. Per-user configuration and learned state, the
 # adwaita-sans-fonts package and previously disabled third-party Touch Bar
 # daemons (tiny-dfr, react-drm) are left as they are.
@@ -14,8 +14,8 @@ require_repo_root
 require_fedora
 require_command make systemctl udevadm
 
-BIN=/usr/local/bin/kait2en-touchbar
-UDEV_RULE=/usr/local/lib/udev/rules.d/99-zz-kait2en-touchbar.rules
+BIN=/usr/local/bin/vort2x-touchbar
+UDEV_RULE=/usr/local/lib/udev/rules.d/99-zz-vort2x-touchbar.rules
 
 target_user="${SUDO_USER:-}"
 target_uid=
@@ -33,11 +33,11 @@ user_systemctl() {
 }
 
 stop_services() {
-	user_systemctl stop kait2en-touchbar.service || true
-	systemctl --global disable kait2en-touchbar.service 2>/dev/null || true
+	user_systemctl stop vort2x-touchbar.service || true
+	systemctl --global disable vort2x-touchbar.service 2>/dev/null || true
 	# Sessions of other users run their own instance of the global unit.
-	pkill -x kait2en-touchbar || true
-	systemctl disable --now kait2en-touchbar-attach.service 2>/dev/null || true
+	pkill -x vort2x-touchbar || true
+	systemctl disable --now vort2x-touchbar-attach.service 2>/dev/null || true
 }
 
 restore_firmware_row() {
@@ -54,8 +54,8 @@ restore_firmware_row() {
 
 remove_files() {
 	make -C "$APP_DIR" uninstall
-	rm -f /etc/kait2en/touchbar.toml
-	rmdir --ignore-fail-on-non-empty /etc/kait2en 2>/dev/null || true
+	rm -f /etc/vort2x/touchbar.toml
+	rmdir --ignore-fail-on-non-empty /etc/vort2x 2>/dev/null || true
 	systemctl daemon-reload
 	user_systemctl daemon-reload || true
 }
@@ -67,17 +67,17 @@ restore_device_access() {
 	udevadm trigger --subsystem-match=hid --action=add
 	udevadm trigger --subsystem-match=misc --action=add
 	udevadm settle
-	if getent group kait2en-touchbar >/dev/null; then
-		groupdel kait2en-touchbar
+	if getent group vort2x-touchbar >/dev/null; then
+		groupdel vort2x-touchbar
 	fi
 }
 
-run_step "stop kait2en-touchbar services" stop_services
+run_step "stop vort2x-touchbar services" stop_services
 run_step "restore the native Touch Bar row" restore_firmware_row
-run_step "remove kait2en-touchbar files" remove_files
+run_step "remove vort2x-touchbar files" remove_files
 run_step "restore Touch Bar device access" restore_device_access
 
-info "kait2en-touchbar removed. The native Touch Bar row is active"
+info "vort2x-touchbar removed. The native Touch Bar row is active"
 if [[ -n "$target_user" ]]; then
-	info "personal settings and learned state were kept in ~$target_user/.config/kait2en-touchbar and ~$target_user/.local/state/kait2en-touchbar"
+	info "personal settings and learned state were kept in ~$target_user/.config/vort2x-touchbar and ~$target_user/.local/state/vort2x-touchbar"
 fi

@@ -17,7 +17,7 @@ resume, so the lock screen comes back lit instead of dark.
 
 ## Configuration
 
-`/etc/kait2en/kbd-backlight.toml`:
+`/etc/vort2x/kbd-backlight.toml`:
 
 ```toml
 enabled = true
@@ -35,7 +35,7 @@ Updates never overwrite this file.
 
 ## Installation
 
-The KaiT2en installer sets it up on every T2 MacBook. On its own:
+The VorT2x installer sets it up on every T2 MacBook. On its own:
 
 ```bash
 make build

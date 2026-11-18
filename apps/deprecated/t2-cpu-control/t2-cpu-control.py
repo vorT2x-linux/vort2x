@@ -196,7 +196,7 @@ class CpuControl(Adw.Application):
         title = Adw.WindowTitle(title="CPU Control", subtitle="Package power and thermal stability")
         header.set_title_widget(title)
         brand_pixbuf = GdkPixbuf.Pixbuf.new_from_file(
-            "/usr/local/share/kait2en/kait2en-wordmark.png"
+            "/usr/local/share/vort2x/vort2x-wordmark.png"
         )
         brand = Gtk.DrawingArea(content_width=80, content_height=21)
         def draw_brand(_area, context, width, height):

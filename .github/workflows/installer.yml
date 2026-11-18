@@ -1,4 +1,4 @@
-name: Build KaiT2en Fedora installer kit
+name: Build VorT2x Fedora installer kit
 
 on:
   pull_request:
@@ -48,7 +48,7 @@ jobs:
       - name: Generate macOS curl bootstrap
         shell: bash
         run: |
-          archives=(release-assets/KaiT2en-Fedora-*-Installer-x86_64.zip)
+          archives=(release-assets/VorT2x-Fedora-*-Installer-x86_64.zip)
           test "${#archives[@]}" -eq 1
           archive=${archives[0]}
           test -f "$archive"
@@ -58,9 +58,9 @@ jobs:
             -e "s|@GITHUB_REPOSITORY@|$GITHUB_REPOSITORY|g" \
             -e "s|@ARTIFACT_BASENAME@|$basename|g" \
             auto-installer/macos-release-bootstrap.sh.in \
-            >release-assets/install-kait2en-fedora.sh
-          chmod 0755 release-assets/install-kait2en-fedora.sh
-          bash -n release-assets/install-kait2en-fedora.sh
+            >release-assets/install-vort2x-fedora.sh
+          chmod 0755 release-assets/install-vort2x-fedora.sh
+          bash -n release-assets/install-vort2x-fedora.sh
       - name: Publish release artifacts
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,4 +1,4 @@
-# KAIT2EN audio DSP profile 8_1 (MacBookAir8,1)
+# VORT2X audio DSP profile 8_1 (MacBookAir8,1)
 
 Speaker DSP for the internal speakers of the MacBookAir8,1: `graph.json` is the
 PipeWire filter-chain graph, the `XTC-side-*.wav` files are the crosstalk

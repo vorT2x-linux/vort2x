@@ -4,8 +4,8 @@ set -eu
 
 github_repository='@GITHUB_REPOSITORY@'
 artifact_basename='@ARTIFACT_BASENAME@'
-release_base_url=${KAIT2EN_RELEASE_BASE_URL:-https://github.com/$github_repository/releases/latest/download}
-terminal=${KAIT2EN_TTY:-/dev/tty}
+release_base_url=${VORT2X_RELEASE_BASE_URL:-https://github.com/$github_repository/releases/latest/download}
+terminal=${VORT2X_TTY:-/dev/tty}
 work=
 
 die() {
@@ -24,11 +24,11 @@ for command in curl ditto mktemp shasum; do
 	command -v "$command" >/dev/null 2>&1 || die "missing command: $command"
 done
 
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-release.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-release.XXXXXX")
 archive="$work/$artifact_basename.zip"
 checksum="$archive.sha256"
 
-printf 'Downloading the latest KaiT2en Fedora installer kit...\n'
+printf 'Downloading the latest VorT2x Fedora installer kit...\n'
 curl --fail --location --retry 3 \
 	--output "$archive" "$release_base_url/$artifact_basename.zip"
 curl --fail --location --retry 3 \
@@ -41,5 +41,5 @@ curl --fail --location --retry 3 \
 
 mkdir "$work/kit"
 ditto -x -k "$archive" "$work/kit"
-printf 'Starting the verified KaiT2en Fedora installer...\n'
+printf 'Starting the verified VorT2x Fedora installer...\n'
 bash "$work/kit/scripts/macos/prepare-fedora-installer.sh" "$@" <"$terminal"

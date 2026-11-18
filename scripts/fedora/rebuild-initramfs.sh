@@ -14,7 +14,7 @@ require_command dracut install
 # when udev and UPower in the real root first see it. UPower decides only then
 # whether the battery supports a charge limit.
 EARLY_MODULES=(apple-t2-bridge apple-t2-vhci-hcd t2hid t2smc t2sbs)
-DRACUT_CONF="/etc/dracut.conf.d/90-kait2en-input.conf"
+DRACUT_CONF="/etc/dracut.conf.d/90-vort2x-input.conf"
 KVER="$(kernel_release)"
 INITRAMFS="/boot/initramfs-$KVER.img"
 

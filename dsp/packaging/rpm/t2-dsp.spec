@@ -3,7 +3,7 @@ Version: 0.1.0
 Release: 1%{?dist}
 Summary: Model-specific host-side audio DSP for Apple T2 Macs
 License: GPL-3.0-or-later
-URL: https://github.com/kaiT2en/KaiT2en-Fedora
+URL: https://github.com/vorT2x-linux/vort2x
 Source0: t2-dsp-%{version}.tar.gz
 BuildArch: noarch
 BuildRequires: make

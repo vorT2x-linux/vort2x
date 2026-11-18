@@ -8,7 +8,7 @@ UDEV_RULES_DIR ?= $(PREFIX)/lib/udev/rules.d
 all:
 	@echo 'Shared transport is linked by consumers; integration needs no build.'
 install:
-	install -D -m 0755 ../../packaging/lifecycle/kait2en-lifecycle.py $(DESTDIR)$(LIBEXECDIR)/t2-services/lifecycle.py
+	install -D -m 0755 ../../packaging/lifecycle/vort2x-lifecycle.py $(DESTDIR)$(LIBEXECDIR)/t2-services/lifecycle.py
 	install -d $(DESTDIR)$(LIBEXECDIR)/t2-services/migration
 	install -m 0644 integration/migration/* $(DESTDIR)$(LIBEXECDIR)/t2-services/migration/
 	install -D -m 0755 integration/libexec/t2-ncm-sleep $(DESTDIR)$(LIBEXECDIR)/t2-services/t2-ncm-sleep

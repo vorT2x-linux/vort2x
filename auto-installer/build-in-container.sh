@@ -31,16 +31,16 @@ grep -Eq "^${DEFAULT_EDITION}[[:space:]]" "$EDITION_CATALOG"
 
 printf '%s  %s\n' "$KERNEL_DEVEL_SHA256" "$KERNEL_DEVEL_RPM" | sha256sum --check --status
 
-DNF_REPO_CONFIG=/work/kait2en-fedora.repo
-mkdir -p /work/kait2en-empty-repos
+DNF_REPO_CONFIG=/work/vort2x-fedora.repo
+mkdir -p /work/vort2x-empty-repos
 write_dnf_repo() {
 	local source_type=$1 source=$2
 	cat >"$DNF_REPO_CONFIG" <<EOF
 [main]
-reposdir=/work/kait2en-empty-repos
+reposdir=/work/vort2x-empty-repos
 
-[kait2en-fedora]
-name=KaiT2en Fedora build repository
+[vort2x-fedora]
+name=VorT2x Fedora build repository
 $source_type=$source
 enabled=1
 gpgcheck=0
@@ -55,7 +55,7 @@ run_dnf_with_fallback() {
 		return 0
 	fi
 	printf 'Fedora metalink transaction failed; retrying with the official archive.\n' >&2
-	rm -rf /var/cache/dnf/kait2en-fedora-* /var/cache/libdnf5/kait2en-fedora-*
+	rm -rf /var/cache/dnf/vort2x-fedora-* /var/cache/libdnf5/vort2x-fedora-*
 	if [[ -n "$cleanup_dir" ]]; then
 		find "$cleanup_dir" -mindepth 1 -maxdepth 1 -type f -delete
 	fi
@@ -103,7 +103,7 @@ INITRAMFS_ROOT="$BUILD_ROOT/initramfs-root"
 rm -rf "$BUILD_ROOT"
 mkdir -p "$BUILD_ROOT/input-rpm" "$OUTPUT_DIR"
 RPM_PATH=$(
-	KAIT2EN_KMOD_WORK_ROOT="$BUILD_ROOT/input-kmod-work" \
+	VORT2X_KMOD_WORK_ROOT="$BUILD_ROOT/input-kmod-work" \
 		"$SOURCE_ROOT/auto-installer/build-input-kmod.sh" \
 		"$SOURCE_ROOT" \
 		"$ISO_KERNEL_RELEASE" \
@@ -127,12 +127,12 @@ RPM_FILE_LIST=$(rpm -qpl "$RPM_PATH")
 for module in apple-t2-bridge apple-t2-vhci-hcd t2hid hid_t2magicmouse t2_precision_trackpad t2_trackpad_actuator; do
 	grep -Eq "/${module}\.ko$" <<<"$RPM_FILE_LIST"
 	VERMAGIC=$(modinfo -F vermagic \
-		"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en/$module.ko")
+		"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x/$module.ko")
 	grep -Eq "^${ISO_KERNEL_RELEASE//./\\.} " <<<"$VERMAGIC"
 done
 
 TRACKPAD_ALIASES=$(modinfo -F alias \
-	"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en/t2_precision_trackpad.ko")
+	"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x/t2_precision_trackpad.ko")
 for product in 0278 027A 027B 027C 027D 027E 027F 0280 0340; do
 	grep -Fq "v000005ACp0000$product" <<<"$TRACKPAD_ALIASES"
 done
@@ -153,54 +153,54 @@ install -m 0755 \
 install -m 0644 "$EDITION_CATALOG" "$LAYOUT/installer-editions.tsv"
 
 ADDON_SOURCE="$SOURCE_ROOT/auto-installer/anaconda-addon"
-ADDON_TARGET="$UPDATES_ROOT/usr/share/anaconda/addons/com_kait2en_input"
+ADDON_TARGET="$UPDATES_ROOT/usr/share/anaconda/addons/com_vort2x_input"
 mkdir -p \
 	"$ADDON_TARGET/service" \
 	"$UPDATES_ROOT/usr/share/anaconda/dbus/confs" \
 	"$UPDATES_ROOT/usr/share/anaconda/dbus/services" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer"
-install -m 0644 "$ADDON_SOURCE/com_kait2en_input/__init__.py" "$ADDON_TARGET/"
+	"$UPDATES_ROOT/usr/share/vort2x-installer"
+install -m 0644 "$ADDON_SOURCE/com_vort2x_input/__init__.py" "$ADDON_TARGET/"
 install -m 0644 \
-	"$ADDON_SOURCE/com_kait2en_input/service/__init__.py" \
-	"$ADDON_SOURCE/com_kait2en_input/service/__main__.py" \
-	"$ADDON_SOURCE/com_kait2en_input/service/installation.py" \
-	"$ADDON_SOURCE/com_kait2en_input/service/kait2en.py" \
-	"$ADDON_SOURCE/com_kait2en_input/service/kait2en_interface.py" \
+	"$ADDON_SOURCE/com_vort2x_input/service/__init__.py" \
+	"$ADDON_SOURCE/com_vort2x_input/service/__main__.py" \
+	"$ADDON_SOURCE/com_vort2x_input/service/installation.py" \
+	"$ADDON_SOURCE/com_vort2x_input/service/vort2x.py" \
+	"$ADDON_SOURCE/com_vort2x_input/service/vort2x_interface.py" \
 	"$ADDON_TARGET/service/"
 sed \
 	-e "s|@KERNEL_RELEASE@|$ISO_KERNEL_RELEASE|g" \
 	-e "s|@RPM_FILENAME@|$(basename "$RPM_PATH")|g" \
-	"$ADDON_SOURCE/com_kait2en_input/service/constants.py.in" \
+	"$ADDON_SOURCE/com_vort2x_input/service/constants.py.in" \
 	>"$ADDON_TARGET/service/constants.py"
 install -m 0644 \
-	"$ADDON_SOURCE/org.fedoraproject.Anaconda.Addons.KaiT2en.conf" \
+	"$ADDON_SOURCE/org.fedoraproject.Anaconda.Addons.VorT2x.conf" \
 	"$UPDATES_ROOT/usr/share/anaconda/dbus/confs/"
 install -m 0644 \
-	"$ADDON_SOURCE/org.fedoraproject.Anaconda.Addons.KaiT2en.service" \
+	"$ADDON_SOURCE/org.fedoraproject.Anaconda.Addons.VorT2x.service" \
 	"$UPDATES_ROOT/usr/share/anaconda/dbus/services/"
-install -m 0644 "$RPM_PATH" "$UPDATES_ROOT/usr/share/kait2en-installer/"
+install -m 0644 "$RPM_PATH" "$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0755 \
 	"$SOURCE_ROOT/auto-installer/runtime/install-wifi-firmware.sh" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0755 \
 	"$SOURCE_ROOT/auto-installer/runtime/install-bt-firmware.sh" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-prepare" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-prepare" \
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-install" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-install" \
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-launch-terminal" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-launch-terminal" \
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 install -m 0644 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-install.desktop" \
-	"$UPDATES_ROOT/usr/share/kait2en-installer/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-install.desktop" \
+	"$UPDATES_ROOT/usr/share/vort2x-installer/"
 
 # Generated from the same tracked sources as the ISO modules. This snapshot is
 # only used to bridge the first reboot; the regular installer uses GitHub main.
-TRANSITION_SOURCE="$UPDATES_ROOT/usr/share/kait2en-installer/transition-source"
+TRANSITION_SOURCE="$UPDATES_ROOT/usr/share/vort2x-installer/transition-source"
 mkdir -p \
 	"$TRANSITION_SOURCE/modules" \
 	"$TRANSITION_SOURCE/auto-installer"
@@ -211,7 +211,7 @@ for module in apple-t2-bridge t2touchbar hid_t2magicmouse t2_precision_trackpad 
 done
 install -m 0755 "$SOURCE_ROOT/auto-installer/build-input-kmod.sh" \
 	"$TRANSITION_SOURCE/auto-installer/"
-install -m 0644 "$SOURCE_ROOT/auto-installer/kmod-kait2en-input.spec" \
+install -m 0644 "$SOURCE_ROOT/auto-installer/kmod-vort2x-input.spec" \
 	"$TRANSITION_SOURCE/auto-installer/"
 
 while IFS= read -r python_file; do
@@ -235,17 +235,17 @@ UPDATES_IMAGE="$LAYOUT/updates.img"
 		gzip -n -9 >"$UPDATES_IMAGE"
 )
 
-MODULE_TARGET="$INITRAMFS_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en"
+MODULE_TARGET="$INITRAMFS_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x"
 mkdir -p \
 	"$MODULE_TARGET" \
 	"$INITRAMFS_ROOT/usr/bin" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x" \
 	"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-trigger" \
 	"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-pivot"
 ln -s kmod "$INITRAMFS_ROOT/usr/bin/insmod"
 for module in apple-t2-bridge apple-t2-vhci-hcd t2hid hid_t2magicmouse t2_precision_trackpad t2_trackpad_actuator; do
 	install -m 0644 \
-		"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en/$module.ko" \
+		"$EXTRACT_ROOT/usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x/$module.ko" \
 		"$MODULE_TARGET/"
 done
 # The live session installs the Apple Wi-Fi and Bluetooth firmware for itself
@@ -253,40 +253,40 @@ done
 # switch root.
 install -m 0755 \
 	"$SOURCE_ROOT/auto-installer/runtime/install-wifi-firmware.sh" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0755 \
 	"$SOURCE_ROOT/auto-installer/runtime/install-bt-firmware.sh" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-live-wifi" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-live-wifi" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-live-bluetooth" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-live-bluetooth" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0644 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-live-wifi.service" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-live-wifi.service" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0644 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-live-bluetooth.service" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-live-bluetooth.service" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 # Shipped on the stick so a live session without any network can still produce
 # a diagnostics archive.
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-live-diagnostics" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-live-diagnostics" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/runtime/kait2en-rescue" \
-	"$INITRAMFS_ROOT/usr/lib/kait2en/"
+	"$SOURCE_ROOT/auto-installer/runtime/vort2x-rescue" \
+	"$INITRAMFS_ROOT/usr/lib/vort2x/"
 sed "s|@KERNEL_RELEASE@|$ISO_KERNEL_RELEASE|g" \
-	"$SOURCE_ROOT/auto-installer/initramfs/20-kait2en-input.sh.in" \
-	>"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-trigger/20-kait2en-input.sh"
-chmod 0755 "$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-trigger/20-kait2en-input.sh"
+	"$SOURCE_ROOT/auto-installer/initramfs/20-vort2x-input.sh.in" \
+	>"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-trigger/20-vort2x-input.sh"
+chmod 0755 "$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-trigger/20-vort2x-input.sh"
 install -m 0755 \
-	"$SOURCE_ROOT/auto-installer/initramfs/90-kait2en-updates.sh" \
-	"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-pivot/90-kait2en-updates.sh"
-install -m 0644 "$UPDATES_IMAGE" "$INITRAMFS_ROOT/kait2en-anaconda-updates.img"
+	"$SOURCE_ROOT/auto-installer/initramfs/90-vort2x-updates.sh" \
+	"$INITRAMFS_ROOT/var/lib/dracut/hooks/pre-pivot/90-vort2x-updates.sh"
+install -m 0644 "$UPDATES_IMAGE" "$INITRAMFS_ROOT/vort2x-anaconda-updates.img"
 find "$INITRAMFS_ROOT" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
-INITRAMFS_IMAGE="$LAYOUT/kait2en-input-initramfs.img"
+INITRAMFS_IMAGE="$LAYOUT/vort2x-input-initramfs.img"
 (
 	cd "$INITRAMFS_ROOT"
 	find . -print0 | LC_ALL=C sort -z |
@@ -300,51 +300,51 @@ sed \
 	"$SOURCE_ROOT/auto-installer/grub.cfg.in" >"$LAYOUT/grub.cfg.in"
 
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/anaconda/dbus/services/org.fedoraproject.Anaconda.Addons.KaiT2en.service' >/dev/null
+	grep -Fx 'usr/share/anaconda/dbus/services/org.fedoraproject.Anaconda.Addons.VorT2x.service' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/install-wifi-firmware.sh' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/install-wifi-firmware.sh' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/install-bt-firmware.sh' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/install-bt-firmware.sh' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/kait2en-install' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/vort2x-install' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/kait2en-prepare' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/vort2x-prepare' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/kait2en-launch-terminal' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/vort2x-launch-terminal' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/transition-source/auto-installer/build-input-kmod.sh' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/transition-source/auto-installer/build-input-kmod.sh' >/dev/null
 gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/share/kait2en-installer/transition-source/modules/apple-t2-bridge/drivers/platform/x86/apple/t2-bridge.c' >/dev/null
+	grep -Fx 'usr/share/vort2x-installer/transition-source/modules/apple-t2-bridge/drivers/platform/x86/apple/t2-bridge.c' >/dev/null
 for module in t2_precision_trackpad t2_trackpad_actuator; do
 	gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
-		grep -Fx "usr/share/kait2en-installer/transition-source/modules/$module/$module.c" >/dev/null
+		grep -Fx "usr/share/vort2x-installer/transition-source/modules/$module/$module.c" >/dev/null
 	gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-		grep -Fx "usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en/$module.ko" >/dev/null
+		grep -Fx "usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x/$module.ko" >/dev/null
 done
 ! gzip -dc "$UPDATES_IMAGE" | cpio -it --quiet |
 	grep -F 'transition-source/auto-installer/patches/' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx "usr/lib/modules/$ISO_KERNEL_RELEASE/updates/kait2en/apple-t2-vhci-hcd.ko" >/dev/null
+	grep -Fx "usr/lib/modules/$ISO_KERNEL_RELEASE/updates/vort2x/apple-t2-vhci-hcd.ko" >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/install-wifi-firmware.sh' >/dev/null
+	grep -Fx 'usr/lib/vort2x/install-wifi-firmware.sh' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-live-wifi' >/dev/null
+	grep -Fx 'usr/lib/vort2x/vort2x-live-wifi' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-live-wifi.service' >/dev/null
+	grep -Fx 'usr/lib/vort2x/vort2x-live-wifi.service' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/install-bt-firmware.sh' >/dev/null
+	grep -Fx 'usr/lib/vort2x/install-bt-firmware.sh' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-live-bluetooth' >/dev/null
+	grep -Fx 'usr/lib/vort2x/vort2x-live-bluetooth' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-live-bluetooth.service' >/dev/null
+	grep -Fx 'usr/lib/vort2x/vort2x-live-bluetooth.service' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-live-diagnostics' >/dev/null
+	grep -Fx 'usr/lib/vort2x/vort2x-live-diagnostics' >/dev/null
 gzip -dc "$INITRAMFS_IMAGE" | cpio -it --quiet |
-	grep -Fx 'usr/lib/kait2en/kait2en-rescue' >/dev/null
-grep -Fq 'inst.updates=file:///run/kait2en/updates.img' "$LAYOUT/grub.cfg.in"
+	grep -Fx 'usr/lib/vort2x/vort2x-rescue' >/dev/null
+grep -Fq 'inst.updates=file:///run/vort2x/updates.img' "$LAYOUT/grub.cfg.in"
 grep -Fq '@ISO_VOLUME_LABEL@' "$LAYOUT/grub.cfg.in"
 ! grep -Fq 'inst.ks=' "$LAYOUT/grub.cfg.in"
-grep -Fq 'module_blacklist=${kait2en_blacklist},amdgpu' "$LAYOUT/grub.cfg.in"
+grep -Fq 'module_blacklist=${vort2x_blacklist},amdgpu' "$LAYOUT/grub.cfg.in"
 grep -Fq 'plymouth.enable=0' "$LAYOUT/grub.cfg.in"
 grep -Fq 'nomodeset' "$LAYOUT/grub.cfg.in"
 rm -f "$UPDATES_IMAGE"

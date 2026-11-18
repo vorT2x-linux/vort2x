@@ -105,14 +105,14 @@ BLACKLIST_MODULES=(
 	sbs
 )
 MODULE_BLACKLIST="module_blacklist=$(IFS=,; printf '%s' "${BLACKLIST_MODULES[*]}")"
-SILENT_BLACKLIST_CONF="/etc/modprobe.d/kait2en-silent-blacklist.conf"
+SILENT_BLACKLIST_CONF="/etc/modprobe.d/vort2x-silent-blacklist.conf"
 
 ADD_ARGS+=("$INITCALL_BLACKLIST" "$MODULE_BLACKLIST")
 
 KERNEL_ARGS="${ADD_ARGS[*]}"
 OLD_KERNEL_ARGS="${REMOVE_ARGS[*]}"
 
-info "updating Kait2en kernel arguments and driver blacklist"
+info "updating Vort2x kernel arguments and driver blacklist"
 grubby --update-kernel=ALL \
 	--remove-args="$OLD_KERNEL_ARGS" \
 	--args="$KERNEL_ARGS"

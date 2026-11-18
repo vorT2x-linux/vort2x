@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import datetime, json, os, re, subprocess, sys, tempfile
 
-SERVICE = "/etc/systemd/system/kait2en-power-tune.service"
+SERVICE = "/etc/systemd/system/vort2x-power-tune.service"
 # Reapplies the selection after resume, firmware and drivers reset some values.
-RESUME_SERVICE = "/etc/systemd/system/kait2en-power-tune-resume.service"
+RESUME_SERVICE = "/etc/systemd/system/vort2x-power-tune-resume.service"
 LEGACY_CONFIG = "/etc/t2-power-tune.json"
 RUNTIME_DIR = "/run/t2-power-tune"
 RUNTIME_STATE = f"{RUNTIME_DIR}/items.json"
@@ -370,7 +370,7 @@ def apply(items):
     print(json.dumps(changed))
 
 def write_unit(path, lines):
-    fd,tmp=tempfile.mkstemp(prefix=".kait2en-power-tune.",dir="/etc/systemd/system",text=True)
+    fd,tmp=tempfile.mkstemp(prefix=".vort2x-power-tune.",dir="/etc/systemd/system",text=True)
     try:
         with os.fdopen(fd,"w",encoding="utf-8") as output: output.write("\n".join(lines))
         os.chmod(tmp,0o644); os.replace(tmp,path)
@@ -380,15 +380,15 @@ def write_unit(path, lines):
 def persist(items):
     selected=[item for item in items if item[4]]
     if not selected:
-        run("systemctl","disable","--now","kait2en-power-tune-resume.service")
-        run("systemctl","disable","--now","kait2en-power-tune.service")
+        run("systemctl","disable","--now","vort2x-power-tune-resume.service")
+        run("systemctl","disable","--now","vort2x-power-tune.service")
         if os.path.exists(RESUME_SERVICE): os.unlink(RESUME_SERVICE)
         if os.path.exists(SERVICE): os.unlink(SERVICE)
         if os.path.exists(LEGACY_CONFIG): os.unlink(LEGACY_CONFIG)
         run("systemctl","daemon-reload")
         save_runtime_items(items)
         return
-    lines=["[Unit]","Description=KaiT2en power tuning","After=multi-user.target"]
+    lines=["[Unit]","Description=VorT2x power tuning","After=multi-user.target"]
     if any(item[0]=="ltr" for item in selected):
         lines += ["RequiresMountsFor=/sys/kernel/debug","After=sys-kernel-debug.mount"]
     lines += ["","[Service]","Type=oneshot","RemainAfterExit=yes"]
@@ -397,7 +397,7 @@ def persist(items):
     lines += ["","[Install]","WantedBy=multi-user.target",""]
     write_unit(SERVICE, lines)
     # ExecStop runs once sleep.target is left, after the system has resumed.
-    resume=["[Unit]","Description=KaiT2en power tuning after resume",
+    resume=["[Unit]","Description=VorT2x power tuning after resume",
             "Before=sleep.target","StopWhenUnneeded=yes"]
     if any(item[0]=="ltr" for item in selected):
         resume += ["RequiresMountsFor=/sys/kernel/debug"]
@@ -406,8 +406,8 @@ def persist(items):
     resume += ["","[Install]","WantedBy=sleep.target",""]
     write_unit(RESUME_SERVICE, resume)
     if os.path.exists(LEGACY_CONFIG): os.unlink(LEGACY_CONFIG)
-    for args in (("daemon-reload",),("enable","kait2en-power-tune.service"),
-                 ("enable","kait2en-power-tune-resume.service")):
+    for args in (("daemon-reload",),("enable","vort2x-power-tune.service"),
+                 ("enable","vort2x-power-tune-resume.service")):
         result=run("systemctl",*args)
         if result.returncode: fail(result.stderr.strip())
     save_runtime_items(items)

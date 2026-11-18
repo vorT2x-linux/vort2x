@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 helper="$repo_root/auto-installer/runtime/install-bt-firmware.sh"
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-bt-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-bt-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 # hci_bcm4377 asks for brcm/brcmbt<chip><stepping>-<board_type>-<vendor>.bin and
@@ -60,7 +60,7 @@ run_case() {
 	make_pci_root "$case_dir/pci"
 	make_log_stubs "$bin_dir" "$(unable_line "brcm/$base$suffix.bin" "brcm/$base.bin")"
 
-	PATH="$bin_dir:$PATH" KAIT2EN_PCI_ROOT="$case_dir/pci" \
+	PATH="$bin_dir:$PATH" VORT2X_PCI_ROOT="$case_dir/pci" \
 		bash "$helper" --source "$source" --root "$root" >/dev/null
 
 	[[ -f "$root/usr/lib/firmware/brcm/$base$suffix.bin" ]]
@@ -86,7 +86,7 @@ make_pci_root "$several/pci"
 make_log_stubs "$several/bin" \
 	"$(unable_line 'brcm/brcmbt4377b3-apple,formosa-m.bin' \
 		'brcm/brcmbt4377b3-apple,formosa.bin')"
-PATH="$several/bin:$PATH" KAIT2EN_PCI_ROOT="$several/pci" \
+PATH="$several/bin:$PATH" VORT2X_PCI_ROOT="$several/pci" \
 	bash "$helper" --source "$several/source" --root "$several/root" >/dev/null
 [[ -f "$several/root/usr/lib/firmware/brcm/brcmbt4377b3-apple,formosa-m.bin" ]]
 [[ ! -e "$several/root/usr/lib/firmware/brcm/brcmbt4377b3-apple,formosa-u.bin" ]]
@@ -99,7 +99,7 @@ printf firmware >"$quiet/source/$(apple_bin B3 formosa USI)"
 printf ptb >"$quiet/source/$(apple_ptb B3 formosa USI)"
 make_pci_root "$quiet/pci"
 make_log_stubs "$quiet/bin"
-PATH="$quiet/bin:$PATH" KAIT2EN_PCI_ROOT="$quiet/pci" \
+PATH="$quiet/bin:$PATH" VORT2X_PCI_ROOT="$quiet/pci" \
 	bash "$helper" --source "$quiet/source" --root "$quiet/root" >/dev/null
 [[ -f "$quiet/root/usr/lib/firmware/brcm/brcmbt4377b3-apple,formosa-u.bin" ]]
 
@@ -115,7 +115,7 @@ make_log_stubs "$mismatch/bin" \
 	"$(unable_line 'brcm/brcmbt4377b3-apple,formosa-m.bin' \
 		'brcm/brcmbt4377b3-apple,formosa.bin')"
 mismatch_output=$(
-	PATH="$mismatch/bin:$PATH" KAIT2EN_PCI_ROOT="$mismatch/pci" \
+	PATH="$mismatch/bin:$PATH" VORT2X_PCI_ROOT="$mismatch/pci" \
 		bash "$helper" --source "$mismatch/source" --root "$mismatch/root"
 )
 [[ -f "$mismatch/root/usr/lib/firmware/brcm/brcmbt4377b3-apple,formosa-m.bin" ]]
@@ -142,7 +142,7 @@ done
 make_pci_root "$ambiguous/pci"
 make_log_stubs "$ambiguous/bin"
 fails 'an ambiguous set of Bluetooth blobs' \
-	env PATH="$ambiguous/bin:$PATH" KAIT2EN_PCI_ROOT="$ambiguous/pci" \
+	env PATH="$ambiguous/bin:$PATH" VORT2X_PCI_ROOT="$ambiguous/pci" \
 	bash "$helper" --source "$ambiguous/source" --root "$ambiguous/root"
 [[ ! -d "$ambiguous/root/usr/lib/firmware" ]]
 
@@ -153,7 +153,7 @@ printf firmware >"$lonely/source/$(apple_bin B3 formosa USI)"
 make_pci_root "$lonely/pci"
 make_log_stubs "$lonely/bin"
 fails 'a firmware blob without its PTB' \
-	env PATH="$lonely/bin:$PATH" KAIT2EN_PCI_ROOT="$lonely/pci" \
+	env PATH="$lonely/bin:$PATH" VORT2X_PCI_ROOT="$lonely/pci" \
 	bash "$helper" --source "$lonely/source" --root "$lonely/root"
 
 # Without a board type the driver stops before it asks for firmware, so no file
@@ -165,7 +165,7 @@ printf ptb >"$unknown/source/$(apple_ptb B3 formosa USI)"
 make_pci_root "$unknown/pci"
 make_log_stubs "$unknown/bin" 'hci_bcm4377 0000:03:00.0: unable to determine board type'
 fails 'a Mac without a known Bluetooth board type' \
-	env PATH="$unknown/bin:$PATH" KAIT2EN_PCI_ROOT="$unknown/pci" \
+	env PATH="$unknown/bin:$PATH" VORT2X_PCI_ROOT="$unknown/pci" \
 	bash "$helper" --source "$unknown/source" --root "$unknown/root"
 [[ ! -d "$unknown/root/usr/lib/firmware" ]]
 
@@ -178,7 +178,7 @@ printf ptb >"$other/source/$(apple_ptb B3 formosa USI)"
 make_pci_root "$other/pci" 0x4464
 make_log_stubs "$other/bin"
 fails 'a Mac without the BCM4377 Bluetooth function' \
-	env PATH="$other/bin:$PATH" KAIT2EN_PCI_ROOT="$other/pci" \
+	env PATH="$other/bin:$PATH" VORT2X_PCI_ROOT="$other/pci" \
 	bash "$helper" --source "$other/source" --root "$other/root"
 [[ ! -d "$other/root/usr/lib/firmware" ]]
 
@@ -192,6 +192,6 @@ make_log_stubs "$foreign/bin" \
 	"$(unable_line 'brcm/brcmbt4377b2-apple,tahiti-u.bin' \
 		'brcm/brcmbt4377b2-apple,tahiti.bin')"
 fails 'firmware for another chip stepping' \
-	env PATH="$foreign/bin:$PATH" KAIT2EN_PCI_ROOT="$foreign/pci" \
+	env PATH="$foreign/bin:$PATH" VORT2X_PCI_ROOT="$foreign/pci" \
 	bash "$helper" --source "$foreign/source" --root "$foreign/root"
 [[ ! -d "$foreign/root/usr/lib/firmware" ]]

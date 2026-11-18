@@ -117,8 +117,8 @@ detect_requested_bin() {
 		"$board_base" "$nvram_module" "$nvram_vendor" "$nvram_version"
 }
 
-if [[ -n ${KAIT2EN_FIRMWARE_REQUEST:-} ]]; then
-	requested_bin=$KAIT2EN_FIRMWARE_REQUEST
+if [[ -n ${VORT2X_FIRMWARE_REQUEST:-} ]]; then
+	requested_bin=$VORT2X_FIRMWARE_REQUEST
 else
 	requested_bin=$(detect_requested_bin) || requested_bin=
 fi
@@ -144,6 +144,6 @@ install -m 0644 "$clm_file" "$dest_dir/$target_clm"
 install -m 0644 "$txcap_file" "$dest_dir/$target_txcap"
 install -m 0644 "$nvram_file" "$dest_dir/$target_nvram"
 
-printf 'KaiT2en Wi-Fi firmware installed:\n'
+printf 'VorT2x Wi-Fi firmware installed:\n'
 printf '  /usr/lib/firmware/brcm/%s\n' \
 	"$target_bin" "$target_clm" "$target_txcap" "$target_nvram"

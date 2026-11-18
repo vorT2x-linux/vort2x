@@ -26,7 +26,7 @@ user_systemctl() {
 device_group_is_live() {
 	local group_id manager_pid
 
-	group_id=$(getent group kait2en-touchbar | cut -d: -f3) || return 1
+	group_id=$(getent group vort2x-touchbar | cut -d: -f3) || return 1
 	[[ "$group_id" =~ ^[0-9]+$ ]] || return 1
 	manager_pid=$(systemctl show "user@$target_uid.service" --property=MainPID --value 2>/dev/null) || return 1
 	[[ "$manager_pid" =~ ^[1-9][0-9]*$ && -r "/proc/$manager_pid/status" ]] || return 1
@@ -56,8 +56,8 @@ install_dependencies() {
 }
 
 prepare_device_access() {
-	getent group kait2en-touchbar >/dev/null || groupadd --system kait2en-touchbar
-	usermod -aG kait2en-touchbar "$target_user"
+	getent group vort2x-touchbar >/dev/null || groupadd --system vort2x-touchbar
+	usermod -aG vort2x-touchbar "$target_user"
 }
 
 # activity_backlight became activity_escape when the keyboard backlight moved
@@ -65,7 +65,7 @@ prepare_device_access() {
 migrate_config() {
 	local file home
 	home=$(getent passwd "$target_user" | cut -d: -f6)
-	for file in /etc/kait2en/touchbar.toml "$home/.config/kait2en-touchbar/config.toml"; do
+	for file in /etc/vort2x/touchbar.toml "$home/.config/vort2x-touchbar/config.toml"; do
 		if [[ ! -f "$file" ]] || ! grep -Eq '^[[:space:]]*activity_backlight[[:space:]]*=' "$file"; then
 			continue
 		fi
@@ -95,15 +95,15 @@ configure_system() {
 	systemctl daemon-reload
 	# The attach service only switches the panel while the daemon is enabled,
 	# so enable the daemon first.
-	systemctl --global enable kait2en-touchbar.service
-	systemctl enable kait2en-touchbar-attach.service
+	systemctl --global enable vort2x-touchbar.service
+	systemctl enable vort2x-touchbar-attach.service
 	udevadm control --reload
 	udevadm trigger --subsystem-match=usb --attr-match=idVendor=05ac --attr-match=idProduct=8102 --action=add
 	if device_access_ready; then
 		udevadm trigger --subsystem-match=usb --attr-match=idVendor=05ac --attr-match=idProduct=8302 --action=add
 		# Freshly built modules may only load after a reboot. The attach
 		# helper then falls back to the firmware row by itself.
-		systemctl restart kait2en-touchbar-attach.service ||
+		systemctl restart vort2x-touchbar-attach.service ||
 			warn "the Touch Bar display is not ready yet. It switches over after the next reboot"
 	else
 		# First install: the running session cannot open the panel before the
@@ -121,43 +121,43 @@ configure_system() {
 
 activate_user_service() {
 	if ! user_manager_is_running; then
-		info "kait2en-touchbar will start at the next graphical login"
+		info "vort2x-touchbar will start at the next graphical login"
 	elif ! device_group_is_live; then
 		# A logout does not necessarily restart user@UID.service. Never leave the
 		# panel in DRM configuration 2 while that manager still lacks access.
 		# Like react-drm did: only enable it. configure_system left the panel
 		# on the firmware row, so there is nothing to switch back here.
 		if [[ -S "/run/user/$target_uid/bus" ]]; then
-			user_systemctl stop kait2en-touchbar.service || true
+			user_systemctl stop vort2x-touchbar.service || true
 		fi
-		warn "reboot once so kait2en-touchbar receives its device-access group. The firmware Touch Bar remains available until then"
+		warn "reboot once so vort2x-touchbar receives its device-access group. The firmware Touch Bar remains available until then"
 	elif [[ -S "/run/user/$target_uid/bus" ]] &&
 		user_systemctl is-active --quiet graphical-session.target; then
 		user_systemctl daemon-reload
-		user_systemctl restart kait2en-touchbar.service
+		user_systemctl restart vort2x-touchbar.service
 	else
-		info "kait2en-touchbar will start at the next graphical login"
+		info "vort2x-touchbar will start at the next graphical login"
 	fi
 }
 
-run_step "install kait2en-touchbar dependencies" install_dependencies
+run_step "install vort2x-touchbar dependencies" install_dependencies
 if (( STEP_STATUS == 0 )); then
-	run_step "prepare kait2en-touchbar device access" prepare_device_access
+	run_step "prepare vort2x-touchbar device access" prepare_device_access
 fi
 if (( STEP_STATUS == 0 )); then
-	run_step "build and install kait2en-touchbar" build_and_install
+	run_step "build and install vort2x-touchbar" build_and_install
 fi
 if (( STEP_STATUS == 0 )); then
-	run_step "migrate kait2en-touchbar configuration" migrate_config
+	run_step "migrate vort2x-touchbar configuration" migrate_config
 fi
 if (( STEP_STATUS == 0 )); then
-	run_step "configure kait2en-touchbar integration" configure_system
+	run_step "configure vort2x-touchbar integration" configure_system
 fi
 if (( STEP_STATUS == 0 )); then
-	run_step "activate kait2en-touchbar user service" activate_user_service
+	run_step "activate vort2x-touchbar user service" activate_user_service
 fi
 if (( STEP_STATUS == 0 )); then
-	info "kait2en-touchbar installed"
+	info "vort2x-touchbar installed"
 else
 	exit "$STEP_STATUS"
 fi

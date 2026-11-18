@@ -115,7 +115,7 @@ fn parse_color(value: &str) -> Option<u32> {
 }
 
 pub fn config_path() -> PathBuf {
-    if let Some(path) = env::var_os("KAIT2EN_TOUCHBAR_CONFIG") {
+    if let Some(path) = env::var_os("VORT2X_TOUCHBAR_CONFIG") {
         return path.into();
     }
     let user_path = env::var_os("XDG_CONFIG_HOME")
@@ -126,16 +126,16 @@ pub fn config_path() -> PathBuf {
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join(".config")
         })
-        .join("kait2en-touchbar/config.toml");
+        .join("vort2x-touchbar/config.toml");
     if user_path.exists() {
         user_path
     } else {
-        PathBuf::from("/etc/kait2en/touchbar.toml")
+        PathBuf::from("/etc/vort2x/touchbar.toml")
     }
 }
 
 pub fn state_path() -> PathBuf {
-    if let Some(path) = env::var_os("KAIT2EN_TOUCHBAR_STATE") {
+    if let Some(path) = env::var_os("VORT2X_TOUCHBAR_STATE") {
         return path.into();
     }
     env::var_os("XDG_STATE_HOME")
@@ -146,5 +146,5 @@ pub fn state_path() -> PathBuf {
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join(".local/state")
         })
-        .join("kait2en-touchbar/state.toml")
+        .join("vort2x-touchbar/state.toml")
 }

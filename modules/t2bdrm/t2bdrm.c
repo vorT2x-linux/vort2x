@@ -799,7 +799,7 @@ DEFINE_DRM_GEM_FOPS(appletbdrm_drm_fops);
 static const struct drm_driver appletbdrm_drm_driver = {
 	DRM_GEM_SHMEM_DRIVER_OPS,
 	.name			= "t2bdrm",
-	.desc			= "KaiT2en T2 Touch Bar DRM Driver",
+	.desc			= "VorT2x T2 Touch Bar DRM Driver",
 	.major			= 1,
 	.minor			= 0,
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
@@ -1063,6 +1063,6 @@ static struct usb_driver appletbdrm_usb_driver = {
 module_usb_driver(appletbdrm_usb_driver);
 
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
-MODULE_AUTHOR("kait2en");
-MODULE_DESCRIPTION("Kait2en T2 Touch Bar DRM driver");
+MODULE_AUTHOR("vort2x");
+MODULE_DESCRIPTION("Vort2x T2 Touch Bar DRM driver");
 MODULE_LICENSE("GPL");

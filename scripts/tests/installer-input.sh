@@ -3,24 +3,24 @@
 set -Eeuo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-input-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-input-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/bin"
 cat >"$work/bin/insmod" <<'STUB'
 #!/usr/bin/env bash
 module=${1##*/}
-printf '%s\n' "${module%.ko}" >>"$KAIT2EN_TEST_LOG"
-[[ "$module" != "${KAIT2EN_TEST_FAIL_MODULE:-}.ko" ]]
+printf '%s\n' "${module%.ko}" >>"$VORT2X_TEST_LOG"
+[[ "$module" != "${VORT2X_TEST_FAIL_MODULE:-}.ko" ]]
 STUB
 chmod 0755 "$work/bin/insmod"
 
 sed 's|/proc/modules|/dev/null|g' \
-	"$repo_root/auto-installer/initramfs/20-kait2en-input.sh.in" >"$work/input-hook.sh"
+	"$repo_root/auto-installer/initramfs/20-vort2x-input.sh.in" >"$work/input-hook.sh"
 
 for fail_module in '' t2_precision_trackpad; do
 	: >"$work/load.log"
-	if PATH="$work/bin:$PATH" KAIT2EN_TEST_LOG="$work/load.log" \
-		KAIT2EN_TEST_FAIL_MODULE="$fail_module" \
+	if PATH="$work/bin:$PATH" VORT2X_TEST_LOG="$work/load.log" \
+		VORT2X_TEST_FAIL_MODULE="$fail_module" \
 		sh -c 'info() { :; }; warn() { :; }; . "$1"' sh \
 		"$work/input-hook.sh"; then
 		[[ -z "$fail_module" ]]
@@ -55,7 +55,7 @@ import sys
 from types import SimpleNamespace
 
 repo, work = map(pathlib.Path, sys.argv[1:])
-service = repo / "auto-installer/anaconda-addon/com_kait2en_input/service"
+service = repo / "auto-installer/anaconda-addon/com_vort2x_input/service"
 constants = {}
 for node in ast.parse((service / "constants.py.in").read_text()).body:
     if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
@@ -67,7 +67,7 @@ source = work / "installer"
 source.mkdir()
 (source / constants["RPM_FILENAME"]).touch()
 root = work / "target"
-module_root = root / "usr/lib/modules" / constants["KERNEL_RELEASE"] / "updates/kait2en"
+module_root = root / "usr/lib/modules" / constants["KERNEL_RELEASE"] / "updates/vort2x"
 module_root.mkdir(parents=True)
 for module in modules:
     (module_root / (module + ".ko")).touch()
@@ -105,7 +105,7 @@ for failure in ("rpm", "depmod", "dracut", "lsinitrd"):
     try:
         task.run()
     except RuntimeError as error:
-        assert "KaiT2en " + failure + " failed (exit 42)" in str(error)
+        assert "VorT2x " + failure + " failed (exit 42)" in str(error)
         assert "simulated " + failure + " failure" in str(error)
     else:
         raise AssertionError("Anaconda ignored " + failure + " failure")

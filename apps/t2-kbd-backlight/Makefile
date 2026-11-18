@@ -7,7 +7,7 @@ BIN := t2-kbd-backlight
 BIN_SRC := $(or $(CARGO_TARGET_DIR),target)/release/$(BIN)
 BIN_DIR := $(DESTDIR)$(PREFIX)/bin
 UNIT_DIR := $(DESTDIR)$(PREFIX)/lib/systemd/system
-CONFIG_DIR := $(DESTDIR)/etc/kait2en
+CONFIG_DIR := $(DESTDIR)/etc/vort2x
 
 .PHONY: all build test check-build install uninstall clean
 all: build

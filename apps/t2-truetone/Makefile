@@ -12,7 +12,7 @@ DESKTOP_SRC := $(APP_ID).desktop
 ICON_SRC := assets/icons/hicolor/scalable/apps/$(APP_ID).svg
 UNIT_SRC := systemd/t2-truetone.service
 UDEV_SRC := udev/70-t2-truetone.rules
-EXTENSION_UUID := kait2en-autobrightness@kait2en
+EXTENSION_UUID := vort2x-autobrightness@vort2x
 EXTENSION_SRC := integration/gnome-shell/$(EXTENSION_UUID)
 
 PREFIX ?= /usr/local

@@ -10,15 +10,15 @@ set -Eeuo pipefail
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 input_rpm=${1:?input RPM is required}
 kernel_release=${2:?kernel release is required}
-work=$(mktemp -d "${TMPDIR:-/tmp}/kait2en-transition-rpm-test.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-transition-rpm-test.XXXXXX")
 cleanup() {
-	rpm -e kmod-kait2en-input kait2en-test-kernel >/dev/null 2>&1 || :
+	rpm -e kmod-vort2x-input vort2x-test-kernel >/dev/null 2>&1 || :
 	rm -rf "$work"
 }
 trap cleanup EXIT
 
 cat >"$work/kernel.spec" <<SPEC
-Name: kait2en-test-kernel
+Name: vort2x-test-kernel
 Version: 1
 Release: 1
 Summary: Kernel dependency metadata for the disposable installer RPM test
@@ -30,7 +30,7 @@ Test-only provider of the ISO kernel dependency, inside the build container.
 %files
 SPEC
 rpmbuild -bb --define "_topdir $work/rpmbuild" "$work/kernel.spec" >"$work/build.log" 2>&1
-rpm --install --nosignature "$work/rpmbuild/RPMS/noarch/kait2en-test-kernel-1-1.noarch.rpm"
+rpm --install --nosignature "$work/rpmbuild/RPMS/noarch/vort2x-test-kernel-1-1.noarch.rpm"
 
 python3 - "$repo_root" "$input_rpm" "$kernel_release" "$work" <<'PY'
 import ast
@@ -48,7 +48,7 @@ source = work / "source"
 source.mkdir()
 source_rpm = source / input_rpm.name
 shutil.copy2(input_rpm, source_rpm)
-service = repo / "auto-installer/anaconda-addon/com_kait2en_input/service"
+service = repo / "auto-installer/anaconda-addon/com_vort2x_input/service"
 module_ast = ast.parse((service / "constants.py.in").read_text())
 modules = next(ast.literal_eval(n.value) for n in module_ast.body
                if isinstance(n, ast.Assign) and n.targets[0].id == "MODULES")
@@ -60,7 +60,7 @@ def rpm(*args):
 baseline = rpm("--install", str(source_rpm))
 assert baseline.returncode != 0, baseline.stdout
 assert "no signature" in baseline.stdout, baseline.stdout
-module_root = pathlib.Path("/usr/lib/modules") / kernel / "updates/kait2en"
+module_root = pathlib.Path("/usr/lib/modules") / kernel / "updates/vort2x"
 assert not (module_root / "apple-t2-bridge.ko").exists()
 
 calls = []
@@ -89,7 +89,7 @@ assert calls == ["rpm", "depmod", "dracut", "lsinitrd"], calls
 for module in modules:
     assert (module_root / (module + ".ko")).is_file(), module
 assert not (pathlib.Path("/tmp") / input_rpm.name).exists()
-assert rpm("--erase", "kmod-kait2en-input").returncode == 0
+assert rpm("--erase", "kmod-vort2x-input").returncode == 0
 
 damaged = bytearray(input_rpm.read_bytes())
 damaged[-1] ^= 0xFF
@@ -106,7 +106,7 @@ assert not (module_root / "apple-t2-bridge.ko").exists()
 assert not (pathlib.Path("/tmp") / input_rpm.name).exists()
 
 shutil.copy2(input_rpm, source_rpm)
-assert rpm("--erase", "kait2en-test-kernel").returncode == 0
+assert rpm("--erase", "vort2x-test-kernel").returncode == 0
 calls.clear()
 try:
     task.run()

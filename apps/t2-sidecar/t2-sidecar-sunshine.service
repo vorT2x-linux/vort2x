@@ -1,6 +1,6 @@
 [Unit]
-Description=Sunshine for the KaiT2en Sidecar display
-Documentation=https://kait2en.org/documentation.html#streaming-using-sidecar
+Description=Sunshine for the VorT2x Sidecar display
+Documentation=https://vort2x.org/documentation.html#streaming-using-sidecar
 # Only the Sunshine built as described in the documentation, which encodes
 # with the T2. Without it this unit does nothing.
 ConditionFileIsExecutable=/usr/local/bin/sunshine

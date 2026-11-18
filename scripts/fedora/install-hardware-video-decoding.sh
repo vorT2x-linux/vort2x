@@ -140,4 +140,4 @@ done < <(gpu_vendor_ids)
 verify_render_nodes
 
 info "hardware video decoding drivers installed"
-info "see website/docs/post-install/hardware-video-decoding.md for further details"
+info "see https://github.com/kaiT2en/KaiT2en-Fedora/blob/30e367b/website/docs/post-install/hardware-video-decoding.md for further details"

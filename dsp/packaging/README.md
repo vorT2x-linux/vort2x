@@ -78,9 +78,9 @@ builds on other hardware therefore get the build host's graph, or an error
 for unlisted models. Removal deletes the file when it is unchanged.
 
 Former generated `/etc` DSP and quantum fragments and matching profile data
-under `/usr/share/kait2en/audio-dsp/` are backed up to
-`/var/lib/kait2en/migration/t2-dsp/` and retired. Ownership receipts live in
-`/var/lib/kait2en/ownership/t2-dsp.json`. Removal deletes verified, unchanged
+under `/usr/share/vort2x/audio-dsp/` are backed up to
+`/var/lib/vort2x/migration/t2-dsp/` and retired. Ownership receipts live in
+`/var/lib/vort2x/ownership/t2-dsp.json`. Removal deletes verified, unchanged
 backups and the receipt. Modified or unrecognized files are preserved and
 reported.
 

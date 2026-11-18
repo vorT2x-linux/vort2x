@@ -31,7 +31,7 @@ def relocate(value, profile, datadir):
     if isinstance(value, list):
         return [relocate(v, profile, datadir) for v in value]
     if isinstance(value, str):
-        for root in ("/usr/share/t2-linux-audio", "/usr/share/t2linux-audio", "/usr/share/kait2en/audio-dsp"):
+        for root in ("/usr/share/t2-linux-audio", "/usr/share/t2linux-audio", "/usr/share/vort2x/audio-dsp"):
             value = value.replace(f"{root}/{profile}/", f"{datadir}/t2-dsp/profiles/{profile}/")
     return value
 

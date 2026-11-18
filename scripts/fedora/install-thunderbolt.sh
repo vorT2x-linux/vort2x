@@ -29,9 +29,9 @@ for argument in "$@"; do
 			;;
 	esac
 done
-MODULE_DIR="/usr/lib/modules/$KVER/updates/kait2en-thunderbolt"
-HOOK_HOME="/usr/local/libexec/kait2en/thunderbolt"
-KERNEL_INSTALL_HOOK="/etc/kernel/install.d/47-kait2en-thunderbolt.install"
+MODULE_DIR="/usr/lib/modules/$KVER/updates/vort2x-thunderbolt"
+HOOK_HOME="/usr/local/libexec/vort2x/thunderbolt"
+KERNEL_INSTALL_HOOK="/etc/kernel/install.d/47-vort2x-thunderbolt.install"
 if [[ -f "$SCRIPT_DIR/patches/series" ]]; then
 	# The copy the kernel-install hook runs carries its own patches.
 	PATCH_DIR="$SCRIPT_DIR/patches"
@@ -95,22 +95,22 @@ install_kernel_hook() {
 
 command=\${1:-}
 kernelver=\${2:-}
-log=/var/log/kait2en-thunderbolt.log
+log=/var/log/vort2x-thunderbolt.log
 
 [[ -n "\$kernelver" ]] || exit 0
 case "\$command" in
 	add)
-		printf '[kait2en] building patched thunderbolt for %s\\n' "\$kernelver"
+		printf '[vort2x] building patched thunderbolt for %s\\n' "\$kernelver"
 		if ! "$HOOK_HOME/install-thunderbolt.sh" install "\$kernelver" \\
 				--defer-initramfs --no-deps >>"\$log" 2>&1; then
-			printf '[kait2en] thunderbolt build for %s failed, see %s\\n' \\
+			printf '[vort2x] thunderbolt build for %s failed, see %s\\n' \\
 				"\$kernelver" "\$log"
-			printf '[kait2en] retry with: sudo %s install %s\\n' \\
+			printf '[vort2x] retry with: sudo %s install %s\\n' \\
 				"$HOOK_HOME/install-thunderbolt.sh" "\$kernelver"
 		fi
 		;;
 	remove)
-		rm -rf "/usr/lib/modules/\$kernelver/updates/kait2en-thunderbolt"
+		rm -rf "/usr/lib/modules/\$kernelver/updates/vort2x-thunderbolt"
 		;;
 esac
 exit 0
@@ -169,7 +169,7 @@ if ((local_kernel_tree == 0)); then
 fi
 
 info "using /var/tmp for kernel sources and module build"
-workdir=$(mktemp -d /var/tmp/kait2en-thunderbolt.XXXXXXXXXX)
+workdir=$(mktemp -d /var/tmp/vort2x-thunderbolt.XXXXXXXXXX)
 trap 'rm -rf "$workdir"' EXIT
 if ((local_kernel_tree)); then
 	kernel_tree=$build_tree

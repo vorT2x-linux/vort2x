@@ -2,7 +2,7 @@
 
 The T2 video encoders live here: the userspace service, its protocol and the
 kernel modules `t2-ave` and `t2-sidecar`. The existing `t2remote` command
-and `kait2en-t2-remote.service` names remain available to preserve installed
+and `vort2x-t2-remote.service` names remain available to preserve installed
 configurations and suspend clients.
 
 The parts follow the macOS components:

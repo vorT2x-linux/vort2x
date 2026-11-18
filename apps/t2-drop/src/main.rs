@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! t2drop: send files to Apple devices over AWDL from T2 Macs running
 //! Linux. `t2drop daemon` is the system bus service org.t2drop, which owns
-//! AWDL through the kait2en brcmfmac patch. `t2drop list` and `t2drop send`
+//! AWDL through the vort2x brcmfmac patch. `t2drop list` and `t2drop send`
 //! are clients of it and run as the normal user, so is `t2drop receive`,
 //! an agent that takes transfers into ~/Downloads.
 
