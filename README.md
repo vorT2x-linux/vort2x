@@ -39,9 +39,10 @@ has the details, rescue tools and troubleshooting.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue or a pull request, and keep
-each change focused on one thing. Fixes that move T2 support closer to clean
-upstream Linux support are especially welcome.
+Contributions are welcome, including ones made with AI tools. Fork the
+repository, work on a branch and open a pull request. Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) first: it covers plans, testing, AI
+disclosure and coding standards.
 
 ## Origin
 
