@@ -1,7 +1,7 @@
 Source: t2-services-common
 Section: admin
 Priority: optional
-Maintainer: VorT2x maintainers <maintainers@vort2x.invalid>
+Maintainer: VorT2x maintainers <contact@vort2x.org>
 Build-Depends: debhelper-compat (= 13), python3
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
