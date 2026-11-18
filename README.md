@@ -1,45 +1,50 @@
 <p align="center">
-  <img src="website/static/img/og-image.png" alt="KAIT2EN: Built for T2 Macs." width="720">
+  <img src="assets/vorT2x-logo.png" alt="VorT2x" width="720">
 </p>
 
-# KAIT2EN Fedora
+# VorT2x
 
-KAIT2EN brings cutting edge T2 Mac support to stock Fedora using DKMS modules.
-You will receive kernel updates directly from Fedora and the latest T2 modules from us.
+VorT2x (pronounced "vortex") brings T2 Mac support to stock Fedora using DKMS
+modules. You keep getting kernel updates straight from Fedora, and the T2
+modules, apps and fixes come from VorT2x.
 
-[Docs](https://kait2en.org/documentation.html) |
-[Blog](https://kait2en.org/blog.html) |
-[Community](#community) |
-[Contributing](#contributing)
+[Website](https://vort2x.org) |
+[Install](#install) |
+[Contributing](#contributing) |
+[License](#license)
+
+> **Status:** VorT2x has just been forked from KAIT2EN and renamed. It has no
+> release yet and hasn't been tested under its new name. Expect rough edges.
 
 ## Install
 
-Follow the [installation guide](https://kait2en.org/documentation.html#overview).
+VorT2x has no release installer yet. On Fedora, from a clone of this
+repository:
 
-## Community
-
-Join the KAIT2EN community on [Discord](https://discord.gg/AGfjRk4ydj) or on
-[Matrix](https://matrix.to/#/%23kait2en:matrix.org).
+```bash
+git clone https://github.com/vorT2x-linux/vort2x.git
+cd vort2x
+sudo ./scripts/fedora/install.sh
+```
 
 ## Contributing
 
-Contributions are welcome, especially when they move KAIT2EN fixes closer to
-clean upstream Linux support.
+Contributions are welcome. Please open an issue or a pull request, and keep
+each change focused on one thing. Fixes that move T2 support closer to clean
+upstream Linux support are especially welcome.
 
-Please keep changes and PR descriptions focused.
-**We will reject PRs and Issues when we notice we are talking to AI!**
-At least talk to us in person.
-We are not interested in workarounds.
-We are not interested in major AI refactories.
-There is a distinct difference between making broken things work and fixing things.
+## Origin
+
+VorT2x is a fork of [KAIT2EN](https://github.com/kaiT2en/KaiT2en-Fedora),
+taken on 2026-11-17. It is an independent project and is not affiliated with
+or endorsed by KAIT2EN. [NOTICE](NOTICE) and [AUTHORS](AUTHORS) list the
+original authors, whose credit the licence requires to be kept.
 
 ## License
 
-The kernel modules are GPL-2.0. Everything else KAIT2EN writes, apps,
-protocols, audio DSP profiles, scripts, howto documents and project text, is
-GPL-3.0-or-later. Vendored third-party code keeps its upstream license. The
-full breakdown is in [LICENSING.md](LICENSING.md).
+The kernel modules are GPL-2.0. Everything else, apps, protocols, audio DSP
+profiles, scripts, howto documents and project text, is GPL-3.0-or-later.
+Vendored third-party code keeps its upstream license. The full breakdown is in
+[LICENSING.md](LICENSING.md).
 
-The code licenses do not grant the KAIT2EN name or logo. Their use, and what
-the project stands for, are described in [TRADEMARK.md](TRADEMARK.md) and
-[VALUES.md](VALUES.md).
+What the project stands for is in [VALUES.md](VALUES.md).

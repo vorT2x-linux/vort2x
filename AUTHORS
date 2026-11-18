@@ -1,12 +1,17 @@
-KAIT2EN author and copyright holder
+VorT2x maintainer
+
+Kirk (https://github.com/KirkDiamond)
+
+Original KAIT2EN author and copyright holder
 
 André Eikmeyer <andre.eikmeyer@kait2en.org>
 
-Contributors
+KAIT2EN contributors
 
 4f1sh3r <git@syn-flut.de>
 
-The GPL-3.0-or-later userspace is copyright André Eikmeyer, 4f1sh3r holds
-the copyright of his contributions to t2-fan-control and t2-smc-control.
-Other components credit their own authors in their files and directories,
-the git history has the full list of contributors.
+The GPL-3.0-or-later userspace inherited from KAIT2EN is copyright André
+Eikmeyer, 4f1sh3r holds the copyright of his contributions to t2-fan-control
+and t2-smc-control. Other components credit their own authors in their files
+and directories, the git history has the full list of contributors.
+VorT2x is a fork of KAIT2EN, see NOTICE.

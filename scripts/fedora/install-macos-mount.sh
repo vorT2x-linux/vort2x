@@ -16,7 +16,7 @@ require_command systemctl install
 # place. The volume list and the encryption flags come from the container
 # superblock, so the encrypted Data volume and missing volumes are never
 # mounted.
-info "installing Vort2x macOS volume mount"
+info "installing VorT2x macOS volume mount"
 install -d -o root -g root -m 0755 /usr/local/libexec/vort2x
 tee /usr/local/libexec/vort2x/vort2x-macos-mount >/dev/null <<'EOF'
 #!/bin/sh
@@ -180,7 +180,7 @@ chmod 0755 /usr/local/libexec/vort2x/vort2x-macos-mount
 
 tee /etc/systemd/system/vort2x-macos-mount.service >/dev/null <<'EOF'
 [Unit]
-Description=Vort2x mount the readable macOS volumes read-only
+Description=VorT2x mount the readable macOS volumes read-only
 After=local-fs.target
 
 [Service]
@@ -207,4 +207,4 @@ udevadm trigger --action=change --subsystem-match=block --property-match=ID_FS_T
 systemctl daemon-reload
 systemctl enable vort2x-macos-mount.service
 
-info "Vort2x macOS volume mount installed"
+info "VorT2x macOS volume mount installed"

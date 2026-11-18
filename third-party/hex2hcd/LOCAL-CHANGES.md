@@ -1,9 +1,9 @@
-# Kait2en changes
+# Local changes
 
 This copy is based on `jessesung/hex2hcd`, commit
 `6d30d778f548200beb4c3ae02176ac6952f3a7ea`.
 
-Kait2en changes:
+Changes made in KAIT2EN and carried by VorT2x:
 
 - accept Apple `.hex` files with CRLF line endings
 - ignore a leading `$` line used by Apple firmware files

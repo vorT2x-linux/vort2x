@@ -1379,6 +1379,6 @@ static struct hid_driver apple_driver = {
 };
 module_hid_driver(apple_driver);
 
-MODULE_AUTHOR("vort2x");
-MODULE_DESCRIPTION("Vort2x T2 HID quirks driver");
+MODULE_AUTHOR("kait2en");
+MODULE_DESCRIPTION("VorT2x T2 HID quirks driver");
 MODULE_LICENSE("GPL");

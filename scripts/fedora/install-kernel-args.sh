@@ -112,7 +112,7 @@ ADD_ARGS+=("$INITCALL_BLACKLIST" "$MODULE_BLACKLIST")
 KERNEL_ARGS="${ADD_ARGS[*]}"
 OLD_KERNEL_ARGS="${REMOVE_ARGS[*]}"
 
-info "updating Vort2x kernel arguments and driver blacklist"
+info "updating VorT2x kernel arguments and driver blacklist"
 grubby --update-kernel=ALL \
 	--remove-args="$OLD_KERNEL_ARGS" \
 	--args="$KERNEL_ARGS"

@@ -8,7 +8,7 @@ License: GPL-2.0-only, see `LICENSE`. Files under `lzfse/` are BSD-3-Clause
 (Apple Inc.), `libzbitmap.c` and `libzbitmap.h` are GPL-2.0-or-later OR MIT.
 Each file carries its `SPDX-License-Identifier`.
 
-This copy carries no Kait2en changes. `.gitignore` is left out.
+This copy carries no local changes. `.gitignore` is left out.
 
 The installer registers it with DKMS as `linux-apfs-rw` and installs the
 `apfs` module. Mounts are read-only unless `-o readwrite` is passed.

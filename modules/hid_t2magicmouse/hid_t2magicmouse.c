@@ -1770,6 +1770,6 @@ module_hid_driver(t2magicmouse_driver);
 
 MODULE_AUTHOR("Michael Poole <mdpoole@troilus.org>");
 MODULE_AUTHOR("Chase Douglas <chase.douglas@canonical.com>");
-MODULE_AUTHOR("vort2x");
+MODULE_AUTHOR("kait2en");
 MODULE_DESCRIPTION("Apple Magic Mouse and T2 Wellspring trackpad HID driver");
 MODULE_LICENSE("GPL");

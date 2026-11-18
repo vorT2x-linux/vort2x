@@ -1,0 +1,26 @@
+VorT2x
+Copyright (C) 2026 VorT2x contributors
+
+VorT2x is a fork of KAIT2EN (https://github.com/kaiT2en/KaiT2en-Fedora),
+taken at commit 30e367b of 2026-11-17. It is an independent project and is
+not affiliated with or endorsed by KAIT2EN.
+
+Modified files
+
+All files inherited from KAIT2EN were modified by VorT2x contributors from
+2026-11-18 onwards. The KAIT2EN name, paths and identifiers were changed to
+VorT2x, the Vornehm desktop theme was renamed Eddy, KAIT2EN's branding and
+artwork were replaced, and KAIT2EN's website, blog and wallpapers were left
+out. The git history records every change to every file, with its date.
+
+Original authors
+
+The GPL-3.0-or-later userspace inherited from KAIT2EN is copyright
+André Eikmeyer <andre.eikmeyer@kait2en.org>. 4f1sh3r <git@syn-flut.de> holds
+the copyright of his contributions to t2-fan-control and t2-smc-control.
+Under the additional term of GPL-3.0 section 7(b), this attribution must be
+preserved when the work is conveyed, and reproduced in the Appropriate Legal
+Notices of works that contain it. See LICENSING.md and AUTHORS.
+
+Kernel modules are GPL-2.0, and vendored third-party code keeps its upstream
+licence, as described in LICENSING.md.

@@ -6,7 +6,7 @@ Commit: `6d30d778f548200beb4c3ae02176ac6952f3a7ea`
 
 License: GPL-2.0, see `LICENSE`
 
-This copy carries Kait2en changes. See `KAIT2EN.md`.
+This copy carries local changes, made in KAIT2EN. See `LOCAL-CHANGES.md`.
 
 Build command:
 

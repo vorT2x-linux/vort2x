@@ -57,8 +57,8 @@ install -m 0644 modules/t2_trackpad_actuator/t2_trackpad_actuator.ko \
 /usr/lib/modules/%{kernel_release}/updates/vort2x/*.ko
 
 %changelog
-* Tue Nov 03 2026 VorT2x maintainers <maintainers@vort2x.invalid> - 0.1-2
+* Tue Nov 03 2026 KaiT2en maintainers <maintainers@kait2en.invalid> - 0.1-2
 - Include the precision trackpad and haptic actuator drivers
 
-* Tue Jul 14 2026 VorT2x maintainers <maintainers@vort2x.invalid> - 0.1-1
+* Tue Jul 14 2026 KaiT2en maintainers <maintainers@kait2en.invalid> - 0.1-1
 - Initial Fedora installer transition package

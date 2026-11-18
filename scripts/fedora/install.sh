@@ -326,5 +326,5 @@ fi
 if (( ${#failed_steps[@]} > 0 )); then
 	warn "installation completed with errors in: ${failed_steps[*]}"
 fi
-info "All Vort2x installation steps have been attempted"
+info "All VorT2x installation steps have been attempted"
 info "reboot after reviewing the output"

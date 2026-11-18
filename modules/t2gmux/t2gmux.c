@@ -1719,8 +1719,8 @@ static struct pnp_driver gmux_pnp_driver = {
 
 module_pnp_driver(gmux_pnp_driver);
 MODULE_AUTHOR("Seth Forshee <seth.forshee@canonical.com>");
-MODULE_AUTHOR("vort2x");
-MODULE_DESCRIPTION("Vort2x T2 GMUX driver");
+MODULE_AUTHOR("kait2en");
+MODULE_DESCRIPTION("VorT2x T2 GMUX driver");
 MODULE_VERSION("0.9");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("EFIVAR");

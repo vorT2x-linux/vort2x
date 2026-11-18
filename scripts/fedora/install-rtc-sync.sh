@@ -10,10 +10,10 @@ require_command systemctl hwclock chronyc
 # The kernel's NTP RTC sync never writes t2smc on x86 (it stops at the legacy
 # CMOS clock), so write it once chrony has synchronized at boot. t2smc itself
 # synchronizes the RTC before suspend and at shutdown.
-info "installing Vort2x SMC RTC sync"
+info "installing VorT2x SMC RTC sync"
 tee /etc/systemd/system/vort2x-rtc-sync.service >/dev/null <<'EOF'
 [Unit]
-Description=Vort2x write system time to the T2 SMC RTC
+Description=VorT2x write system time to the T2 SMC RTC
 After=chronyd.service
 
 [Service]
@@ -29,4 +29,4 @@ chmod 0644 /etc/systemd/system/vort2x-rtc-sync.service
 systemctl daemon-reload
 systemctl enable vort2x-rtc-sync.service
 
-info "Vort2x SMC RTC sync installed"
+info "VorT2x SMC RTC sync installed"

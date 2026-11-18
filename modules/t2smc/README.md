@@ -258,7 +258,7 @@ writes `CLKO`, only when the offset changed by more than a quarter second.
 
 Before sleep and at shutdown the driver syncs `CLKO` with the system clock,
 since the T2 keeps its own time from the SMC RTC while the host is off.
-Vort2x also sets the RTC once chrony has synchronized. The kernel's NTP sync
+VorT2x also sets the RTC once chrony has synchronized. The kernel's NTP sync
 writes the CMOS clock instead and does not reach this RTC.
 
 `tools/t2smc-rtc-client.c` reads the RTC at an interval to exercise `CLKL`.

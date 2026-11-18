@@ -34,6 +34,10 @@ Copyright of that userspace is held by André Eikmeyer
 contributions to `t2-fan-control` and `t2-smc-control`. This is a reasonable
 attribution requirement and adds no restriction beyond section 7(b).
 
+VorT2x is a fork of KAIT2EN, see [NOTICE](NOTICE). These terms carry over to
+VorT2x unchanged. Changes made by VorT2x contributors are copyright their
+authors and licensed the same way as the files they change.
+
 ## Other owners
 
 - Vendored third-party code (e.g. `t2-services/t2-journal/libs/macos-unifiedlogs/`,
@@ -43,7 +47,7 @@ attribution requirement and adds no restriction beyond section 7(b).
   GPL-2.0-or-later OR MIT. The notices stay in the file headers.
 - `apps/t2-touchbar/src/display.rs` derives its low-level DRM setup from
   tiny-dfr. Its MIT notice is preserved in
-  `apps/t2-touchbar/THIRD-PARTY-NOTICES.md`; the combined KAIT2EN program is
+  `apps/t2-touchbar/THIRD-PARTY-NOTICES.md`; the combined VorT2x program is
   distributed under GPL-3.0-or-later.
 - `apps/t2-airshare/proto/` holds the Nearby protobuf definitions, Apache-2.0
   (Google LLC) and BSD-style (The Chromium Authors) with their license texts
@@ -51,12 +55,7 @@ attribution requirement and adds no restriction beyond section 7(b).
   `receive.rs`, `send.rs` and `discover.rs` are adapted from rquickshare
   (GPL-3.0). The
   notices are in `apps/t2-airshare/THIRD-PARTY-NOTICES.md`, the combined
-  KAIT2EN program is distributed under GPL-3.0-or-later.
-- The wallpapers in `assets/vornehm/backgrounds/` are from the BLACK
-  collection by Jean-Marc Denis (https://jmd.im/black), © Jean-Marc Denis.
-  They are not covered by the KaiT2en licenses. No redistribution license is
-  stated, they are shipped downscaled with credit in good faith and removed
-  on the artist's request. Details in `assets/vornehm/backgrounds/CREDITS.md`.
+  VorT2x program is distributed under GPL-3.0-or-later.
 
 ## Trademarks
 

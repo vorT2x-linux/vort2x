@@ -446,7 +446,7 @@ if [[ ! -f $WORK/.prepared ]]; then
 		# t2-ave in the apple-t2-bridge DKMS build links against v4l2-mem2mem.
 		# That helper has no prompt and only survives localmodconfig while
 		# t2-ave is loaded, so VIDEO_VIM2M is kept as its selecting driver.
-		# The initcall and module blacklists used by Vort2x replace drivers at
+		# The initcall and module blacklists used by VorT2x replace drivers at
 		# runtime; they do not make those drivers optional at build time.
 		"$TREE/scripts/config" --file "$TREE/.config" \
 			--enable INPUT_SPARSEKMAP \
@@ -471,9 +471,9 @@ if [[ ! -f $WORK/.prepared ]]; then
 		"$TREE/scripts/config" --file "$TREE/.config" --enable "$symbol"
 	done
 	if ((T2_CONFIG)); then
-		# Keep the upstream drivers replaced by Vort2x as modules.  Their Kconfig
+		# Keep the upstream drivers replaced by VorT2x as modules.  Their Kconfig
 		# entries select infrastructure needed by the DKMS replacements, while
-		# Vort2x's module_blacklist prevents the upstream modules from binding.
+		# VorT2x's module_blacklist prevents the upstream modules from binding.
 		# This must come after GUI overrides so none can accidentally become
 		# built-in and bypass the module blacklist.
 		for symbol in "${T2_REQUIRED_MODULES[@]}"; do

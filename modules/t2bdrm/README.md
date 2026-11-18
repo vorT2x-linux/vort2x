@@ -2,4 +2,4 @@
 
 Touch Bar DRM driver for Intel Macs with a T2 chip.
 
-This module replaces `appletbdrm` in the Vort2x stack.
+This module replaces `appletbdrm` in the VorT2x stack.

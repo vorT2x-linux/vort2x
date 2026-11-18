@@ -11,13 +11,13 @@ SCRIPT_SRC="$REPO_ROOT/scripts/fedora/vort2x-suspend.sh"
 
 [[ -f "$SCRIPT_SRC" ]] || fail "missing $SCRIPT_SRC"
 
-info "installing Vort2x suspend helper"
+info "installing VorT2x suspend helper"
 install -d -o root -g root -m 0755 /usr/local/libexec/vort2x
 install -o root -g root -m 0755 "$SCRIPT_SRC" /usr/local/libexec/vort2x/vort2x-suspend.sh
 
 tee /etc/systemd/system/vort2x-suspend.service >/dev/null <<'EOF'
 [Unit]
-Description=Vort2x T2 suspend and resume hardware fixes
+Description=VorT2x T2 suspend and resume hardware fixes
 Before=sleep.target
 After=NetworkManager.service t2-services-suspend.service
 StopWhenUnneeded=yes
@@ -37,4 +37,4 @@ chmod 0644 /etc/systemd/system/vort2x-suspend.service
 systemctl daemon-reload
 systemctl enable vort2x-suspend.service
 
-info "Vort2x suspend helper installed"
+info "VorT2x suspend helper installed"

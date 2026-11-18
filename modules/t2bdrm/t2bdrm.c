@@ -1063,6 +1063,6 @@ static struct usb_driver appletbdrm_usb_driver = {
 module_usb_driver(appletbdrm_usb_driver);
 
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
-MODULE_AUTHOR("vort2x");
-MODULE_DESCRIPTION("Vort2x T2 Touch Bar DRM driver");
+MODULE_AUTHOR("kait2en");
+MODULE_DESCRIPTION("VorT2x T2 Touch Bar DRM driver");
 MODULE_LICENSE("GPL");

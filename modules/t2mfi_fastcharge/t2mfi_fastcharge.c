@@ -12,8 +12,8 @@
 #include <linux/usb.h>
 
 MODULE_AUTHOR("Bastien Nocera <hadess@hadess.net>");
-MODULE_AUTHOR("vort2x");
-MODULE_DESCRIPTION("Vort2x T2 fast-charge control for Apple \"MFi\" devices");
+MODULE_AUTHOR("kait2en");
+MODULE_DESCRIPTION("VorT2x T2 fast-charge control for Apple \"MFi\" devices");
 MODULE_LICENSE("GPL");
 
 #define TRICKLE_CURRENT_MA		0
