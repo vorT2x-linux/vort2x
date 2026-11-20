@@ -1,0 +1,302 @@
+From ffb355b59a59c01b53ec2cffb133a6c6e6b6e6f1 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 10:50:50 +0000
+Subject: [PATCH 6/8] drm/amd/display: latch both iMac 5K tiles on the same
+ frame on DCE
+
+amdgpu_dm_commit_planes() programs one CRTC at a time, and each
+dc_update_planes_and_stream() takes and drops the update lock of its
+own pipe. On the merged 5K output the left tile is programmed first and
+unlocked, and a VSync before the right tile is programmed latches the
+left half of a frame one refresh before the right half: a one-frame
+tear at the seam, and the commit completes a frame late.
+
+DCE has no interdependent_update_lock() that would lock both pipes.
+Add dc_imac5k_hold_tile_locks() and dc_imac5k_release_tile_locks(),
+which take the update lock of both tiles' pipes and keep it held: while
+held, dce_pipe_control_lock() leaves those pipes alone. DM takes the
+locks before programming the tiles of a fast update and releases them
+once both are programmed, so both are latched on the same VSync. The
+right tile also skips the wait for the target vblank, which the left
+tile has already done and which would otherwise sleep with the locks
+held.
+
+The locks are only held for fast updates without a modeset, during
+which DC does not wait for a flip to latch, and only on DCE; DCN takes
+its locks through interdependent_update_lock().
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; compile-tested only, not yet run on
+an iMac Pro.
+
+[Fedora 7.3 backport: 7.3 has no hwss_pipe_control_lock(), DCE pipes
+ are locked through dce_pipe_control_lock(), which skips held pipes.]
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 69 ++++++++++++++++++-
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h |  7 ++
+ drivers/gpu/drm/amd/display/dc/core/dc.c      | 68 ++++++++++++++++++
+ drivers/gpu/drm/amd/display/dc/dc.h           |  6 ++
+ drivers/gpu/drm/amd/display/dc/dc_stream.h    |  5 ++
+ .../drm/amd/display/dc/hwss/dce/dce_hwseq.c   |  5 ++
+ 6 files changed, 158 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 4adc9ee..6fbd626 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -4190,6 +4190,61 @@ static int imac5k_allow_added_crtc(struct amdgpu_display_manager *dm,
+ 	return 0;
+ }
+ 
++/*
++ * iMac 5K: the two tiles are programmed by two calls to
++ * amdgpu_dm_commit_planes(), one per CRTC. Without a lock spanning both, a
++ * VSync between them latches the left tile's new frame one refresh before the
++ * right one's. For fast updates of both tiles, hold both pipes' update locks
++ * from before the left tile is programmed until after the right one is.
++ */
++static bool imac5k_hold_tiles(struct amdgpu_display_manager *dm,
++			      struct drm_atomic_commit *state)
++{
++	struct drm_crtc *comp = imac5k_companion_crtc(dm);
++	struct drm_crtc_state *crtc_state, *left_state = NULL, *comp_state;
++	struct dm_crtc_state *dm_left, *dm_comp;
++	struct drm_crtc *crtc;
++	int i;
++
++	if (!comp)
++		return false;
++
++	comp_state = drm_atomic_get_new_crtc_state(state, comp);
++	if (!comp_state)
++		return false;
++
++	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
++		if (amdgpu_dm_imac5k_crtc_is_left(dm, crtc))
++			left_state = crtc_state;
++	}
++	if (!left_state || !left_state->active || !comp_state->active ||
++	    drm_atomic_crtc_needs_modeset(left_state) ||
++	    drm_atomic_crtc_needs_modeset(comp_state))
++		return false;
++
++	dm_left = to_dm_crtc_state(left_state);
++	dm_comp = to_dm_crtc_state(comp_state);
++	if (!dm_left->stream || !dm_comp->stream ||
++	    dm_left->update_type != UPDATE_TYPE_FAST ||
++	    dm_comp->update_type != UPDATE_TYPE_FAST)
++		return false;
++
++	mutex_lock(&dm->dc_lock);
++	dm->imac5k_tiles_held = dc_imac5k_hold_tile_locks(dm->dc, dm_left->stream,
++							  dm_comp->stream);
++	mutex_unlock(&dm->dc_lock);
++
++	return dm->imac5k_tiles_held;
++}
++
++static void imac5k_release_tiles(struct amdgpu_display_manager *dm)
++{
++	mutex_lock(&dm->dc_lock);
++	dc_imac5k_release_tile_locks(dm->dc);
++	dm->imac5k_tiles_held = false;
++	mutex_unlock(&dm->dc_lock);
++}
++
+ static void amdgpu_dm_commit_cursors(struct drm_atomic_commit *state)
+ {
+ 	struct drm_plane *plane;
+@@ -4628,9 +4683,12 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_commit *state,
+ 
+ 		/*
+ 		 * Wait until we're out of the vertical blank period before the one
+-		 * targeted by the flip
++		 * targeted by the flip. iMac 5K: the right tile's flip targets the
++		 * same frame as the left one, which has already waited for it, and
++		 * waiting here would hold the left tile's update lock.
+ 		 */
+-		while ((acrtc_attach->enabled &&
++		while (!(dm->imac5k_tiles_held && pcrtc == imac5k_companion_crtc(dm)) &&
++		       (acrtc_attach->enabled &&
+ 			(amdgpu_display_get_crtc_scanoutpos(dm->ddev, acrtc_attach->crtc_id,
+ 							    0, &vpos, &hpos, NULL,
+ 							    NULL, &pcrtc->hwmode)
+@@ -5712,6 +5770,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_commit *state)
+ 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+ 	unsigned long flags;
+ 	bool wait_for_vblank = true;
++	bool imac5k_held;
+ 	struct drm_connector *connector;
+ 	struct drm_connector_state *old_con_state = NULL, *new_con_state = NULL;
+ 	struct dm_crtc_state *dm_old_crtc_state, *dm_new_crtc_state;
+@@ -5919,6 +5978,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_commit *state)
+ 		if (new_crtc_state->async_flip)
+ 			wait_for_vblank = false;
+ 
++	/* iMac 5K: latch both tiles' updates on the same frame. */
++	imac5k_held = imac5k_hold_tiles(dm, state);
++
+ 	/* update planes when needed per crtc*/
+ 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j) {
+ 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+@@ -5927,6 +5989,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_commit *state)
+ 			amdgpu_dm_commit_planes(state, dev, dm, crtc, wait_for_vblank);
+ 	}
+ 
++	if (imac5k_held)
++		imac5k_release_tiles(dm);
++
+ 	/* Enable writeback */
+ 	for_each_new_connector_in_state(state, connector, new_con_state, i) {
+ 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
+index 73236e4..14e64db 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
+@@ -710,6 +710,13 @@ struct amdgpu_display_manager {
+ 	 */
+ 	struct amdgpu_dm_connector *imac5k_conn[2];
+ 
++	/**
++	 * @imac5k_tiles_held:
++	 *
++	 * Both iMac 5K tiles' pipe update locks are held for this commit.
++	 */
++	bool imac5k_tiles_held;
++
+ 	/**
+ 	 * @dpia_aux_lock:
+ 	 *
+diff --git a/drivers/gpu/drm/amd/display/dc/core/dc.c b/drivers/gpu/drm/amd/display/dc/core/dc.c
+index 2c9c665..b512b0e 100644
+--- a/drivers/gpu/drm/amd/display/dc/core/dc.c
++++ b/drivers/gpu/drm/amd/display/dc/core/dc.c
+@@ -2191,6 +2191,74 @@ void dc_enable_stereo(
+ 	}
+ }
+ 
++/**
++ * dc_imac5k_hold_tile_locks() - Lock both iMac 5K tiles across their updates
++ * @dc: DC instance
++ * @left: stream of the left tile
++ * @right: stream of the right tile
++ *
++ * The two tiles of the 5K panel are separate streams, updated one after the
++ * other. Take the update lock of both pipes and keep it held through the
++ * updates (dce_pipe_control_lock() leaves held pipes alone), so that neither
++ * tile can latch its new frame on a VSync that the other one misses.
++ * dc_imac5k_release_tile_locks() releases both locks back to back.
++ *
++ * Only for DCE, whose pipe lock is not taken by interdependent_update_lock(),
++ * and only around fast updates: DC does not wait for a flip to latch while
++ * applying one.
++ *
++ * Return: true if the locks are held.
++ */
++bool dc_imac5k_hold_tile_locks(struct dc *dc,
++			       const struct dc_stream_state *left,
++			       const struct dc_stream_state *right)
++{
++	struct pipe_ctx *pipes[2];
++	u32 mask = 0;
++	int i;
++
++	if (!dc->config.imac5K_support || dc->hwss.interdependent_update_lock ||
++	    !dc->hwss.pipe_control_lock || dc->imac5k_held_tg_mask)
++		return false;
++
++	pipes[0] = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, left);
++	pipes[1] = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, right);
++	if (!pipes[0] || !pipes[1])
++		return false;
++
++	for (i = 0; i < 2; i++) {
++		dc->hwss.pipe_control_lock(dc, pipes[i], true);
++		mask |= BIT(pipes[i]->stream_res.tg->inst);
++	}
++
++	dc->imac5k_held_tg_mask = mask;
++
++	return true;
++}
++
++/**
++ * dc_imac5k_release_tile_locks() - Release the locks of dc_imac5k_hold_tile_locks()
++ * @dc: DC instance
++ */
++void dc_imac5k_release_tile_locks(struct dc *dc)
++{
++	u32 mask = dc->imac5k_held_tg_mask;
++	unsigned int i;
++
++	if (!mask)
++		return;
++
++	dc->imac5k_held_tg_mask = 0;
++
++	for (i = 0; i < dc->res_pool->pipe_count; i++) {
++		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
++
++		if (pipe->stream && resource_is_pipe_type(pipe, OTG_MASTER) &&
++		    (mask & BIT(pipe->stream_res.tg->inst)))
++			dc->hwss.pipe_control_lock(dc, pipe, false);
++	}
++}
++
+ void dc_trigger_sync(struct dc *dc, struct dc_state *context)
+ {
+ 	if (context->stream_count > 1 && !dc->debug.disable_timing_sync) {
+diff --git a/drivers/gpu/drm/amd/display/dc/dc.h b/drivers/gpu/drm/amd/display/dc/dc.h
+index f2ed31e..cdebf30 100644
+--- a/drivers/gpu/drm/amd/display/dc/dc.h
++++ b/drivers/gpu/drm/amd/display/dc/dc.h
+@@ -2015,6 +2015,12 @@ struct dc {
+ 	struct dc_state *current_state;
+ 	struct resource_pool *res_pool;
+ 
++	/**
++	 * @imac5k_held_tg_mask: iMac 5K: timing generators whose pipe update
++	 * lock is held across updates by dc_imac5k_hold_tile_locks().
++	 */
++	u32 imac5k_held_tg_mask;
++
+ 	/**
+ 	 * @update_scratch_pool: Per-commit scratch buffers for dc_update_state.
+ 	 */
+diff --git a/drivers/gpu/drm/amd/display/dc/dc_stream.h b/drivers/gpu/drm/amd/display/dc/dc_stream.h
+index 934ae38..e9019ba 100644
+--- a/drivers/gpu/drm/amd/display/dc/dc_stream.h
++++ b/drivers/gpu/drm/amd/display/dc/dc_stream.h
+@@ -407,6 +407,11 @@ bool dc_is_stream_scaling_unchanged(
+  *   This does not trigger a flip.  No surface address is programmed.
+  *
+  */
++bool dc_imac5k_hold_tile_locks(struct dc *dc,
++			       const struct dc_stream_state *left,
++			       const struct dc_stream_state *right);
++void dc_imac5k_release_tile_locks(struct dc *dc);
++
+ bool dc_update_planes_and_stream(struct dc *dc,
+ 		struct dc_surface_update *surface_updates, int surface_count,
+ 		struct dc_stream_state *dc_stream,
+diff --git a/drivers/gpu/drm/amd/display/dc/hwss/dce/dce_hwseq.c b/drivers/gpu/drm/amd/display/dc/hwss/dce/dce_hwseq.c
+index 4202fad..c3d94f6 100644
+--- a/drivers/gpu/drm/amd/display/dc/hwss/dce/dce_hwseq.c
++++ b/drivers/gpu/drm/amd/display/dc/hwss/dce/dce_hwseq.c
+@@ -52,6 +52,11 @@ void dce_pipe_control_lock(struct dc *dc,
+ 	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
+ 	struct dce_hwseq *hws = dc->hwseq;
+ 
++	/* iMac 5K: held across updates, see dc_imac5k_hold_tile_locks(). */
++	if (unlikely(dc->imac5k_held_tg_mask) &&
++	    (dc->imac5k_held_tg_mask & BIT(pipe->stream_res.tg->inst)))
++		return;
++
+ 	/* Not lock pipe when blank */
+ 	if (lock && pipe->stream_res.tg->funcs->is_blanked &&
+ 	    pipe->stream_res.tg->funcs->is_blanked(pipe->stream_res.tg))
+-- 
+2.47.3
+
