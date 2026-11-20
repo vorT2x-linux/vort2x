@@ -1,0 +1,98 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Fri, 20 Nov 2026 16:00:00 +0000
+Subject: [PATCH] drm/amd/display: add switches for the iMac Pro 5K tile sync
+
+Add two module parameters, both on by default, to turn off parts of the
+iMac Pro tile synchronisation without a rebuild:
+
+- amdgpu.imac5k_genlock=0 skips the per-frame reset of the right tile,
+  leaving the one-time sync when the tiles are enabled;
+- amdgpu.imac5k_tile_lock=0 stops holding both tiles' update locks
+  across a page flip.
+
+On an iMac Pro the merged panel stalls at login and on resume: a page
+flip on the left tile is never completed ("flip_done timed out", then
+dm_arm_vblank_event() warns that the previous flip is still pending),
+also with amdgpu.imac5k_swap_lock=0. The switches narrow down which part
+of the tile synchronisation, if any, causes it, and stay as fallbacks.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
+an iMac Pro hardware report; compile-tested only.
+---
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+@@ -204,6 +204,8 @@
+ extern int amdgpu_imac5k_merge;
+ extern int amdgpu_imac5k_early_dc;
+ extern int amdgpu_imac5k_swap_lock;
++extern int amdgpu_imac5k_genlock;
++extern int amdgpu_imac5k_tile_lock;
+ extern uint amdgpu_dc_debug_mask;
+ extern uint amdgpu_dc_visual_confirm;
+ extern int amdgpu_dm_abm_level;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -232,6 +232,8 @@
+ int amdgpu_imac5k_merge = 1;
+ int amdgpu_imac5k_early_dc = -1;
+ int amdgpu_imac5k_swap_lock;
++int amdgpu_imac5k_genlock = 1;
++int amdgpu_imac5k_tile_lock = 1;
+ int amdgpu_reset_method = -1; /* auto */
+ int amdgpu_num_kcq = -1;
+ int amdgpu_smartshift_bias;
+@@ -977,6 +979,26 @@
+ module_param_named(imac5k_swap_lock, amdgpu_imac5k_swap_lock, int, 0444);
+ 
+ /**
++ * DOC: imac5k_genlock (int)
++ * On the iMac Pro, reset the right panel tile's timing to the left one's on
++ * every frame. 0 leaves only the one-time sync when the tiles are enabled.
++ * 1 = on (default), 0 = off.
++ */
++MODULE_PARM_DESC(imac5k_genlock,
++		 "Realign the iMac Pro 5K panel tiles every frame (1 = on (default), 0 = off)");
++module_param_named(imac5k_genlock, amdgpu_imac5k_genlock, int, 0444);
++
++/**
++ * DOC: imac5k_tile_lock (int)
++ * On the iMac Pro, hold both panel tiles' update locks while a page flip
++ * programs them, so both halves change on the same frame. 1 = on (default),
++ * 0 = off.
++ */
++MODULE_PARM_DESC(imac5k_tile_lock,
++		 "Latch both iMac Pro 5K panel tiles' flips together (1 = on (default), 0 = off)");
++module_param_named(imac5k_tile_lock, amdgpu_imac5k_tile_lock, int, 0444);
++
++/**
+  * DOC: reset_method (int)
+  * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
+  */
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -4357,7 +4357,7 @@
+ 	struct drm_crtc *crtc;
+ 	int i;
+ 
+-	if (!comp)
++	if (!comp || !amdgpu_imac5k_tile_lock)
+ 		return false;
+ 
+ 	comp_state = drm_atomic_get_new_crtc_state(state, comp);
+@@ -5828,7 +5828,8 @@
+ 
+ 	*count = 0;
+ 
+-	if (context->streams[0]->ctx->dce_version >= DCE_VERSION_MAX)
++	if (!amdgpu_imac5k_genlock ||
++	    context->streams[0]->ctx->dce_version >= DCE_VERSION_MAX)
+ 		return false;
+ 
+ 	for (i = 0; i < context->stream_count; i++) {
+-- 
+2.47.3
+
