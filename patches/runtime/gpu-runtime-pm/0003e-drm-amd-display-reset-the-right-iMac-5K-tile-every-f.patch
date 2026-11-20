@@ -1,0 +1,329 @@
+From f637318a713462698164f94b99325681018eb221 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 10:06:51 +0000
+Subject: [PATCH 5/8] drm/amd/display: reset the right iMac 5K tile every frame
+ on DCE
+
+The two tiles of the 5K panel are only synchronised once, when their
+streams are enabled: program_timing_sync() runs the one-time GSL reset
+of dce110_enable_timing_synchronization() and tears the GSL group down
+again, assuming the two CRTCs never drift. The per-frame reset that the
+5K patch asks for does not happen at all:
+
+- dm_enable_per_frame_crtc_master_sync() enables the trigger on the
+  right tile only, so set_master_stream(), which picks the master among
+  the enabled streams, makes the right tile its own event source.
+  enable_timing_multisync() skips event sources and finds no pipe.
+- dce110_enable_per_frame_crtc_position_reset() starts at the second
+  pipe, assuming the master is in the group, and uses TG 0 as GSL
+  master.
+- Even with a working group, program_timing_sync() would tear the GSL
+  group down straight after.
+
+For the merged output on DCE, make the left tile (link 0) the event
+source of the right tile (link 1) and set up the per-frame reset in the
+DCE hw sequencer: look up the master's pipe, put both tiles in GSL group
+0 with the left one as GSL master and arm the right tile's
+enable_crtc_reset(), without tearing the group down. Keep a tile pair in
+per-frame reset out of the one-time timing sync, and release the tiles
+before the next context is applied; dc_trigger_sync() sets the reset up
+again afterwards.
+
+Keeping the GSL group set up also leaves the two pipes' surface flips
+swap-locked (DCP_GSL_DELAY_SURFACE_UPDATE_PENDING), which suits the
+merged output, where both tiles are always flipped in the same commit.
+With amdgpu.imac5k_merge=0 the tiles are flipped separately, so nothing
+changes there, nor on DCN (iMac20,x) or on machines without the quirk.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; compile-tested only, not yet run on
+an iMac Pro.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 54 ++++++++++-
+ drivers/gpu/drm/amd/display/dc/core/dc.c      |  9 ++
+ .../gpu/drm/amd/display/dc/core/dc_resource.c | 30 ++++++
+ .../amd/display/dc/hwss/dce110/dce110_hwseq.c | 95 +++++++++++++++++++
+ drivers/gpu/drm/amd/display/dc/inc/resource.h |  3 +
+ 5 files changed, 190 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 56995a0..4adc9ee 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -5602,9 +5602,53 @@ STATIC_IFN_KUNIT void set_master_stream(struct dc_stream_state *stream_set[],
+ }
+ EXPORT_IF_KUNIT(set_master_stream);
+ 
++/*
++ * iMac 5K, merged output on DCE: reset the right tile (link 1) on every VSync
++ * of the left tile (link 0), so the two halves never drift apart. The other
++ * streams of @context are returned in @others.
++ *
++ * Returns false, leaving @context alone, if the merged output is not active,
++ * or on DCN, whose per-frame reset is not set up this way yet.
++ */
++static bool dm_imac5k_enable_frame_reset(struct dc_state *context,
++					 struct dc_stream_state **others,
++					 int *count)
++{
++	struct dc_stream_state *left = NULL, *right = NULL, *stream;
++	int i;
++
++	*count = 0;
++
++	if (context->streams[0]->ctx->dce_version >= DCE_VERSION_MAX)
++		return false;
++
++	for (i = 0; i < context->stream_count; i++) {
++		stream = context->streams[i];
++
++		if (!amdgpu_dm_imac5k_stream_is_tile(stream))
++			others[(*count)++] = stream;
++		else if (stream->link->link_index == 0)
++			left = stream;
++		else if (stream->link->link_index == 1)
++			right = stream;
++	}
++
++	if (!left || !right)
++		return false;
++
++	left->triggered_crtc_reset.enabled = false;
++	left->triggered_crtc_reset.event_source = left;
++	right->triggered_crtc_reset.enabled = true;
++	right->triggered_crtc_reset.event_source = left;
++	set_multisync_trigger_params(right);
++
++	return true;
++}
++
+ STATIC_IFN_KUNIT void dm_enable_per_frame_crtc_master_sync(struct dc_state *context)
+ {
+-	int i = 0;
++	struct dc_stream_state *others[MAX_STREAMS];
++	int i = 0, count;
+ 	struct dc_stream_state *stream;
+ 
+ 	if (context->stream_count < 2)
+@@ -5620,6 +5664,14 @@ STATIC_IFN_KUNIT void dm_enable_per_frame_crtc_master_sync(struct dc_state *cont
+ 	}
+ 
+ 	if (context->streams[0]->ctx->dc->config.imac5K_support) {
++		/* The tiles are taken care of; sync any other streams. */
++		if (dm_imac5k_enable_frame_reset(context, others, &count)) {
++			set_master_stream(others, count);
++			for (i = 0; i < count; i++)
++				set_multisync_trigger_params(others[i]);
++			return;
++		}
++
+ 		for (i = 0; i < context->stream_count; i++) {
+ 			stream = context->streams[i];
+ 			if (stream && stream->link && stream->link->link_index == 1)
+diff --git a/drivers/gpu/drm/amd/display/dc/core/dc.c b/drivers/gpu/drm/amd/display/dc/core/dc.c
+index 60b903e..2c9c665 100644
+--- a/drivers/gpu/drm/amd/display/dc/core/dc.c
++++ b/drivers/gpu/drm/amd/display/dc/core/dc.c
+@@ -1705,6 +1705,15 @@ static void program_timing_sync(
+ 				|| ctx->res_ctx.pipe_ctx[i].prev_odm_pipe)
+ 			continue;
+ 
++		/*
++		 * iMac 5K: the per-frame reset set up by
++		 * enable_timing_multisync() keeps the tiles in sync; the
++		 * one-time sync would tear its GSL group down again.
++		 */
++		if (resource_imac5k_stream_in_frame_reset(ctx,
++							  ctx->res_ctx.pipe_ctx[i].stream))
++			continue;
++
+ 		unsynced_pipes[i] = &ctx->res_ctx.pipe_ctx[i];
+ 	}
+ 
+diff --git a/drivers/gpu/drm/amd/display/dc/core/dc_resource.c b/drivers/gpu/drm/amd/display/dc/core/dc_resource.c
+index bc3555d..a713bff 100644
+--- a/drivers/gpu/drm/amd/display/dc/core/dc_resource.c
++++ b/drivers/gpu/drm/amd/display/dc/core/dc_resource.c
+@@ -681,6 +681,36 @@ bool resource_are_vblanks_synchronizable(
+ 	return false;
+ }
+ 
++/*
++ * iMac 5K: true if @stream is one of the two panel tiles while the right tile
++ * is reset on every VSync of the left one, i.e. while a slave in @state has a
++ * different stream as its triggered_crtc_reset.event_source.
++ */
++bool resource_imac5k_stream_in_frame_reset(const struct dc_state *state,
++					   const struct dc_stream_state *stream)
++{
++	const struct dc_stream_state *slave;
++	unsigned int i;
++
++	if (!stream->ctx->dc->config.imac5K_support)
++		return false;
++
++	for (i = 0; i < state->stream_count; i++) {
++		slave = state->streams[i];
++
++		if (!slave->triggered_crtc_reset.enabled ||
++		    !slave->triggered_crtc_reset.event_source ||
++		    slave->triggered_crtc_reset.event_source == slave)
++			continue;
++
++		if (stream == slave ||
++		    stream == slave->triggered_crtc_reset.event_source)
++			return true;
++	}
++
++	return false;
++}
++
+ bool resource_are_streams_timing_synchronizable(
+ 	struct dc_stream_state *stream1,
+ 	struct dc_stream_state *stream2)
+diff --git a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+index 3d19eac..a230f6c 100644
+--- a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
++++ b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+@@ -2650,6 +2650,8 @@ static void dce110_setup_audio_dto(
+ 	}
+ }
+ 
++static void dce110_imac5k_stop_frame_reset(struct dc *dc);
++
+ enum dc_status dce110_apply_ctx_to_hw(
+ 		struct dc *dc,
+ 		struct dc_state *context)
+@@ -2666,6 +2668,13 @@ enum dc_status dce110_apply_ctx_to_hw(
+ 	if (dc->config.use_pipe_ctx_sync_logic)
+ 		reset_syncd_pipes_from_disabled_pipes(dc, context);
+ 
++	/*
++	 * iMac 5K: release the tiles from their per-frame reset before any pipe
++	 * changes; dc_trigger_sync() sets it up again for the new context.
++	 */
++	if (dc->config.imac5K_support)
++		dce110_imac5k_stop_frame_reset(dc);
++
+ 	/* iMac 5K: the right tile (link 1) trains only once the left is up. */
+ 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+ 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+@@ -3018,6 +3027,87 @@ static void dce110_enable_timing_synchronization(
+ 	DC_SYNC_INFO("GSL: Set-up complete.\n");
+ }
+ 
++/*
++ * iMac 5K: enable_timing_multisync() passes only the slaves, i.e. the right
++ * tile, whose master (the left tile) is its triggered_crtc_reset.event_source.
++ * Put master and slave in GSL group 0 with the master as GSL master and leave
++ * the group set up, so the slave's counters are reset on every master VSync
++ * rather than once. dce110_imac5k_stop_frame_reset() undoes it before the next
++ * context is applied.
++ */
++static void dce110_imac5k_enable_frame_reset(struct dc *dc,
++					     int group_size,
++					     struct pipe_ctx *grouped_pipes[])
++{
++	DC_LOGGER_INIT(dc->ctx);
++	/* The grouped pipes are OTG masters in the res_ctx being applied. */
++	struct resource_context *res_ctx =
++		container_of(grouped_pipes[0] - grouped_pipes[0]->pipe_idx,
++			     struct resource_context, pipe_ctx[0]);
++	struct dcp_gsl_params gsl_params = { 0 };
++	int i;
++
++	for (i = 0; i < group_size; i++) {
++		struct pipe_ctx *slave = grouped_pipes[i];
++		struct timing_generator *slave_tg = slave->stream_res.tg;
++		struct dc_stream_state *source =
++			slave->stream->triggered_crtc_reset.event_source;
++		struct pipe_ctx *master;
++		struct timing_generator *master_tg;
++
++		master = resource_get_otg_master_for_stream(res_ctx, source);
++		master_tg = master ? master->stream_res.tg : NULL;
++
++		if (!master_tg || master_tg == slave_tg ||
++		    !slave_tg->funcs->enable_crtc_reset ||
++		    !slave_tg->funcs->setup_global_swap_lock ||
++		    !master_tg->funcs->setup_global_swap_lock) {
++			DC_SYNC_INFO("iMac 5K: no per-frame reset for tg%d\n",
++				     slave_tg->inst);
++			continue;
++		}
++
++		gsl_params.gsl_group = 0;
++		gsl_params.gsl_master = master_tg->inst;
++		master_tg->funcs->setup_global_swap_lock(master_tg, &gsl_params);
++		slave_tg->funcs->setup_global_swap_lock(slave_tg, &gsl_params);
++
++		slave_tg->funcs->enable_crtc_reset(slave_tg, master_tg->inst,
++						   &slave->stream->triggered_crtc_reset);
++
++		DC_SYNC_INFO("iMac 5K: per-frame reset slave tg%d -> master tg%d\n",
++			     slave_tg->inst, master_tg->inst);
++		wait_for_reset_trigger_to_occur(dc_ctx, slave_tg);
++	}
++}
++
++/*
++ * iMac 5K: undo dce110_imac5k_enable_frame_reset() on the tiles' pipes of the
++ * current state. This goes by link rather than by the streams' reset flags,
++ * which DM may already have rewritten for the next context. Both calls only
++ * restore register defaults, so they are harmless on a tile that was not set
++ * up.
++ */
++static void dce110_imac5k_stop_frame_reset(struct dc *dc)
++{
++	struct dc_state *state = dc->current_state;
++	unsigned int i;
++
++	for (i = 0; i < dc->res_pool->pipe_count; i++) {
++		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
++		struct timing_generator *tg = pipe->stream_res.tg;
++
++		if (!pipe->stream || pipe->top_pipe || pipe->prev_odm_pipe ||
++		    pipe->stream->link->link_index > 1)
++			continue;
++
++		if (tg->funcs->disable_reset_trigger)
++			tg->funcs->disable_reset_trigger(tg);
++		if (tg->funcs->tear_down_global_swap_lock)
++			tg->funcs->tear_down_global_swap_lock(tg);
++	}
++}
++
+ static void dce110_enable_per_frame_crtc_position_reset(
+ 		struct dc *dc,
+ 		int group_size,
+@@ -3027,6 +3117,11 @@ static void dce110_enable_per_frame_crtc_position_reset(
+ 	int i;
+ 	DC_LOGGER_INIT(dc->ctx);
+ 
++	if (dc->config.imac5K_support) {
++		dce110_imac5k_enable_frame_reset(dc, group_size, grouped_pipes);
++		return;
++	}
++
+ 	gsl_params.gsl_group = 0;
+ 	gsl_params.gsl_master = 0;
+ 
+diff --git a/drivers/gpu/drm/amd/display/dc/inc/resource.h b/drivers/gpu/drm/amd/display/dc/inc/resource.h
+index 8e21aaa..bbba23ae 100644
+--- a/drivers/gpu/drm/amd/display/dc/inc/resource.h
++++ b/drivers/gpu/drm/amd/display/dc/inc/resource.h
+@@ -152,6 +152,9 @@ bool resource_are_streams_timing_synchronizable(
+ 		struct dc_stream_state *stream1,
+ 		struct dc_stream_state *stream2);
+ 
++bool resource_imac5k_stream_in_frame_reset(const struct dc_state *state,
++					   const struct dc_stream_state *stream);
++
+ bool resource_are_vblanks_synchronizable(
+ 		struct dc_stream_state *stream1,
+ 		struct dc_stream_state *stream2);
+-- 
+2.47.3
+

@@ -1,0 +1,187 @@
+From 4f0a304ebe9954bb86a0d6906e0c4ed457c1c1ce Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 09:57:37 +0000
+Subject: [PATCH 2/8] drm/amd/display: support the 5K panel of the iMacPro1,1
+
+The iMacPro1,1 (Radeon Pro Vega 56/64, DCE 12) drives its 5K panel like
+the iMac20,x, as two 2560x2880 tiles on an eDP link (left) and a DP link
+(right). Add it to the 5K quirk so it gets the merged 5120x2880 output.
+
+The iMac20,x initialise the display IP block before the SMU. It is not
+known yet whether the iMac Pro needs that, so add an
+amdgpu.imac5k_early_dc parameter: -1 (default) keeps the iMac20,x order
+and leaves the iMac Pro on the normal order, 0 and 1 force either order
+on any 5K iMac so both can be tested without a rebuild.
+
+This replaces kait2en 0013 (Andre Eikmeyer), which added the iMacPro1,1
+to the 5K quirk table of the earlier two-tile patch.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; compile-tested only, not yet run on
+an iMac Pro.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu.h           |  1 +
+ drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c | 37 ++++++++++++++++++-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c       | 21 ++++++++---
+ .../amd/display/amdgpu_dm/amdgpu_dm_quirks.c  |  7 ++++
+ 4 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+index 6d1a729..1251061 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+@@ -202,6 +202,7 @@ extern int amdgpu_smu_pptable_id;
+ extern uint amdgpu_dc_feature_mask;
+ extern uint amdgpu_freesync_vid_mode;
+ extern int amdgpu_imac5k_merge;
++extern int amdgpu_imac5k_early_dc;
+ extern uint amdgpu_dc_debug_mask;
+ extern uint amdgpu_dc_visual_confirm;
+ extern int amdgpu_dm_abm_level;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c
+index 51346b8..88f32f2 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_discovery.c
+@@ -3119,24 +3119,56 @@ static int amdgpu_discovery_set_isp_ip_blocks(struct amdgpu_device *adev)
+ 	return 0;
+ }
+ 
++/*
++ * 5K iMacs. driver_data is true where the display IP block has to be
++ * initialised before the SMU by default.
++ */
+ static const struct dmi_system_id imac5k_table[] = {
+ 	{
+ 		.matches = {
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "iMac20,1"),
+ 		},
++		.driver_data = (void *)true,
+ 	},
+ 	{
+ 		.matches = {
+ 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "iMac20,2"),
+ 		},
++		.driver_data = (void *)true,
++	},
++	{
++		/* Not known yet whether the iMac Pro needs it: off by default. */
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "iMacPro1,1"),
++		},
++		.driver_data = (void *)false,
+ 	},
+ 	{}
+ };
+ 
++/* TODO: We should enable 5K in EFI and remove this quirk */
++static bool amdgpu_discovery_imac5k_early_dc(struct amdgpu_device *adev)
++{
++	const struct dmi_system_id *id = dmi_first_match(imac5k_table);
++	bool early;
++
++	if (!id)
++		return false;
++
++	early = amdgpu_imac5k_early_dc < 0 ? !!id->driver_data :
++					     amdgpu_imac5k_early_dc > 0;
++	dev_info(adev->dev, "iMac 5K: display initialised %s SMU\n",
++		 early ? "before" : "after");
++
++	return early;
++}
++
+ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
+ {
++	bool early_dc;
+ 	int r;
+ 
+ 	switch (adev->asic_type) {
+@@ -3732,7 +3764,8 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
+ 		}
+ 	}
+ 
+-	if (unlikely(dmi_check_system(imac5k_table))) {
++	early_dc = amdgpu_discovery_imac5k_early_dc(adev);
++	if (unlikely(early_dc)) {
+ 		r = amdgpu_discovery_set_display_ip_blocks(adev);
+ 		if (r)
+ 			return r;
+@@ -3744,7 +3777,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
+ 			return r;
+ 	}
+ 
+-	if (likely(!dmi_check_system(imac5k_table))) {
++	if (likely(!early_dc)) {
+ 		r = amdgpu_discovery_set_display_ip_blocks(adev);
+ 		if (r)
+ 			return r;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+index b4c11bc..46fcc60 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -230,6 +230,7 @@ int amdgpu_force_asic_type = -1;
+ int amdgpu_tmz = -1; /* auto */
+ uint amdgpu_freesync_vid_mode;
+ int amdgpu_imac5k_merge = 1;
++int amdgpu_imac5k_early_dc = -1;
+ int amdgpu_reset_method = -1; /* auto */
+ int amdgpu_num_kcq = -1;
+ int amdgpu_smartshift_bias;
+@@ -942,16 +943,26 @@ module_param_named(freesync_video, amdgpu_freesync_vid_mode, uint, 0444);
+ 
+ /**
+  * DOC: imac5k_merge (int)
+- * On the iMac 5K (iMac20,1 and iMac20,2) the panel is two 2560x2880 tiles on
+- * two links. By default they are presented to userspace as one 5120x2880
+- * output (lower resolutions are scaled across both tiles). Set to 0 to expose
+- * the two tiles as separate outputs instead, for compositors that implement
+- * tiled displays themselves. Default: 1.
++ * On the 5K iMacs (iMac20,1, iMac20,2 and iMacPro1,1) the panel is two
++ * 2560x2880 tiles on two links. By default they are presented to userspace as
++ * one 5120x2880 output (lower resolutions are scaled across both tiles). Set
++ * to 0 to expose the two tiles as separate outputs instead, for compositors
++ * that implement tiled displays themselves. Default: 1.
+  */
+ MODULE_PARM_DESC(imac5k_merge,
+ 	"Present the two iMac 5K panel tiles as one 5120x2880 output (1 = enable (default), 0 = expose two 2560x2880 tiles)");
+ module_param_named(imac5k_merge, amdgpu_imac5k_merge, int, 0444);
+ 
++/**
++ * DOC: imac5k_early_dc (int)
++ * On the 5K iMacs, initialise the display IP block before the SMU so the 5K
++ * panel can be brought up before the firmware is loaded. -1 = auto (on for
++ * the iMac20,1 and iMac20,2, off for the iMacPro1,1), 0 = off, 1 = on.
++ */
++MODULE_PARM_DESC(imac5k_early_dc,
++		 "Display before SMU on 5K iMacs (-1 = auto (default), 0 = off, 1 = on)");
++module_param_named(imac5k_early_dc, amdgpu_imac5k_early_dc, int, 0444);
++
+ /**
+  * DOC: reset_method (int)
+  * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_quirks.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_quirks.c
+index 8657dd9..a34a455 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_quirks.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_quirks.c
+@@ -173,6 +173,13 @@ static const struct dmi_system_id dmi_quirk_table[] = {
+ 			DMI_MATCH(DMI_PRODUCT_NAME, "iMac20,2"),
+ 		},
+ 	},
++	{
++		.callback = imac5K_support_callback,
++		.matches = {
++			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
++			DMI_MATCH(DMI_PRODUCT_NAME, "iMacPro1,1"),
++		},
++	},
+ 	{}
+ 	/* TODO: refactor this from a fixed table to a dynamic option */
+ };
+-- 
+2.47.3
+

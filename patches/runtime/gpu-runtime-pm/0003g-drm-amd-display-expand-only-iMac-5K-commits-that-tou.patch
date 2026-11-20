@@ -1,0 +1,203 @@
+From 99409349ff80a58fdaa274c6b4c604a997fb6557 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 10:51:34 +0000
+Subject: [PATCH 7/8] drm/amd/display: expand only iMac 5K commits that touch
+ the panel
+
+imac5k_expand_state() pulls both tile connectors, the left CRTC and the
+companion CRTC into every commit that is not cursor-only. A page flip on
+another output, such as an external monitor, therefore also carries both
+tile CRTCs: it waits for their pending commits, a nonblocking flip on it
+can fail with -EBUSY while a tile flip is pending, and the companion CRTC
+it adds forces allow_modeset. Every page flip of the panel itself also
+takes connection_mutex for the two connector states, and goes through
+the full routing and overlay checks.
+
+Classify each commit first:
+
+- one that touches neither tile connector, the companion CRTC nor the
+  left CRTC is left alone;
+- one that only updates the left CRTC (no modeset) and its primary
+  plane or cursor only mirrors the CRTC and primary plane onto the
+  companion, without the connector states, as long as the companion is
+  still bound to the right tile;
+- anything else gets the full expansion, as before.
+
+Also log whether each tile's update is fast or full, under
+drm_dbg_atomic, to check that page flips stay fast updates.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; compile-tested only, not yet run on
+an iMac Pro.
+
+[Fedora 7.3 backport: needs_dc_state_realloc is still called
+ lock_and_validation_needed in 7.3.]
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 135 ++++++++++++++++++
+ 1 file changed, 135 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 6fbd626..0a6c972 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -3979,6 +3979,119 @@ static bool imac5k_cursor_only_commit(struct drm_atomic_commit *state)
+ 	return cursor;
+ }
+ 
++enum imac5k_commit {
++	/* Touches neither tile: nothing to mirror. */
++	IMAC5K_COMMIT_NONE,
++	/* Only updates the left CRTC and its primary plane or cursor. */
++	IMAC5K_COMMIT_FLIP,
++	/* Anything else: routing, modeset, overlays, the companion itself. */
++	IMAC5K_COMMIT_FULL,
++};
++
++/*
++ * Work out how a commit involves the merged panel. For IMAC5K_COMMIT_FLIP,
++ * @left is set to the left tile's CRTC.
++ *
++ * Every CRTC a plane is moved to or from is in the commit already, and the
++ * left CRTC is found through the connector mask of its old or new state, so
++ * a commit that has neither tile connector, nor the companion CRTC, nor the
++ * left CRTC does not touch the panel.
++ */
++static enum imac5k_commit imac5k_classify_commit(struct amdgpu_display_manager *dm,
++						 struct drm_atomic_commit *state,
++						 struct drm_crtc *comp,
++						 struct drm_crtc **left)
++{
++	struct drm_connector *left_conn = &dm->imac5k_conn[0]->base;
++	struct drm_connector *right_conn = &dm->imac5k_conn[1]->base;
++	u32 left_mask = drm_connector_mask(left_conn);
++	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
++	struct drm_plane_state *old_plane_state, *new_plane_state;
++	struct drm_crtc *crtc;
++	struct drm_plane *plane;
++	int i;
++
++	*left = NULL;
++
++	if (drm_atomic_get_new_connector_state(state, left_conn) ||
++	    drm_atomic_get_new_connector_state(state, right_conn) ||
++	    drm_atomic_get_new_crtc_state(state, comp))
++		return IMAC5K_COMMIT_FULL;
++
++	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
++		if (!((old_crtc_state->connector_mask |
++		       new_crtc_state->connector_mask) & left_mask))
++			continue;
++
++		if (!new_crtc_state->enable ||
++		    drm_atomic_crtc_needs_modeset(new_crtc_state))
++			return IMAC5K_COMMIT_FULL;
++
++		*left = crtc;
++	}
++
++	if (!*left)
++		return IMAC5K_COMMIT_NONE;
++
++	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
++		if (plane == (*left)->primary ||
++		    (plane->type == DRM_PLANE_TYPE_CURSOR && plane != comp->cursor))
++			continue;
++
++		/* An overlay on the panel, or a companion plane. */
++		if (new_plane_state->crtc == *left || new_plane_state->crtc == comp ||
++		    old_plane_state->crtc == *left || old_plane_state->crtc == comp)
++			return IMAC5K_COMMIT_FULL;
++	}
++
++	return IMAC5K_COMMIT_FLIP;
++}
++
++/*
++ * A commit that only flips the left tile, which is what a compositor does on
++ * every frame, needs just the companion CRTC and its primary plane mirrored.
++ * The connector routing and the companion's cursor stay as the last full
++ * expansion set them, so the connector states are not pulled in: that keeps
++ * page flips off connection_mutex, which every probe and modeset takes too.
++ *
++ * Returns 1 if the companion is not set up as expected, in which case the
++ * caller does a full expansion instead.
++ */
++static int imac5k_expand_flip(struct amdgpu_display_manager *dm,
++			      struct drm_atomic_commit *state,
++			      struct drm_crtc *crtc,
++			      struct drm_crtc *comp)
++{
++	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
++	struct drm_plane_state *plane_state, *comp_plane_state;
++	struct drm_crtc_state *comp_state, *old_comp_state;
++	int ret;
++
++	comp_state = drm_atomic_get_crtc_state(state, comp);
++	if (IS_ERR(comp_state))
++		return PTR_ERR(comp_state);
++
++	old_comp_state = drm_atomic_get_old_crtc_state(state, comp);
++	if (!old_comp_state->enable ||
++	    !(old_comp_state->connector_mask &
++	      drm_connector_mask(&dm->imac5k_conn[1]->base)))
++		return 1;
++
++	ret = imac5k_mirror_crtc(comp_state, crtc_state);
++	if (ret)
++		return ret;
++
++	plane_state = drm_atomic_get_plane_state(state, crtc->primary);
++	if (IS_ERR(plane_state))
++		return PTR_ERR(plane_state);
++
++	comp_plane_state = drm_atomic_get_plane_state(state, comp->primary);
++	if (IS_ERR(comp_plane_state))
++		return PTR_ERR(comp_plane_state);
++
++	return imac5k_copy_plane_state(comp_plane_state, plane_state, comp);
++}
++
+ /*
+  * Rewrite the atomic state so that the right tile follows the left one. This
+  * runs first in atomic check, before the DRM helpers look at the state, and
+@@ -4000,6 +4113,18 @@ static int imac5k_expand_state(struct drm_device *dev,
+ 	if (!comp || imac5k_cursor_only_commit(state))
+ 		return 0;
+ 
++	switch (imac5k_classify_commit(dm, state, comp, &crtc)) {
++	case IMAC5K_COMMIT_NONE:
++		return 0;
++	case IMAC5K_COMMIT_FLIP:
++		ret = imac5k_expand_flip(dm, state, crtc, comp);
++		if (ret <= 0)
++			return ret;
++		break;
++	case IMAC5K_COMMIT_FULL:
++		break;
++	}
++
+ 	left_state = drm_atomic_get_connector_state(state, &dm->imac5k_conn[0]->base);
+ 	if (IS_ERR(left_state))
+ 		return PTR_ERR(left_state);
+@@ -7368,6 +7493,16 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
+ 
+ 		dm_new_crtc_state->update_type = lock_and_validation_needed ?
+ 			UPDATE_TYPE_FULL : UPDATE_TYPE_FAST;
++
++		/* iMac 5K: page flips should stay fast updates on both tiles. */
++		if (amdgpu_dm_imac5k_merge_active(&adev->dm) &&
++		    (crtc == imac5k_companion_crtc(&adev->dm) ||
++		     amdgpu_dm_imac5k_crtc_is_left(&adev->dm, crtc)))
++			drm_dbg_atomic(dev, "iMac 5K: [CRTC:%d:%s] %s update%s\n",
++				       crtc->base.id, crtc->name,
++				       lock_and_validation_needed ? "full" : "fast",
++				       drm_atomic_crtc_needs_modeset(new_crtc_state) ?
++				       " with modeset" : "");
+ 	}
+ 
+ 	ret = imac5k_allow_added_crtc(&adev->dm, state);
+-- 
+2.47.3
+
