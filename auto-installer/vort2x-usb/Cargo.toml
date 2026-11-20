@@ -1,0 +1,21 @@
+[package]
+name = "vort2x-usb"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Makes the VorT2x Fedora USB stick for T2 Macs, on macOS and Linux"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+fatfs = { version = "0.3.6", default-features = false, features = ["std", "alloc"] }
+flate2 = "1"
+libc = "0.2"
+plist = "1.7"
+ratatui = "0.30"
+serde_json = "1.0"
+sha2 = "0.10"
+
+[profile.release]
+lto = true
+strip = true

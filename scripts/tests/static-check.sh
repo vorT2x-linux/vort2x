@@ -20,6 +20,7 @@ shell_files=(
 	auto-installer/runtime/vort2x-rescue
 	auto-installer/runtime/vort2x-live-wifi
 	auto-installer/runtime/vort2x-prepare
+	auto-installer/vort2x-usb/tests/check-image.sh
 	apps/t2-touchbar/install.sh
 	apps/t2-touchbar/uninstall.sh
 	scripts/fedora/build-installer.sh
