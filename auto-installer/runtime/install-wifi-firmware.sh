@@ -79,6 +79,9 @@ fi
 # <board>-<module>-<vendor>-<version> or for <board>-<antenna>, never for both
 # parts at once, so the antenna variant must not be pasted in front of the
 # module details. The .trx file carries the bare board name both forms build on.
+# Every brcmfmac also asks for the bare board name last, and it is the only
+# board name a stock driver asks for when ACPI reports no antenna SKU
+# (iMacPro1,1, iMac19,1, iMac19,2).
 board_base=$(basename "$trx_file" .trx)
 [[ "$clm_stem" == "$board_base" || "$clm_stem" == "$board_base"-* ]] ||
 	die "board name '$clm_stem' does not extend the .trx board name '$board_base'"
@@ -144,6 +147,23 @@ install -m 0644 "$clm_file" "$dest_dir/$target_clm"
 install -m 0644 "$txcap_file" "$dest_dir/$target_txcap"
 install -m 0644 "$nvram_file" "$dest_dir/$target_nvram"
 
+# The bare board name points at the same four files. On the Macs above the
+# blobs and the NVRAM are identical for every antenna variant.
+bare_links=()
+link_bare_name() {
+	local target=$1 extension=$2
+	local link="${target_prefix}.apple,${board_base}.${extension}"
+
+	[[ "$link" != "$target" ]] || return 0
+	ln -sfn "$target" "$dest_dir/$link"
+	bare_links+=("$link")
+}
+link_bare_name "$target_bin" bin
+link_bare_name "$target_nvram" txt
+link_bare_name "$target_clm" clm_blob
+link_bare_name "$target_txcap" txcap_blob
+
 printf 'VorT2x Wi-Fi firmware installed:\n'
 printf '  /usr/lib/firmware/brcm/%s\n' \
-	"$target_bin" "$target_clm" "$target_txcap" "$target_nvram"
+	"$target_bin" "$target_clm" "$target_txcap" "$target_nvram" \
+	"${bare_links[@]}"

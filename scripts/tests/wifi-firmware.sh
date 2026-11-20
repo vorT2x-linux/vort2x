@@ -7,6 +7,34 @@ helper="$repo_root/auto-installer/runtime/install-wifi-firmware.sh"
 work=$(mktemp -d "${TMPDIR:-/tmp}/vort2x-wifi-test.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
+# Every brcmfmac falls back to the bare board name, the only one a stock driver
+# asks for on Macs without an antenna SKU in ACPI. All four names must be
+# relative links that resolve to the given installed files.
+check_bare_links() {
+	local destination=$1 prefix=$2 base=$3 bin=$4 txt=$5 clm=$6 txcap=$7
+	local extension target link
+
+	for extension in bin txt clm_blob txcap_blob; do
+		case "$extension" in
+			bin) target=$bin ;;
+			txt) target=$txt ;;
+			clm_blob) target=$clm ;;
+			txcap_blob) target=$txcap ;;
+		esac
+		link="$destination/${prefix}.apple,${base}.${extension}"
+		# Already the bare name: the file itself, never a link to itself.
+		if [[ "${link##*/}" == "$target" ]]; then
+			[[ -f "$link" && ! -L "$link" ]]
+			continue
+		fi
+		[[ -L "$link" && $(readlink "$link") == "$target" ]] || {
+			printf 'bare board link wrong: %s\n' "$link" >&2
+			return 1
+		}
+		[[ -f "$link" ]] # resolves to the installed file
+	done
+}
+
 # macOS names the .clmb, .txcb and NVRAM files after the board plus the antenna
 # variant of the Mac, and the .trx file after the bare board. brcmfmac asks
 # either for <board>-<module>-<vendor>-<version> or for <board>-<antenna>, so
@@ -32,6 +60,11 @@ run_case() {
 	[[ -f "$destination/${prefix}.apple,${board}.txcap_blob" ]]
 	[[ -f "$destination/${prefix}.apple,${base}-${module}-${vendor}-${version}.txt" ]]
 	[[ $(find "$destination" -maxdepth 1 -type f | wc -l) -eq 4 ]]
+	check_bare_links "$destination" "$prefix" "$base" \
+		"${request#brcm/}" \
+		"${prefix}.apple,${base}-${module}-${vendor}-${version}.txt" \
+		"${prefix}.apple,${board}.clm_blob" \
+		"${prefix}.apple,${board}.txcap_blob"
 }
 
 # All three are the files macOS actually carries on those Macs.
@@ -87,6 +120,47 @@ warned_dest="$warned/root/usr/lib/firmware/brcm"
 [[ -f "$warned_dest/brcmfmac4364b3-pcie.apple,trinidad-X3.clm_blob" ]]
 [[ -f "$warned_dest/brcmfmac4364b3-pcie.apple,trinidad-X3.txcap_blob" ]]
 [[ -f "$warned_dest/brcmfmac4364b3-pcie.apple,trinidad-HRPN-u-7.7.txt" ]]
+
+# iMacPro1,1 (Kirk's, from ioreg): ACPI has no antenna SKU, so the stock driver
+# quietly tries only apple,ekans and then warns about the generic name. The
+# files must be found under the bare board name.
+imac="$work/imacpro"
+mkdir -p "$imac/bin" "$imac/source" "$imac/root"
+printf firmware >"$imac/source/ekans.trx"
+printf clm >"$imac/source/ekans-X3.clmb"
+printf txcap >"$imac/source/ekans-X3.txcb"
+printf nvram >"$imac/source/P-ekans-X3_M-HRPN_V-u__m-7.5.txt"
+printf '%s\n' '#!/bin/sh' 'exit 0' >"$imac/bin/journalctl"
+{
+	printf '%s\n' '#!/bin/sh'
+	printf 'echo "%s"\n' \
+		'brcmfmac: brcmf_fw_alloc_request: using brcm/brcmfmac4364b2-pcie for chip BCM4364/3' \
+		'brcmfmac 0000:03:00.0: Direct firmware load for brcm/brcmfmac4364b2-pcie.bin failed with error -2'
+} >"$imac/bin/dmesg"
+chmod 0755 "$imac/bin/journalctl" "$imac/bin/dmesg"
+PATH="$imac/bin:$PATH" bash "$helper" \
+	--source "$imac/source" --root "$imac/root" >/dev/null
+imac_dest="$imac/root/usr/lib/firmware/brcm"
+[[ $(find "$imac_dest" -maxdepth 1 -type f | wc -l) -eq 4 ]]
+check_bare_links "$imac_dest" brcmfmac4364b2-pcie ekans \
+	brcmfmac4364b2-pcie.apple,ekans-HRPN-u-7.5.bin \
+	brcmfmac4364b2-pcie.apple,ekans-HRPN-u-7.5.txt \
+	brcmfmac4364b2-pcie.apple,ekans-X3.clm_blob \
+	brcmfmac4364b2-pcie.apple,ekans-X3.txcap_blob
+[[ $(cat "$imac_dest/brcmfmac4364b2-pcie.apple,ekans.txt") == nvram ]]
+
+# Older kernels warn about the bare board name itself on those iMacs. The
+# helper then installs the .bin under it, and no link may point to itself.
+self="$work/self"
+mkdir -p "$self/source" "$self/root"
+cp "$imac/source"/* "$self/source/"
+VORT2X_FIRMWARE_REQUEST=brcm/brcmfmac4364b2-pcie.apple,ekans.bin \
+	bash "$helper" --source "$self/source" --root "$self/root" >/dev/null
+self_dest="$self/root/usr/lib/firmware/brcm"
+[[ -f "$self_dest/brcmfmac4364b2-pcie.apple,ekans.bin" &&
+	! -L "$self_dest/brcmfmac4364b2-pcie.apple,ekans.bin" ]]
+[[ -L "$self_dest/brcmfmac4364b2-pcie.apple,ekans.txt" ]]
+[[ $(find "$self_dest" -maxdepth 1 -type l | wc -l) -eq 3 ]]
 
 # A generic fallback name is intentionally rejected. The helper must use the
 # hardware-specific filename emitted by brcmfmac, exactly like the manual guide.
