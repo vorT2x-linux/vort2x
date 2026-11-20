@@ -1,24 +1,32 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kirk <hello@kirkdiamond.com>
 Date: Fri, 20 Nov 2026 16:00:00 +0000
-Subject: [PATCH] drm/amd/display: add switches for the iMac Pro 5K tile sync
+Subject: [PATCH] drm/amd/display: turn off the iMac Pro 5K per-frame tile reset
 
-Add two module parameters, both on by default, to turn off parts of the
-iMac Pro tile synchronisation without a rebuild:
-
-- amdgpu.imac5k_genlock=0 skips the per-frame reset of the right tile,
-  leaving the one-time sync when the tiles are enabled;
-- amdgpu.imac5k_tile_lock=0 stops holding both tiles' update locks
-  across a page flip.
-
-On an iMac Pro the merged panel stalls at login and on resume: a page
-flip on the left tile is never completed ("flip_done timed out", then
+On an iMac Pro the merged panel stalled at login and on resume: a page
+flip on the left tile was never completed ("flip_done timed out", then
 dm_arm_vblank_event() warns that the previous flip is still pending),
-also with amdgpu.imac5k_swap_lock=0. The switches narrow down which part
-of the tile synchronisation, if any, causes it, and stay as fallbacks.
+also with amdgpu.imac5k_swap_lock=0.
+
+The per-frame reset of the right tile is the cause. On DCE its only
+trigger is GSL group 0, and a GSL group with the surface flip purpose
+holds each member's flips until all of them have one; the one-time sync
+leaves the group straight away for that reason. A commit that flips the
+left tile alone, as happens around login and resume, then never
+completes. With the reset off the panel logs in and resumes cleanly.
+
+It is not needed either: after the one-time sync when the tiles are
+enabled, both run from the same reference clock with the same timing.
+amdgpu_dm_imac5k_genlock read a constant -17 px (35 ns) offset of the
+right tile over ten minutes without it, the same as with it, and no
+seam tearing was visible.
+
+Add amdgpu.imac5k_genlock, off by default, to keep the per-frame reset
+available, and amdgpu.imac5k_tile_lock (default on) to stop holding both
+tiles' update locks across a page flip, for comparison.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
-an iMac Pro hardware report; compile-tested only.
+iMac Pro hardware tests; the default change is compile-tested only.
 ---
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
@@ -39,22 +47,24 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgp
  int amdgpu_imac5k_merge = 1;
  int amdgpu_imac5k_early_dc = -1;
  int amdgpu_imac5k_swap_lock;
-+int amdgpu_imac5k_genlock = 1;
++int amdgpu_imac5k_genlock;
 +int amdgpu_imac5k_tile_lock = 1;
  int amdgpu_reset_method = -1; /* auto */
  int amdgpu_num_kcq = -1;
  int amdgpu_smartshift_bias;
-@@ -977,6 +979,26 @@
+@@ -977,6 +979,28 @@
  module_param_named(imac5k_swap_lock, amdgpu_imac5k_swap_lock, int, 0444);
  
  /**
 + * DOC: imac5k_genlock (int)
 + * On the iMac Pro, reset the right panel tile's timing to the left one's on
-+ * every frame. 0 leaves only the one-time sync when the tiles are enabled.
-+ * 1 = on (default), 0 = off.
++ * every frame. Off by default: the tiles do not drift after the one-time
++ * sync when they are enabled, and keeping them in a GSL group for the reset
++ * holds the left tile's flips until the right one flips too, which stalls
++ * the panel at login and on resume. 0 = off (default), 1 = on.
 + */
 +MODULE_PARM_DESC(imac5k_genlock,
-+		 "Realign the iMac Pro 5K panel tiles every frame (1 = on (default), 0 = off)");
++		 "Realign the iMac Pro 5K panel tiles every frame (0 = off (default), 1 = on)");
 +module_param_named(imac5k_genlock, amdgpu_imac5k_genlock, int, 0444);
 +
 +/**
