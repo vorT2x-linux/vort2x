@@ -7,6 +7,7 @@
 0003f-drm-amd-display-latch-both-iMac-5K-tiles-on-the-same.patch
 0003g-drm-amd-display-expand-only-iMac-5K-commits-that-tou.patch
 0003h-drm-amd-display-add-a-debugfs-file-to-measure-the-iM.patch
+0003i-drm-amd-display-draw-the-right-iMac-5K-tile-s-cursor-on-DCE.patch
 0004-drm-amdgpu-catch-register-access-while-GMUX-keeps-the-GPU-off.patch
 0005-drm-amd-display-refuse-DP-AUX-while-GMUX-keeps-the-GPU-off.patch
 0006-drm-amdgpu-skip-AC-DC-notification-while-the-GPU-is-runtime-suspended.patch
