@@ -16,6 +16,18 @@ modules, apps and fixes come from VorT2x.
 > **Status:** v0.2.0 is the first VorT2x release. It supports Fedora 45 and
 > hasn't been tested on a Mac under the VorT2x name yet. Expect rough edges.
 
+## Recent wins
+
+| Date | Release | What |
+|---|---|---|
+| 2026-11-22 | v0.2.2 | **5K display on the iMac Pro:** the 5K panel is now one 5120x2880 display, with no tearing at the centre seam and the pointer working on both halves. Tested on an iMac Pro (2017). The 2020 iMac (iMac20,1/20,2) gets the same merged display but hasn't been tested yet: reports welcome. |
+
+## Working on
+
+| What | Status |
+|---|---|
+| **Vega support in the T2 power daemon (`t2-zone-power`):** keep the iMac Pro's Radeon Pro Vega within the power limit the SMC asks for, so the Mac doesn't sleep or power off when a game starts | Testing on an iMac Pro |
+
 ## Install
 
 VorT2x is an installer. You run it once on macOS to make a Fedora USB stick,
