@@ -46,10 +46,9 @@ disclosure and coding standards.
 
 ## Origin
 
-VorT2x is a fork of [KAIT2EN](https://github.com/kaiT2en/KaiT2en-Fedora),
-taken on 2026-11-17. It is an independent project and is not affiliated with
-or endorsed by KAIT2EN. [NOTICE](NOTICE) and [AUTHORS](AUTHORS) list the
-original authors, whose credit the licence requires to be kept.
+VorT2x started as a fork of KAIT2EN in November 2026 and is developed
+independently. [NOTICE](NOTICE) and [AUTHORS](AUTHORS) credit the original
+authors.
 
 ## License
 
