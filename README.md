@@ -13,9 +13,6 @@ modules, apps and fixes come from VorT2x.
 [Contributing](#contributing) |
 [License](#license)
 
-> **Status:** v0.2.0 is the first VorT2x release. It supports Fedora 45 and
-> hasn't been tested on a Mac under the VorT2x name yet. Expect rough edges.
-
 ## Recent wins
 
 | Date | Release | What |
