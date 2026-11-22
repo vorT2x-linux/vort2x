@@ -1,0 +1,111 @@
+From d0deaa28750f64450cd91d13350d5c4d307911dc Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 10:04:02 +0000
+Subject: [PATCH 4/8] drm/amd/display: add enable_crtc_reset to the DCE 12
+ timing generator
+
+DCE 12 (Vega 10) has no enable_crtc_reset, so per-frame CRTC position
+reset (multisync) cannot be used on it. The only timing sync it does is
+the one-time GSL reset in dce110_enable_timing_synchronization(), which
+assumes the displays never drift afterwards.
+
+Add enable_crtc_reset. DCE has no per-CRTC trigger source select like
+DCN's OTG_TRIGA_SOURCE_PIPE_SELECT, so the trigger comes from GSL group
+0, whose master is chosen when the group is set up. The programming is
+the same as the one-time enable_reset_trigger(), except that the edge
+comes from the trigger info and the trigger stays armed until
+disable_reset_trigger(), so the slave's counters are realigned to the
+master on every frame.
+
+Nothing calls it yet on DCE 12.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45) together with the next patch, which is the only
+user; see there.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ .../dc/dce120/dce120_timing_generator.c       | 59 +++++++++++++++++++
+ 1 file changed, 59 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c b/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c
+index 70410ef..6ed7efc 100644
+--- a/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c
++++ b/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c
+@@ -347,6 +347,64 @@ static void dce120_timing_generator_enable_reset_trigger(
+ 			CRTC_FORCE_COUNT_NOW_CLEAR, 1);
+ }
+ 
++/*
++ * Reset this CRTC's counters on every trigger from GSL group 0. DCE has no
++ * per-CRTC trigger source select: the source is the group's GSL master, set
++ * up with setup_global_swap_lock() using source_tg_inst as gsl_master.
++ *
++ * Unlike enable_reset_trigger(), which is torn down once the first reset has
++ * happened, the trigger stays armed until disable_reset_trigger(), so the
++ * counters are realigned to the master on every frame.
++ */
++static void dce120_timing_generator_enable_crtc_reset(struct timing_generator *tg,
++						      int source_tg_inst,
++						      struct crtc_trigger_info *crtc_tp)
++{
++	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
++	u32 rising_edge = 0;
++	u32 falling_edge = 0;
++
++	(void)source_tg_inst;
++
++	switch (crtc_tp->event) {
++	case CRTC_EVENT_VSYNC_RISING:
++		rising_edge = 1;
++		break;
++	case CRTC_EVENT_VSYNC_FALLING:
++		falling_edge = 1;
++		break;
++	}
++
++	CRTC_REG_UPDATE_N(CRTC0_CRTC_TRIGB_CNTL, 7,
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_SOURCE_SELECT),
++			  TRIGGER_SOURCE_SELECT_GSL_GROUP0,
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_POLARITY_SELECT),
++			  TRIGGER_POLARITY_SELECT_LOGIC_ZERO,
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_RISING_EDGE_DETECT_CNTL),
++			  rising_edge,
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_FALLING_EDGE_DETECT_CNTL),
++			  falling_edge,
++			  /* send every signal */
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_FREQUENCY_SELECT), 0,
++			  /* no delay */
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_DELAY), 0,
++			  /* clear trigger status */
++			  FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_CLEAR), 1);
++
++	/* DM only asks for a counter reset on the next pixel. */
++	ASSERT(crtc_tp->delay == TRIGGER_DELAY_NEXT_PIXEL);
++
++	CRTC_REG_UPDATE_2(CRTC0_CRTC_VERT_SYNC_CONTROL,
++			  CRTC_FORCE_VSYNC_NEXT_LINE_CLEAR, 1,
++			  CRTC_AUTO_FORCE_VSYNC_MODE, 0);
++
++	/* Force H count to H_TOTAL and V count to V_TOTAL on trigger B. */
++	CRTC_REG_UPDATE_3(CRTC0_CRTC_FORCE_COUNT_NOW_CNTL,
++			  CRTC_FORCE_COUNT_NOW_MODE, 2,
++			  CRTC_FORCE_COUNT_NOW_TRIG_SEL, 1,
++			  CRTC_FORCE_COUNT_NOW_CLEAR, 1);
++}
++
+ /* disabling trigger-reset */
+ static void dce120_timing_generator_disable_reset_trigger(
+ 	struct timing_generator *tg)
+@@ -1244,6 +1302,7 @@ static const struct timing_generator_funcs dce120_tg_funcs = {
+ 		.did_triggered_reset_occur = dce120_timing_generator_did_triggered_reset_occur,
+ 		.setup_global_swap_lock = dce120_timing_generator_setup_global_swap_lock,
+ 		.enable_reset_trigger = dce120_timing_generator_enable_reset_trigger,
++		.enable_crtc_reset = dce120_timing_generator_enable_crtc_reset,
+ 		.disable_reset_trigger = dce120_timing_generator_disable_reset_trigger,
+ 		.tear_down_global_swap_lock = dce120_timing_generator_tear_down_global_swap_lock,
+ 		.enable_advanced_request = dce120_timing_generator_enable_advanced_request,
+-- 
+2.47.3
+

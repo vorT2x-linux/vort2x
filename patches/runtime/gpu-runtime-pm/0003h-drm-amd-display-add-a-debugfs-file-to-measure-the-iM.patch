@@ -1,0 +1,157 @@
+From cf2e1d38cfb51e1696f1aa8061136ca5d8f41210 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 18 Nov 2026 10:22:56 +0000
+Subject: [PATCH 8/8] drm/amd/display: add a debugfs file to measure the iMac
+ 5K tile offset
+
+With the merged output the companion CRTC is hidden from userspace, so
+the two tiles' vblanks cannot be compared from there to check that the
+tiles are genlocked.
+
+Add amdgpu_dm_imac5k_genlock. Reading it samples both tiles' timing
+generators 1000 times, left, right, then left again with interrupts
+off, and reports the mean, minimum and maximum offset of the right tile
+from the midpoint of the two left readings, in pixels and nanoseconds,
+plus the longest read window as a bound on the measurement error. It
+works with and without amdgpu.imac5k_merge.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): the offset read a steady -17 px (35 ns) over an
+hour.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ .../amd/display/amdgpu_dm/amdgpu_dm_debugfs.c | 109 ++++++++++++++++++
+ 1 file changed, 109 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_debugfs.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_debugfs.c
+index 2a6b48e..79ac97c 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_debugfs.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_debugfs.c
+@@ -4588,6 +4588,112 @@ static ssize_t dcc_en_bits_read(
+ 	return result;
+ }
+ 
++#define IMAC5K_GENLOCK_SAMPLES 1000
++
++static u32 imac5k_scanout_pixel(struct timing_generator *tg, u32 h_total)
++{
++	u32 v_blank_start, v_blank_end, h_position, v_position;
++
++	tg->funcs->get_scanoutpos(tg, &v_blank_start, &v_blank_end,
++				  &h_position, &v_position);
++
++	return v_position * h_total + h_position;
++}
++
++/*
++ * iMac 5K: how far apart the two panel tiles scan out, to check that they are
++ * genlocked. Each sample reads the left tile, the right tile and the left tile
++ * again, and compares the right tile's position with the midpoint of the two
++ * left readings. Offsets are in pixels of the tile timing and in nanoseconds;
++ * a positive offset means the right tile is ahead.
++ */
++static int imac5k_genlock_show(struct seq_file *m, void *unused)
++{
++	struct amdgpu_device *adev = m->private;
++	struct dc *dc = adev->dm.dc;
++	struct dc_stream_state *left = NULL, *right = NULL;
++	struct timing_generator *left_tg, *right_tg;
++	struct pipe_ctx *pipe;
++	s64 offset, sum = 0, min = S64_MAX, max = S64_MIN;
++	u32 h_total, frame, p0, p1, p2, window, max_window = 0;
++	u64 pix_clk_hz;
++	unsigned long flags;
++	int i;
++
++	mutex_lock(&adev->dm.dc_lock);
++
++	for (i = 0; i < dc->current_state->stream_count; i++) {
++		struct dc_stream_state *stream = dc->current_state->streams[i];
++
++		if (stream->link->link_index == 0)
++			left = stream;
++		else if (stream->link->link_index == 1)
++			right = stream;
++	}
++
++	if (!left || !right ||
++	    left->timing.h_total != right->timing.h_total ||
++	    left->timing.v_total != right->timing.v_total) {
++		mutex_unlock(&adev->dm.dc_lock);
++		seq_puts(m, "iMac 5K tiles not both active with the same timing\n");
++		return 0;
++	}
++
++	pipe = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, left);
++	left_tg = pipe ? pipe->stream_res.tg : NULL;
++	pipe = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, right);
++	right_tg = pipe ? pipe->stream_res.tg : NULL;
++	if (!left_tg || !right_tg || !left_tg->funcs->get_scanoutpos) {
++		mutex_unlock(&adev->dm.dc_lock);
++		seq_puts(m, "iMac 5K tiles have no timing generator\n");
++		return 0;
++	}
++
++	h_total = left->timing.h_total;
++	frame = h_total * left->timing.v_total;
++	pix_clk_hz = (u64)left->timing.pix_clk_100hz * 100;
++
++	dc_exit_ips_for_hw_access(dc);
++
++	for (i = 0; i < IMAC5K_GENLOCK_SAMPLES; i++) {
++		local_irq_save(flags);
++		p0 = imac5k_scanout_pixel(left_tg, h_total);
++		p1 = imac5k_scanout_pixel(right_tg, h_total);
++		p2 = imac5k_scanout_pixel(left_tg, h_total);
++		local_irq_restore(flags);
++
++		/* The left tile may have started a new frame between its reads. */
++		window = p2 >= p0 ? p2 - p0 : p2 + frame - p0;
++		max_window = max(max_window, window);
++
++		offset = (s64)p1 - (s64)((p0 + window / 2) % frame);
++		if (offset >= frame / 2)
++			offset -= frame;
++		else if (offset < -(s64)(frame / 2))
++			offset += frame;
++
++		sum += offset;
++		min = min(min, offset);
++		max = max(max, offset);
++	}
++
++	mutex_unlock(&adev->dm.dc_lock);
++
++#define IMAC5K_PX_TO_NS(px) div64_s64((s64)(px) * NSEC_PER_SEC, (s64)pix_clk_hz)
++	seq_printf(m, "samples: %d\n", IMAC5K_GENLOCK_SAMPLES);
++	seq_printf(m, "offset mean: %lld px (%lld ns)\n",
++		   div_s64(sum, IMAC5K_GENLOCK_SAMPLES),
++		   IMAC5K_PX_TO_NS(div_s64(sum, IMAC5K_GENLOCK_SAMPLES)));
++	seq_printf(m, "offset min:  %lld px (%lld ns)\n", min, IMAC5K_PX_TO_NS(min));
++	seq_printf(m, "offset max:  %lld px (%lld ns)\n", max, IMAC5K_PX_TO_NS(max));
++	seq_printf(m, "read window max: %u px (%lld ns)\n", max_window,
++		   IMAC5K_PX_TO_NS(max_window));
++#undef IMAC5K_PX_TO_NS
++
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(imac5k_genlock);
++
+ void dtn_debugfs_init(struct amdgpu_device *adev)
+ {
+ 	static const struct file_operations dtn_log_fops = {
+@@ -4609,6 +4715,9 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
+ 			    adev, &mst_topo_fops);
+ 	debugfs_create_file("amdgpu_dm_capabilities", 0444, root,
+ 			    adev, &capabilities_fops);
++	if (adev->dm.imac5K_support)
++		debugfs_create_file("amdgpu_dm_imac5k_genlock", 0444, root,
++				    adev, &imac5k_genlock_fops);
+ 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
+ 			    &dtn_log_fops);
+ 	debugfs_create_file("amdgpu_dm_dp_set_mst_en_for_sst", 0644, root, adev,
+-- 
+2.47.3
+

@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Fri, 20 Nov 2026 14:45:00 +0000
+Subject: [PATCH] drm/amd/display: draw the right iMac 5K tile's cursor on DCE
+
+On the merged 5K output the right tile's hardware cursor is programmed
+by amdgpu_dm_imac5k_update_companion_cursor() at the cursor's screen
+position minus the tile origin (half the mode width). That is right on
+DCN, which takes screen positions. DCE places the cursor at a position
+in the framebuffer instead ("avivo cursor are offset into the total
+surface", dce_v10_0.c; dce110_set_cursor_position() only adds the
+plane's source offset). The right tile shows the framebuffer from the
+tile origin on, so on the iMac Pro (DCE 12) its cursor landed in the
+left half of the framebuffer and was never drawn: the pointer vanished
+as it crossed the seam, while hover and clicks still worked.
+
+On DCE, add the tile origin back to the right tile's cursor position.
+A cursor straddling the seam keeps its hotspot shift, so its right part
+is drawn from the tile's left edge. DCN (iMac20,x) is unchanged.
+
+Found on an iMac Pro (iMacPro1,1) running the merged output:
+the cursor disappeared on the right half of the panel.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
+that hardware report; tested on an iMac Pro (iMacPro1,1, Fedora 45):
+the pointer shows on both halves and across the seam.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c	2026-11-20 14:44:24.909792001 +0000
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c	2026-11-20 14:44:38.628792008 +0000
+@@ -4252,6 +4252,16 @@
+ 	if (amdgpu_dm_plane_get_cursor_position(plane, comp, &position))
+ 		return;
+ 
++	/*
++	 * DCE places the cursor at a position in the framebuffer, not on the
++	 * screen (see dce110_set_cursor_position()), and the right tile shows
++	 * the framebuffer from the tile origin on. Move the cursor back there,
++	 * or it lands in the left half and is never drawn. DCN takes screen
++	 * positions.
++	 */
++	if (position.enable && dm->dc->ctx->dce_version < DCE_VERSION_MAX)
++		position.x += amdgpu_dm_imac5k_tile_origin(comp, plane->state->state);
++
+ 	if (!position.enable) {
+ 		if (!comp_state->stream->cursor_position.enable)
+ 			return;
+-- 
+2.47.3
+

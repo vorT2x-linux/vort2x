@@ -1,0 +1,146 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Fri, 20 Nov 2026 15:30:00 +0000
+Subject: [PATCH] drm/amd/display: do not swap-lock the iMac Pro 5K tiles' flips
+
+The per-frame reset of the right tile keeps both tiles in GSL group 0.
+DCE 12's setup_global_swap_lock() also sets
+DCP_GSL_DELAY_SURFACE_UPDATE_PENDING, so each tile's surface flip is held
+until the other tile has one pending too. During page flips both tiles
+are always flipped in the same commit and that holds, but around full
+updates, at login and on resume, the left tile's new frame can come in a
+commit that leaves the right tile alone. The left tile then never takes
+its flip: on an iMac Pro the panel froze for 30 to 40 seconds with
+"[CRTC:85:crtc-0] flip_done timed out" (crtc-0 drives eDP-1, the left
+tile) at the session switch after login and after resume.
+
+The swap lock is not needed to latch a page flip on both tiles on the
+same frame: dc_imac5k_hold_tile_locks() already does that for fast
+updates. Add no_surface_update_delay to struct dcp_gsl_params, honour it
+in DCE 12's setup_global_swap_lock() and set it for the tile pair, so
+the group only carries the per-frame reset. amdgpu.imac5k_swap_lock=1
+keeps the old behaviour for comparison.
+
+Other callers zero-initialise dcp_gsl_params, so nothing else changes.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
+an iMac Pro hardware report and its kernel log; tested on an iMac Pro
+(iMacPro1,1, Fedora 45): on its own it did not stop the login stall,
+which the next patch fixes.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
+---
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+@@ -203,6 +203,7 @@
+ extern uint amdgpu_freesync_vid_mode;
+ extern int amdgpu_imac5k_merge;
+ extern int amdgpu_imac5k_early_dc;
++extern int amdgpu_imac5k_swap_lock;
+ extern uint amdgpu_dc_debug_mask;
+ extern uint amdgpu_dc_visual_confirm;
+ extern int amdgpu_dm_abm_level;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -231,6 +231,7 @@
+ uint amdgpu_freesync_vid_mode;
+ int amdgpu_imac5k_merge = 1;
+ int amdgpu_imac5k_early_dc = -1;
++int amdgpu_imac5k_swap_lock;
+ int amdgpu_reset_method = -1; /* auto */
+ int amdgpu_num_kcq = -1;
+ int amdgpu_smartshift_bias;
+@@ -964,6 +965,18 @@
+ module_param_named(imac5k_early_dc, amdgpu_imac5k_early_dc, int, 0444);
+ 
+ /**
++ * DOC: imac5k_swap_lock (int)
++ * On the iMac Pro, also hold each panel tile's surface flip until the other
++ * tile has one pending (GSL swap lock). Off by default: the tiles' update
++ * locks already latch both halves of a page flip on the same frame, and the
++ * swap lock stalls the panel when one tile is updated without the other.
++ * 0 = off (default), 1 = on.
++ */
++MODULE_PARM_DESC(imac5k_swap_lock,
++		 "Swap-lock the iMac Pro 5K panel tiles' flips (0 = off (default), 1 = on)");
++module_param_named(imac5k_swap_lock, amdgpu_imac5k_swap_lock, int, 0444);
++
++/**
+  * DOC: reset_method (int)
+  * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
+  */
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -618,8 +618,10 @@
+ 	retrieve_dmi_info(&adev->dm);
+ 	if (adev->dm.edp0_on_dp1_quirk)
+ 		init_data.flags.support_edp0_on_dp1 = true;
+-	if (adev->dm.imac5K_support)
++	if (adev->dm.imac5K_support) {
+ 		init_data.flags.imac5K_support = true;
++		init_data.flags.imac5K_swap_lock = amdgpu_imac5k_swap_lock;
++	}
+ 	adev->dm.imac5k_merge = adev->dm.imac5K_support && amdgpu_imac5k_merge &&
+ 				adev->mode_info.num_crtc > 1;
+ 
+diff --git a/drivers/gpu/drm/amd/display/dc/dc.h b/drivers/gpu/drm/amd/display/dc/dc.h
+--- a/drivers/gpu/drm/amd/display/dc/dc.h
++++ b/drivers/gpu/drm/amd/display/dc/dc.h
+@@ -633,6 +633,7 @@
+ 	bool no_native422_support;
+ 	bool imac5K_support;
+ 	bool imac5K_using_5K;
++	bool imac5K_swap_lock;
+ };
+ 
+ enum visual_confirm {
+diff --git a/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c b/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c
+--- a/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c	2026-11-20 15:24:38.158298013 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dce120/dce120_timing_generator.c	2026-11-20 15:24:39.109076000 +0000
+@@ -270,7 +270,8 @@
+ 		FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_HSYNC_FLIP_CHECK_DELAY), HFLIP_CHECK_DELAY,
+ 		/* DCP_GSL_PURPOSE_SURFACE_FLIP */
+ 		FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_SYNC_SOURCE), 0,
+-		FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_DELAY_SURFACE_UPDATE_PENDING), 1);
++		FD(DCP0_DCP_GSL_CONTROL__DCP_GSL_DELAY_SURFACE_UPDATE_PENDING),
++		!gsl_params->no_surface_update_delay);
+ 
+ 	CRTC_REG_SET_2(
+ 			CRTC0_CRTC_GSL_CONTROL,
+diff --git a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+--- a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
++++ b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+@@ -3069,6 +3069,12 @@
+ 
+ 		gsl_params.gsl_group = 0;
+ 		gsl_params.gsl_master = master_tg->inst;
++		/*
++		 * The group is kept for the per-frame reset only. Swap-locking the
++		 * flips as well stalls a tile whose new frame comes in a commit
++		 * without the other tile's, e.g. at login or resume.
++		 */
++		gsl_params.no_surface_update_delay = !dc->config.imac5K_swap_lock;
+ 		master_tg->funcs->setup_global_swap_lock(master_tg, &gsl_params);
+ 		slave_tg->funcs->setup_global_swap_lock(slave_tg, &gsl_params);
+ 
+diff --git a/drivers/gpu/drm/amd/display/dc/inc/hw/timing_generator.h b/drivers/gpu/drm/amd/display/dc/inc/hw/timing_generator.h
+--- a/drivers/gpu/drm/amd/display/dc/inc/hw/timing_generator.h	2026-11-10 18:10:10.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/inc/hw/timing_generator.h	2026-11-20 15:24:39.109076000 +0000
+@@ -40,6 +40,11 @@
+ struct dcp_gsl_params {
+ 	int gsl_group;
+ 	int gsl_master;
++	/*
++	 * Do not hold this pipe's surface flips until every pipe of the group
++	 * has one pending. Only DCE 12 honours it.
++	 */
++	bool no_surface_update_delay;
+ };
+ 
+ struct gsl_params {
+-- 
+2.47.3
+

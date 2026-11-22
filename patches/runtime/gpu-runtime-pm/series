@@ -1,5 +1,15 @@
 0002-drm-amdgpu-Add-Apple-GMUX-runtime-PM-support.patch
-0003-drm-amdgpu-add-support-for-5K-iMacs.patch
+0003a-amdgpu-add-support-for-5K.patch
+0003b-drm-amd-display-support-the-5K-panel-of-the-iMacPro1.patch
+0003c-drm-amd-display-scope-the-5K-iMac-quirk-and-keep-the.patch
+0003d-drm-amd-display-add-enable_crtc_reset-to-the-DCE-12-.patch
+0003e-drm-amd-display-reset-the-right-iMac-5K-tile-every-f.patch
+0003f-drm-amd-display-latch-both-iMac-5K-tiles-on-the-same.patch
+0003g-drm-amd-display-expand-only-iMac-5K-commits-that-tou.patch
+0003h-drm-amd-display-add-a-debugfs-file-to-measure-the-iM.patch
+0003i-drm-amd-display-draw-the-right-iMac-5K-tile-s-cursor-on-DCE.patch
+0003j-drm-amd-display-do-not-swap-lock-the-iMac-Pro-5K-tiles-flips.patch
+0003k-drm-amd-display-turn-off-the-iMac-Pro-5K-per-frame-tile-reset.patch
 0004-drm-amdgpu-catch-register-access-while-GMUX-keeps-the-GPU-off.patch
 0005-drm-amd-display-refuse-DP-AUX-while-GMUX-keeps-the-GPU-off.patch
 0006-drm-amdgpu-skip-AC-DC-notification-while-the-GPU-is-runtime-suspended.patch
@@ -8,6 +18,4 @@
 0009-drm-amd-pm-let-Apple-Navi-boards-lower-the-power-limit-to-40-percent.patch
 0011-drm-amd-pm-remove-UMC-CDR-workaround-for-Apple-systems.patch
 0012-drm-amd-display-avoid-MPC-pipe-split-on-the-MacBookPro16-1.patch
-0013-drm-amd-display-support-the-5K-panel-of-the-iMacPro1-1.patch
-0014-drm-amd-display-scope-the-5K-iMac-quirk-and-keep-the-timing-check.patch
 0015-TEMPORARY-drm-amd-display-hide-GFX6-8-modifiers-until-Mesa-26.3.patch
