@@ -12,8 +12,8 @@ Please be kind. Everyone here is a volunteer. See [VALUES.md](VALUES.md).
    committed straight to `main`, by anyone.
 2. For anything non-trivial, start with a **plan** (see [Plans](#plans)).
 3. **Tick every acceptance criterion** in the plan, then open a **pull
-   request** against `main`. Fill in the template, including the AI
-   section. A pull request with unticked criteria isn't ready to open.
+   request** against `main` and fill in the template. A pull request with
+   unticked criteria isn't ready to open.
 4. **Test it** on a real T2 Mac. When it's tested and working, a person (not
    an AI) adds a short note to the pull request saying it's ready to merge:
    who tested it, on which Mac model and Fedora version, and what they
@@ -44,21 +44,15 @@ A typo fix or a one-line change doesn't need a plan. If you're unsure, write
 one; a few lines is fine. [plans/TEMPLATE.md](plans/TEMPLATE.md) is a
 starting point.
 
-## Using AI
+## Keep it focused
 
-AI tools are welcome. Two rules:
-
-- **Disclose it.** Say in the pull request which tool you used and what it
-  did (wrote the code, wrote the tests, reviewed, explained). For kernel
-  patches, also follow the kernel's own rules
-  (`Documentation/process/coding-assistants.rst`): say so in the commit
-  message, and never add a `Signed-off-by` line for an AI.
-- **Keep it focused.** One problem per pull request, with the smallest change
-  that solves it. No large AI-driven rewrites or sweeping refactors; if you
-  think something needs restructuring, open an issue first.
+One problem per pull request, with the smallest change that solves it. No
+large rewrites or sweeping refactors; if you think something needs
+restructuring, open an issue first.
 
 You're responsible for every line you submit, however it was written. Read
-it, understand it and test it.
+it, understand it and test it. Kernel patches follow the kernel's own rules
+(`Documentation/process/coding-assistants.rst`).
 
 ## Coding standards
 

@@ -4,10 +4,6 @@
 
 Plan: `plans/YYYYMMDD_slug.md` <!-- or "trivial, no plan" -->
 
-## AI use
-
-<!-- Which AI tool, and what it did (wrote code, tests, reviewed...). Or "none". -->
-
 ## Testing
 
 <!-- Tick everything here and in the plan before opening the PR. CI doesn't run on PRs. -->
