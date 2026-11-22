@@ -24,8 +24,11 @@ keeps the old behaviour for comparison.
 Other callers zero-initialise dcp_gsl_params, so nothing else changes.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
-an iMac Pro hardware report and its kernel log; compile-tested only,
-the fix itself is not yet run on an iMac Pro.
+an iMac Pro hardware report and its kernel log; tested on an iMac Pro
+(iMacPro1,1, Fedora 45): on its own it did not stop the login stall,
+which the next patch fixes.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h

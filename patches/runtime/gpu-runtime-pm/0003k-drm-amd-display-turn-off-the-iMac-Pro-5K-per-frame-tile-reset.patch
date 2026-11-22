@@ -26,7 +26,10 @@ available, and amdgpu.imac5k_tile_lock (default on) to stop holding both
 tiles' update locks across a page flip, for comparison.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
-iMac Pro hardware tests; the default change is compile-tested only.
+iMac Pro hardware tests; tested on an iMac Pro (iMacPro1,1, Fedora 45):
+login without flip_done timeouts, genlock offset steady.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h

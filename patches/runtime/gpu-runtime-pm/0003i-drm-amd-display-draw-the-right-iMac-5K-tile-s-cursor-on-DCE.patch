@@ -22,8 +22,10 @@ Found on an iMac Pro (iMacPro1,1) running the merged output:
 the cursor disappeared on the right half of the panel.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
-that hardware report; compile-tested only, the fix itself is not yet
-run on an iMac Pro.
+that hardware report; tested on an iMac Pro (iMacPro1,1, Fedora 45):
+the pointer shows on both halves and across the seam.
+
+Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---
  drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 10 ++++++++++
  1 file changed, 10 insertions(+)
