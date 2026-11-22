@@ -27,8 +27,9 @@ Also log whether each tile's update is fast or full, under
 drm_dbg_atomic, to check that page flips stay fast updates.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): one merged display, no tear at the seam, the
+Thunderbolt Display beside it unaffected.
 
 [Fedora 7.3 backport: needs_dc_state_realloc is still called
  lock_and_validation_needed in 7.3.]

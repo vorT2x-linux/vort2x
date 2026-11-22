@@ -16,8 +16,9 @@ plus the longest read window as a bound on the measurement error. It
 works with and without amdgpu.imac5k_merge.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): the offset read a steady -17 px (35 ns) over an
+hour.
 
 Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---

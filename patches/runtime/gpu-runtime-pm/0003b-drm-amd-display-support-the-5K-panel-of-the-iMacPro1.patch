@@ -17,8 +17,9 @@ This replaces kait2en 0013 (Andre Eikmeyer), which added the iMacPro1,1
 to the 5K quirk table of the earlier two-tile patch.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): one merged 5120x2880 display, no tear at the
+seam.
 
 Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---

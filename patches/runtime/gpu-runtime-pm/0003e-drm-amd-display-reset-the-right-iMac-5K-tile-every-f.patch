@@ -36,8 +36,10 @@ With amdgpu.imac5k_merge=0 the tiles are flipped separately, so nothing
 changes there, nor on DCN (iMac20,x) or on machines without the quirk.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): it holds the tiles' flips in its GSL group and
+stalls the panel at login and resume (flip_done timed out), so a later
+patch turns it off by default.
 
 Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---

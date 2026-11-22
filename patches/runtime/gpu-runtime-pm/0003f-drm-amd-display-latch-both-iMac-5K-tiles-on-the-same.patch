@@ -26,8 +26,9 @@ which DC does not wait for a flip to latch, and only on DCE; DCN takes
 its locks through interdependent_update_lock().
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): both tiles latch on the same frame, no tear at
+the seam.
 
 [Fedora 7.3 backport: 7.3 has no hwss_pipe_control_lock(), DCE pipes
  are locked through dce_pipe_control_lock(), which skips held pipes.]

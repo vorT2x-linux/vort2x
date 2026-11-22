@@ -16,8 +16,9 @@ Port kait2en 0014 (Andre Eikmeyer) onto the merged-output 5K patch:
 - Document why the quirk forces full scaling and check dc_link first.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45): one merged 5120x2880 display, no tear at the
+seam, with a Thunderbolt Display attached.
 
 Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---

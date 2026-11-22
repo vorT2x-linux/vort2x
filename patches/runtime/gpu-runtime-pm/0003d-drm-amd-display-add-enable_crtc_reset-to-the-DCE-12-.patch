@@ -20,8 +20,9 @@ master on every frame.
 Nothing calls it yet on DCE 12.
 
 Written with an AI coding assistant (Claude Code, Claude Opus 5.5)
-working from a hand-written plan; compile-tested only, not yet run on
-an iMac Pro.
+working from a hand-written plan; tested on an iMac Pro (iMacPro1,1,
+Fedora 45) together with the next patch, which is the only
+user; see there.
 
 Signed-off-by: Kirk <hello@kirkdiamond.com>
 ---
