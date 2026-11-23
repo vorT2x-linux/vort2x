@@ -16,7 +16,7 @@ use std::{
 };
 
 use config::{curve, curve_percent, normalize_curve, resize_soak, speed_range, AppConfig, CurvePoint, MAX_SOAK_TEMP_C};
-use control::{ControlSnapshot, Controller};
+use control::{ControlSnapshot, Controller, GPU_LOAD_INTERVAL};
 use adw::StyleManager;
 use gtk4::{
     cairo,
@@ -29,7 +29,7 @@ use gtk4::{
 };
 use ipc::{DaemonState, Request};
 use signal_hook::consts::signal::SIGHUP;
-use sysfs::{discover_fans, discover_temperature_sources, FanEndpoint, TemperatureSnapshot, TemperatureSource};
+use sysfs::{discover_fans, discover_gpu_load, discover_temperature_sources, FanEndpoint, GpuLoad, TemperatureSnapshot, TemperatureSource};
 
 fn vort2x_brand() -> DrawingArea {
     // White type for dark surfaces, dark type for light ones. Without the
@@ -402,7 +402,7 @@ fn daemon_main() -> error::Result<()> {
         // With the SMC in charge the readings only feed the UI, so the
         // daemon sleeps until the UI asks again
         let next = if runtime.config.automatic_control_enabled || runtime.ui_active() {
-            connections_rx.recv_timeout(runtime.controller.next_wakeup())
+            connections_rx.recv_timeout(runtime.next_wakeup())
         } else {
             connections_rx.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
         };
@@ -444,6 +444,7 @@ struct DaemonRuntime {
     controller: Controller,
     fans: Vec<FanEndpoint>,
     temperatures: Vec<TemperatureSource>,
+    gpu_load: Option<GpuLoad>,
     snapshot: ControlSnapshot,
     status: String,
     last_full_sensor_read: std::time::Instant,
@@ -486,6 +487,7 @@ impl DaemonRuntime {
             controller,
             fans,
             temperatures,
+            gpu_load: discover_gpu_load(),
             snapshot,
             status,
             last_full_sensor_read: std::time::Instant::now(),
@@ -509,6 +511,10 @@ impl DaemonRuntime {
             let refresh_all_sensors = self.config.any_sensor_enabled
                 || ui_active
                 || self.last_full_sensor_read.elapsed() >= Duration::from_secs(10);
+            // amdgpu can load after the daemon starts
+            if self.gpu_load.is_none() && refresh_all_sensors {
+                self.gpu_load = discover_gpu_load();
+            }
             match self.controller.tick(
                 &self.config,
                 &mut self.fans,
@@ -527,13 +533,32 @@ impl DaemonRuntime {
                 }
             }
         }
-        match self.controller.ramp(&mut self.fans) {
+        let boosted = self.gpu_load.as_ref()
+            .map(|gpu_load| self.controller.check_gpu_load(&self.config, &mut self.fans, gpu_load));
+        if let Some(result) = boosted {
+            self.note_fan_change(result);
+        }
+        let ramped = self.controller.ramp(&mut self.fans);
+        self.note_fan_change(ramped);
+    }
+
+    fn note_fan_change(&mut self, result: error::Result<bool>) {
+        match result {
             Ok(true) => {
                 self.snapshot.target_percent = self.controller.applied_percent();
                 self.snapshot.target_rpm_per_fan = self.controller.target_rpm_per_fan(&self.fans);
             }
             Ok(false) => {}
             Err(error) => self.status = format!("Fan control failed: {error}"),
+        }
+    }
+
+    fn next_wakeup(&self) -> Duration {
+        let next = self.controller.next_wakeup();
+        if self.gpu_load.is_some() && self.config.automatic_control_enabled {
+            next.min(GPU_LOAD_INTERVAL)
+        } else {
+            next
         }
     }
 

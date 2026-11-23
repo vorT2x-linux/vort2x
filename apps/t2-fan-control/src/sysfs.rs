@@ -170,6 +170,33 @@ impl FanEndpoint {
     }
 }
 
+/// The AMD dGPU's load, read so the fans can start before its temperature rises.
+pub struct GpuLoad {
+    busy_path: PathBuf,
+    runtime_status_path: PathBuf,
+}
+
+impl GpuLoad {
+    /// None while the GPU is runtime-suspended: reading its load would wake it.
+    pub fn busy_percent(&self) -> Option<u8> {
+        let suspended = fs::read_to_string(&self.runtime_status_path)
+            .is_ok_and(|status| status.trim() != "active");
+        if suspended {
+            return None;
+        }
+        fs::read_to_string(&self.busy_path).ok()?.trim().parse().ok()
+    }
+}
+
+pub fn discover_gpu_load() -> Option<GpuLoad> {
+    let device = find_hwmon_by_name("amdgpu")?.join("device");
+    let busy_path = device.join("gpu_busy_percent");
+    busy_path.exists().then(|| GpuLoad {
+        busy_path,
+        runtime_status_path: device.join("power/runtime_status"),
+    })
+}
+
 /// Find the hwmon device under /sys/class/hwmon/ with the given name.
 fn find_hwmon_by_name(name: &str) -> Option<PathBuf> {
     let pattern = "/sys/class/hwmon/hwmon*/name";

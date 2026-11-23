@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::{
     config::{curve, curve_percent, AppConfig, CurvePoint},
     error::Result,
-    sysfs::{FanEndpoint, TemperatureSnapshot, TemperatureSource},
+    sysfs::{FanEndpoint, GpuLoad, TemperatureSnapshot, TemperatureSource},
 };
 
 const CONTROL_INTERVAL: Duration = Duration::from_secs(2);
@@ -12,6 +12,13 @@ const SYSTEM_STABLE_RELEASE_TIME: Duration = Duration::from_secs(20);
 const RAMP_UP_STEP_INTERVAL: Duration = Duration::from_millis(100);
 const RAMP_DOWN_STEP_INTERVAL: Duration = Duration::from_millis(500);
 const RAMP_START_THRESHOLD_PERCENT: u8 = 3;
+pub const GPU_LOAD_INTERVAL: Duration = Duration::from_millis(250);
+/// Two reads in a row at or above this start the GPU boost, so a single
+/// desktop spike doesn't
+const GPU_BOOST_BUSY_PERCENT: u8 = 80;
+const GPU_BOOST_BUSY_READS: u8 = 2;
+/// Kept after the last busy read so the fans don't sag between rounds
+const GPU_BOOST_HOLD: Duration = Duration::from_secs(30);
 
 pub struct Controller {
     last_applied_percent: Option<u8>,
@@ -23,6 +30,9 @@ pub struct Controller {
     any_sensor_cooling: bool,
     system_cooling_started_at: Option<Instant>,
     system_below_target_since: Option<Instant>,
+    last_gpu_check: Instant,
+    gpu_busy_reads: u8,
+    gpu_boost_until: Option<Instant>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -49,6 +59,9 @@ impl Controller {
             any_sensor_cooling: false,
             system_cooling_started_at: None,
             system_below_target_since: None,
+            last_gpu_check: Instant::now() - GPU_LOAD_INTERVAL,
+            gpu_busy_reads: 0,
+            gpu_boost_until: None,
         }
     }
 
@@ -83,7 +96,8 @@ impl Controller {
         let above_curve = effective_temp
             .zip(curve.last())
             .is_some_and(|(temp, end)| temp > end.temp_c);
-        let forced = self.heat_soak_cooling || self.any_sensor_cooling || above_curve;
+        let forced = self.heat_soak_cooling || self.any_sensor_cooling || above_curve
+            || self.gpu_boost_active();
         let mut target_percent = if forced { Some(100) } else { curve_target };
 
         let mut target_rpm_per_fan = Vec::new();
@@ -132,7 +146,38 @@ impl Controller {
         self.any_sensor_cooling = false;
         self.system_cooling_started_at = None;
         self.system_below_target_since = None;
+        self.gpu_busy_reads = 0;
+        self.gpu_boost_until = None;
         Ok(())
+    }
+
+    /// Runs the fans at full speed as soon as the GPU is busy. The iMac Pro's
+    /// Vega heats from 50 to 100 C in about 4 s, faster than a temperature
+    /// curve and the fans' spin-up can follow. Returns whether the fans changed.
+    pub fn check_gpu_load(
+        &mut self,
+        config: &AppConfig,
+        fans: &mut [FanEndpoint],
+        gpu: &GpuLoad,
+    ) -> Result<bool> {
+        if !config.automatic_control_enabled || self.last_gpu_check.elapsed() < GPU_LOAD_INTERVAL {
+            return Ok(false);
+        }
+        self.last_gpu_check = Instant::now();
+        self.gpu_busy_reads = count_busy_reads(self.gpu_busy_reads, gpu.busy_percent());
+        if self.gpu_busy_reads >= GPU_BOOST_BUSY_READS {
+            self.gpu_boost_until = Some(Instant::now() + GPU_BOOST_HOLD);
+        }
+        if !self.gpu_boost_active() || self.last_applied_percent == Some(100) {
+            return Ok(false);
+        }
+        self.ramping = false;
+        self.apply(fans, Some(100))?;
+        Ok(true)
+    }
+
+    fn gpu_boost_active(&self) -> bool {
+        self.gpu_boost_until.is_some_and(|until| Instant::now() < until)
     }
 
     pub fn should_tick(&self) -> bool {
@@ -228,6 +273,15 @@ fn next_threshold_cooling(active: bool, temp_c: Option<u8>, engage_temp_c: u8, r
     }
 }
 
+/// Busy reads in a row; a suspended GPU (None) counts as idle.
+fn count_busy_reads(reads: u8, busy_percent: Option<u8>) -> u8 {
+    if busy_percent.is_some_and(|percent| percent >= GPU_BOOST_BUSY_PERCENT) {
+        reads.saturating_add(1)
+    } else {
+        0
+    }
+}
+
 fn ramp_step(applied: u8, goal: u8) -> u8 {
     if goal > applied { applied + 1 } else { applied.saturating_sub(1).max(goal) }
 }
@@ -238,7 +292,7 @@ fn interpolate_percent(curve: &[CurvePoint], temp_c: u8) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{interpolate_percent, next_threshold_cooling, ramp_step};
+    use super::{count_busy_reads, interpolate_percent, next_threshold_cooling, ramp_step, GPU_BOOST_BUSY_READS};
     use crate::config::CurvePoint;
 
     #[test]
@@ -259,6 +313,16 @@ mod tests {
         assert_eq!(interpolate_percent(&curve, 90), 50);
         assert_eq!(interpolate_percent(&curve, 91), 100);
         assert_eq!(interpolate_percent(&curve, 100), 100);
+    }
+
+    #[test]
+    fn gpu_boost_needs_busy_reads_in_a_row() {
+        let spike = count_busy_reads(0, Some(99));
+        assert!(spike < GPU_BOOST_BUSY_READS);
+        assert_eq!(count_busy_reads(spike, Some(27)), 0);
+        assert_eq!(count_busy_reads(count_busy_reads(0, Some(80)), Some(100)), GPU_BOOST_BUSY_READS);
+        assert_eq!(count_busy_reads(1, Some(79)), 0);
+        assert_eq!(count_busy_reads(1, None), 0);
     }
 
     #[test]
