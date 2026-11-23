@@ -11,7 +11,7 @@ use std::{
 use signal_hook::consts::signal::{SIGINT, SIGTERM};
 
 use crate::{
-    actuators::{cpu_floor, CpuCap, DGPU_STEPS, DGpuCap, ForcedIdle, IGpuCap},
+    actuators::{cpu_floor, CpuCap, DGPU_STEPS, DGpuCap, ForcedIdle, IGpuCap, VegaClockLimit},
     error::{Result, ZonePowerError},
     plimit::PLimits,
     sysfs::{find_t2smc, read_value, write_value},
@@ -58,16 +58,26 @@ pub fn run(debug: bool) -> Result<()> {
     }
     let mut dgpu = DGpuCap::discover()?;
     set_dgpu_steps(&t2smc, &dgpu);
+    let mut vega = VegaClockLimit::discover()?;
     let mut last_discovery = Instant::now();
     let mut last = None;
     let mut first_error = true;
     report_missing(&cpu, &idle, &igpu, &dgpu);
 
     while !stop.load(Ordering::Relaxed) {
-        if dgpu.is_none() && last_discovery.elapsed() >= REDISCOVER {
-            dgpu = DGpuCap::discover()?;
-            set_dgpu_steps(&t2smc, &dgpu);
+        // amdgpu may load after the daemon starts
+        if (dgpu.is_none() || vega.is_none()) && last_discovery.elapsed() >= REDISCOVER {
+            if dgpu.is_none() {
+                dgpu = DGpuCap::discover()?;
+                set_dgpu_steps(&t2smc, &dgpu);
+            }
+            if vega.is_none() {
+                vega = VegaClockLimit::discover()?;
+            }
             last_discovery = Instant::now();
+        }
+        if let Some(vega) = &vega {
+            report(vega.apply());
         }
 
         match PLimits::read(&t2smc) {
@@ -99,6 +109,9 @@ pub fn run(debug: bool) -> Result<()> {
     }
 
     restore(cpu.as_ref(), idle.as_ref(), igpu.as_ref(), dgpu.as_ref());
+    if let Some(vega) = &vega {
+        report(vega.restore());
+    }
     Ok(())
 }
 

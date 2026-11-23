@@ -230,14 +230,95 @@ impl DGpuCap {
 
 /// Floor of the PowerTune table in parts of the TDP, as on macOS
 fn floor_ratio(device: &Path) -> Option<f64> {
-    let id = read_string(&device.join("device")).ok()?;
-    let id = u16::from_str_radix(id.trim_start_matches("0x"), 16).ok()?;
-    match id {
+    match pci_device_id(device)? {
         // Navi 1x: ceil(TDP * 0.4)
         0x7310..=0x73ff => Some(0.4),
         // Polaris: down to 0 W
         0x67c0..=0x67ff | 0x6980..=0x699f => Some(0.0),
         _ => None,
+    }
+}
+
+fn pci_device_id(device: &Path) -> Option<u16> {
+    let id = read_string(&device.join("device")).ok()?;
+    u16::from_str_radix(id.trim_start_matches("0x"), 16).ok()
+}
+
+/// Highest sclk DPM state the iMac Pro's Vega 10 may use. Above it, a sudden
+/// idle-to-full GPU load (a CS2 map load or preset change) makes the SMC
+/// press the sleep button or power the Mac off, with or without a power cap.
+/// CS2 tests on a Vega 64, 2026-11-23: states 0-4 (1201 MHz) survived,
+/// 0-5 powered off twice.
+const VEGA10_MAX_SCLK_STATE: u8 = 4;
+
+/// Holds the Vega 10 graphics clock at or below `VEGA10_MAX_SCLK_STATE`.
+/// The SMC's dGPU power step doesn't help here: the trip comes from the
+/// load step at the top clocks, not from average power.
+pub struct VegaClockLimit {
+    device: PathBuf,
+}
+
+impl VegaClockLimit {
+    pub fn discover() -> Result<Option<Self>> {
+        for device in glob_paths("/sys/class/drm/card*/device")? {
+            let is_amd = read_string(&device.join("vendor")).is_ok_and(|vendor| vendor == "0x1002");
+            if is_amd && pci_device_id(&device).is_some_and(|id| (0x6860..=0x687f).contains(&id)) {
+                return Ok(Some(Self { device }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Cheap enough to run every tick, which also catches a GPU reset: after
+    /// one amdgpu keeps `manual` but drops the state mask
+    pub fn apply(&self) -> Result<()> {
+        // Reads fail with EBUSY while the GPU is runtime suspended
+        if !read_string(&self.device.join("power/runtime_status")).is_ok_and(|status| status == "active") {
+            return Ok(());
+        }
+        let level = self.device.join("power_dpm_force_performance_level");
+        let sclk = self.device.join("pp_dpm_sclk");
+        let held = read_string(&level)? == "manual"
+            && current_state(&read_string(&sclk)?).is_none_or(|state| state <= VEGA10_MAX_SCLK_STATE);
+        if held {
+            return Ok(());
+        }
+        write_value(&level, "manual")?;
+        write_value(&sclk, state_mask(VEGA10_MAX_SCLK_STATE))?;
+        eprintln!("Vega 10 graphics clock held at sclk states 0-{VEGA10_MAX_SCLK_STATE}");
+        Ok(())
+    }
+
+    pub fn restore(&self) -> Result<()> {
+        write_value(&self.device.join("power_dpm_force_performance_level"), "auto")
+    }
+}
+
+/// The state amdgpu marks with `*` in a pp_dpm_* file
+fn current_state(pp_dpm: &str) -> Option<u8> {
+    let line = pp_dpm.lines().find(|line| line.trim_end().ends_with('*'))?;
+    line.split(':').next()?.trim().parse().ok()
+}
+
+/// "0 1 ... max", the pp_dpm_* format for allowed states
+fn state_mask(max: u8) -> String {
+    (0..=max).map(|state| state.to_string()).collect::<Vec<_>>().join(" ")
+}
+
+#[cfg(test)]
+mod vega_tests {
+    use super::{current_state, state_mask};
+
+    #[test]
+    fn reads_the_current_state() {
+        assert_eq!(current_state("0: 852Mhz \n1: 956Mhz *\n7: 1350Mhz "), Some(1));
+        assert_eq!(current_state("0: 852Mhz \n7: 1350Mhz *"), Some(7));
+        assert_eq!(current_state("0: 852Mhz \n1: 956Mhz "), None);
+    }
+
+    #[test]
+    fn mask_lists_states_up_to_max() {
+        assert_eq!(state_mask(4), "0 1 2 3 4");
     }
 }
 
