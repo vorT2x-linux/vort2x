@@ -12,16 +12,17 @@ cooler and the fans drop back.
 The fix: when the AMD dGPU is busy, run the fans at full speed straight
 away, before its temperature climbs, and hold them there for a while
 after the load ends. Affects Macs with an AMD dGPU (`amdgpu` with
-`gpu_busy_percent`), i.e. the iMac Pro, the 2019-2020 iMacs and the
-15"/16" MacBook Pros, only while fan control is on "automatic" in the
-app. Part of the CS2 sleep hunt (`plans/20261122_vega_power_limit.md`
+`gpu_busy_percent`) that are T2 iMacs: the iMac Pro (`iMacPro1,1`) and
+the 2020 27" iMacs (`iMac20,1`, `iMac20,2`), only while fan control is on
+"automatic" in the app. MacBook Pros with an AMD GPU are left out. Part of the CS2 sleep hunt (`plans/20261122_vega_power_limit.md`
 on branch `vega-power-limit`).
 
 ## Plan
 
 1. `sysfs.rs`: `GpuLoad` reads `gpu_busy_percent` from the amdgpu hwmon's
    device, skipping the read while the GPU is runtime-suspended (it would
-   wake it). `discover_gpu_load()` finds it.
+   wake it). `discover_gpu_load()` finds it, on the T2 iMacs only
+   (DMI `product_name`).
 2. `control.rs`: `check_gpu_load()` every 250 ms. Two reads in a row at
    or above 80% start the boost: fans to 100% at once (no 1% ramp), held
    for 30 s after the last busy read. The boost counts as "forced" in the
@@ -37,11 +38,17 @@ GPU is at median 100% busy (min 57%) under load; desktop spikes reached
 
 ## Acceptance criteria
 
-- [x] `cargo test --release` in `apps/t2-fan-control` (Fedora 45 podman): 16 passed, incl. `gpu_boost_needs_busy_reads_in_a_row`
+- [x] `cargo test --release` in `apps/t2-fan-control` (Fedora 45 podman): 17 passed, incl. `gpu_boost_needs_busy_reads_in_a_row` and `gpu_boost_only_on_t2_imacs`
 - [x] `cargo build --release`: no warnings
 - [x] `vort2x-tools/check.sh`: `STATIC_CHECK_OK`
 
 ## Decisions and failed attempts
+
+- 2026-11-23: Kirk: "limit the fan boost to the iMac Pro, and the other
+  two imacs". On a MacBook Pro full fans in every game would only be
+  noise, and the boost was only tested on the iMac Pro. The model check
+  is in `discover_gpu_load()`, so other Macs never read the GPU load
+  (they re-read the one-line DMI file every 10 s, which is negligible).
 
 - 2026-11-23 14:32-14:48: Second run (test 8, a full CS2 match, log
   `~/vega-fast-t8.csv`): no sleep in ~13 min of load; fan target 2500 on
