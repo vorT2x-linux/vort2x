@@ -17,6 +17,8 @@ APPS_DIR := $(PREFIX)/share/applications
 ICONS_DIR := $(PREFIX)/share/icons/hicolor/scalable/apps
 ICON_THEME_DIR := $(PREFIX)/share/icons/hicolor
 UNIT_DIR := $(PREFIX)/lib/systemd/system
+# The gauging service only helps a battery; 0 leaves it out (desktop Macs).
+GAUGING ?= 1
 
 .PHONY: build check-build install uninstall clean
 
@@ -31,11 +33,17 @@ install: check-build
 	$(INSTALL) -o root -g root -m 0755 $(BIN_SRC) $(BIN_DIR)/$(BIN_NAME)
 	$(INSTALL) -o root -g root -m 0644 $(DESKTOP_SRC) $(APPS_DIR)/$(APP_ID).desktop
 	$(INSTALL) -o root -g root -m 0644 $(ICON_SRC) $(ICONS_DIR)/$(APP_ID).svg
-	$(INSTALL) -o root -g root -m 0644 $(UNIT_SRC) $(UNIT_DIR)/$(UNIT_NAME)
 	$(GTK_UPDATE_ICON_CACHE) --force --ignore-theme-index $(ICON_THEME_DIR)
+ifeq ($(GAUGING),1)
+	$(INSTALL) -o root -g root -m 0644 $(UNIT_SRC) $(UNIT_DIR)/$(UNIT_NAME)
 	systemctl daemon-reload
 	systemctl enable $(UNIT_NAME)
 	systemctl restart $(UNIT_NAME)
+else
+	systemctl disable --now $(UNIT_NAME) 2>/dev/null || true
+	rm -f $(UNIT_DIR)/$(UNIT_NAME)
+	systemctl daemon-reload
+endif
 
 uninstall:
 	systemctl disable --now $(UNIT_NAME) || true

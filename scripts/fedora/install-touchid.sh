@@ -49,6 +49,29 @@ reload_dbus() {
 	fi
 }
 
+# Touch ID is only in T2 MacBooks. On a desktop Mac an installation from an
+# earlier run is removed; its config in /etc/vort2x is kept.
+remove_touchid() {
+	info "removing t2-touchid, this Mac has no Touch ID sensor"
+	python3 "$REPO_ROOT/packaging/lifecycle/vort2x-lifecycle.py" t2-touchid remove
+	rm -f /usr/local/bin/t2-touchid \
+		/etc/systemd/system/vort2x-t2-touchid.service \
+		/etc/systemd/system/fprintd.service.d/vort2x-t2-touchid.conf \
+		/usr/share/dbus-1/system.d/org.vort2x.TouchId.conf
+	systemctl daemon-reload
+	systemctl try-restart fprintd.service
+	reload_dbus
+}
+
+if ! is_macbook; then
+	if [[ -e /etc/systemd/system/vort2x-t2-touchid.service ]]; then
+		run_step "remove t2-touchid" remove_touchid
+	else
+		info "no Touch ID on this Mac; skipping t2-touchid"
+	fi
+	exit 0
+fi
+
 run_step "build t2-touchid" build_touchid
 build_status=$STEP_STATUS
 run_step "install Touch ID SELinux policy" install_policy
