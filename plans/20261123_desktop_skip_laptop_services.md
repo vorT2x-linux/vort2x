@@ -54,13 +54,22 @@ Hardware tests for the Tested section (a person):
 - iMac Pro (or other desktop) with the three services installed:
   `sudo scripts/fedora/install-apps.sh t2-smc-control t2-force-click` and
   `sudo scripts/fedora/install-touchid.sh` remove the gauging service,
-  force click and Touch ID; SMC Control still opens; `authselect current`
-  no longer lists `with-fingerprint`; login and `sudo` still work.
+  force click and Touch ID; SMC Control still opens; login and `sudo`
+  still work. `with-fingerprint` stays in `authselect current` when
+  Fedora set it (see Decisions); it goes only if VorT2x turned it on.
 - A MacBook: a normal install still installs and runs all three.
 
 ## Decisions and failed attempts
 
 Newest first.
+
+- 2026-11-23: Kirk's test on the iMac Pro: services gone, but
+  `authselect current` still lists `with-fingerprint`. Expected: Fedora's
+  installer set it (the authselect files date from 13:26 on 2026-11-20,
+  before the first boot at 13:27:47 and before VorT2x ran), and
+  `enable_pam` never claims a feature that was already on, so removal
+  leaves it. Harmless without a reader (`pam_fprintd` finds no device and
+  password login carries on). Test wording changed to match.
 
 - 2026-11-23: One helper `is_macbook` for all three, because on T2 Macs
   battery, Touch ID and the built-in trackpad come together (every T2
