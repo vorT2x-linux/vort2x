@@ -97,6 +97,7 @@ remove_project_cargo_targets() {
 	done
 }
 
+# Extra arguments after the name go to `make install`.
 install_rust_app() {
 	local path=$1 name=$2 target_user
 	info "building and installing $name"
@@ -109,7 +110,7 @@ install_rust_app() {
 		warn "$name build failed; skipping this app and continuing"
 		return 0
 	fi
-	if ! make -C "$path" install; then
+	if ! make -C "$path" install "${@:3}"; then
 		warn "$name installation failed; continuing with the remaining apps"
 		return 0
 	fi
@@ -185,9 +186,34 @@ run_step "install app assets" install_app_assets
 (( STEP_STATUS == 0 )) && mark_applied app:assets
 run_step "remove obsolete apps" remove_obsolete_apps
 run_step "remove old Cargo build directories" remove_project_cargo_targets
-for app in t2-fan-control t2-smc-control t2-power-explorer t2-force-click t2-debug t2-airshare t2-drop; do
+for app in t2-fan-control t2-power-explorer t2-debug t2-airshare t2-drop; do
 	wanted "$app" && run_step "$app" install_rust_app "$REPO_ROOT/apps/$app" "$app"
 done
+# The SMC app is useful everywhere; its battery gauging service only on a
+# MacBook (the Makefile removes it elsewhere).
+if wanted t2-smc-control; then
+	if is_macbook; then
+		run_step "t2-smc-control" install_rust_app "$REPO_ROOT/apps/t2-smc-control" t2-smc-control
+	else
+		run_step "t2-smc-control" install_rust_app "$REPO_ROOT/apps/t2-smc-control" t2-smc-control GAUGING=0
+	fi
+fi
+# Force click needs the MacBook's built-in trackpad. On any other Mac an
+# installation from an earlier run is removed.
+remove_force_click() {
+	info "removing t2-force-click, this Mac has no built-in trackpad"
+	make -C "$REPO_ROOT/apps/t2-force-click" uninstall || warn "could not remove t2-force-click"
+	rm -f "$VORT2X_APPLIED_DIR/app:t2-force-click"
+}
+if ! wanted t2-force-click; then
+	:
+elif is_macbook; then
+	run_step "t2-force-click" install_rust_app "$REPO_ROOT/apps/t2-force-click" t2-force-click
+elif [[ -e /usr/local/bin/t2-force-click ]]; then
+	run_step "remove t2-force-click" remove_force_click
+else
+	info "no built-in trackpad on this Mac; skipping t2-force-click"
+fi
 if ! wanted t2-kbd-backlight; then
 	:
 elif has_keyboard_backlight; then

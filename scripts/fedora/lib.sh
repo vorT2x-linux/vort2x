@@ -166,12 +166,18 @@ has_touch_bar() {
 	[[ "$model" == MacBookPro15,* || "$model" == MacBookPro16,* ]]
 }
 
-# Every T2 MacBook has a keyboard backlight, the desktop models do not.
-has_keyboard_backlight() {
+# T2 MacBooks have a battery, Touch ID, a built-in Force Touch trackpad and
+# a keyboard backlight. The desktop models (iMac, iMac Pro, Mac mini, Mac
+# Pro) have none of them.
+is_macbook() {
 	local model
 	[[ -r /sys/class/dmi/id/product_name ]] || return 1
 	read -r model </sys/class/dmi/id/product_name
 	[[ "$model" == MacBookPro15,* || "$model" == MacBookPro16,* || "$model" == MacBookAir8,* || "$model" == MacBookAir9,* ]]
+}
+
+has_keyboard_backlight() {
+	is_macbook
 }
 
 # T2 Macs with the ambient light sensor behind the T2: every T2 MacBook, the
