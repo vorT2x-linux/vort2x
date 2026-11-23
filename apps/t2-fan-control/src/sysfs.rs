@@ -170,6 +170,46 @@ impl FanEndpoint {
     }
 }
 
+/// The AMD dGPU's load, read so the fans can start before its temperature rises.
+pub struct GpuLoad {
+    busy_path: PathBuf,
+    runtime_status_path: PathBuf,
+}
+
+impl GpuLoad {
+    /// None while the GPU is runtime-suspended: reading its load would wake it.
+    pub fn busy_percent(&self) -> Option<u8> {
+        let suspended = fs::read_to_string(&self.runtime_status_path)
+            .is_ok_and(|status| status.trim() != "active");
+        if suspended {
+            return None;
+        }
+        fs::read_to_string(&self.busy_path).ok()?.trim().parse().ok()
+    }
+}
+
+/// The T2 iMacs: the iMac Pro and the 2020 27" iMacs. Their AMD GPUs heat up
+/// faster than the fans follow (the iMac Pro's SMC even sleeps the Mac);
+/// on the MacBook Pros full fan speed in every game would only be noise.
+const GPU_BOOST_MODELS: [&str; 3] = ["iMacPro1,1", "iMac20,1", "iMac20,2"];
+
+fn gpu_boost_model(product_name: &str) -> bool {
+    GPU_BOOST_MODELS.contains(&product_name.trim())
+}
+
+pub fn discover_gpu_load() -> Option<GpuLoad> {
+    let model = fs::read_to_string("/sys/class/dmi/id/product_name").ok()?;
+    if !gpu_boost_model(&model) {
+        return None;
+    }
+    let device = find_hwmon_by_name("amdgpu")?.join("device");
+    let busy_path = device.join("gpu_busy_percent");
+    busy_path.exists().then(|| GpuLoad {
+        busy_path,
+        runtime_status_path: device.join("power/runtime_status"),
+    })
+}
+
 /// Find the hwmon device under /sys/class/hwmon/ with the given name.
 fn find_hwmon_by_name(name: &str) -> Option<PathBuf> {
     let pattern = "/sys/class/hwmon/hwmon*/name";
@@ -527,6 +567,16 @@ fn write_string(path: &Path, value: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gpu_boost_only_on_t2_imacs() {
+        for model in ["iMacPro1,1\n", "iMac20,1\n", "iMac20,2"] {
+            assert!(gpu_boost_model(model), "{model}");
+        }
+        for model in ["MacBookPro16,1\n", "MacBookPro15,3", "Macmini8,1", "MacPro7,1", "iMac20,10", ""] {
+            assert!(!gpu_boost_model(model), "{model}");
+        }
+    }
 
     #[test]
     fn cpu_die_average_and_system_average_are_independent() {
