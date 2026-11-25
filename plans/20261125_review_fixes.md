@@ -60,6 +60,11 @@ Status per item: done (commit), skipped (why).
   `NoNewPrivileges=yes` and `ProtectSystem=strict` (the daemon writes only
   to /proc/sys and talks netlink/D-Bus; needs the hardware test to
   confirm). Macs with t2-drop.
+- **D1** vhci: a control status for a URB already marked cancelled
+  completed and freed it while it was still on the cancel list (use after
+  free, double giveback). The status check now leaves cancelled URBs to
+  the cancel worker, and `bce_vhci_urb_complete()` unlinks `cancel_list`
+  before freeing. All T2 Macs (internal USB).
 
 ## Decisions and failed attempts
 

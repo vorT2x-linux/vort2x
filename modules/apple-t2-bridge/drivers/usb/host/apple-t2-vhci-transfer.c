@@ -829,6 +829,8 @@ static void bce_vhci_urb_complete(struct bce_vhci_urb *urb, int status)
 	real_urb->status = status;
 	if (urb->state != BCE_VHCI_URB_INIT_PENDING)
 		++urb->q->remaining_active_requests;
+	/* Never free a URB the cancel worker can still reach */
+	list_del_init(&urb->cancel_list);
 	bce_vhci_urb_free(urb);
 	list_add_tail(&real_urb->urb_list, &q->giveback_urb_list);
 }
@@ -1191,7 +1193,8 @@ static int bce_vhci_urb_control_check_status(struct bce_vhci_urb *urb)
 {
 	struct bce_vhci_transfer_queue *q = urb->q;
 
-	if (urb->received_status == 0)
+	/* The cancel worker owns a cancelled URB and gives it back */
+	if (urb->received_status == 0 || urb->state == BCE_VHCI_URB_CANCELLED)
 		return 0;
 	if (urb->state == BCE_VHCI_URB_DATA_TRANSFER_COMPLETE ||
 	    (urb->received_status != BCE_VHCI_SUCCESS &&
