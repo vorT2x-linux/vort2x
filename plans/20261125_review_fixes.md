@@ -229,6 +229,15 @@ Status per item: done (commit), skipped (why).
     still go offline at `PM_SUSPEND_PREPARE`, before tasks are frozen, so
     task and IRQ affinities are widened after the first suspend; doing it
     later needs a different hook than a PM notifier (redesign).
+- **P2** (partly) `install-dependencies.sh` ran about 32 separate
+  `dnf install` calls on every full run. It now installs all packages in
+  one transaction and falls back to one call per package only when that
+  fails. **Not done:** per-module build stamps (skip unchanged DKMS and
+  in-tree driver builds) and copying only `drivers/gpu/drm/...` instead
+  of the whole kernel tree; both change how the driver builds work and
+  need the `gpu-series-check.sh` build test and a hardware run, so they
+  are left for a separate branch. The other scripts' toolchain `dnf`
+  calls are already skipped in kernel hooks (`--no-deps`).
 
 ## Decisions and failed attempts
 

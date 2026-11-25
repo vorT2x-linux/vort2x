@@ -62,12 +62,18 @@ packages=(
 rpm -q nautilus >/dev/null 2>&1 && packages+=(nautilus-python)
 
 failed_packages=()
-for package in "${packages[@]}"; do
-	if ! dnf install -y "$package"; then
-		warn "failed to install dependency $package; continuing"
-		failed_packages+=("$package")
-	fi
-done
+# One transaction resolves and downloads everything at once, much faster
+# than one per package. Only if it fails is each package tried on its own,
+# so one unavailable package doesn't block the rest.
+if ! dnf install -y "${packages[@]}"; then
+	warn "installing all dependencies at once failed; trying them one by one"
+	for package in "${packages[@]}"; do
+		if ! dnf install -y "$package"; then
+			warn "failed to install dependency $package; continuing"
+			failed_packages+=("$package")
+		fi
+	done
+fi
 
 if (( ${#failed_packages[@]} > 0 )); then
 	warn "dependency installation completed with errors in: ${failed_packages[*]}"
