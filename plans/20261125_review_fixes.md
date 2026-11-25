@@ -188,6 +188,17 @@ Status per item: done (commit), skipped (why).
   IRQs off (sleeping in atomic context when the queue is full). It now
   passes no timeout, like `bce_vhci_urb_init()`, so a full queue fails
   at once and the URB completes with the error. All T2 Macs.
+- **D3** vhci error paths. `bce_vhci_create_transfer_queue()` now
+  returns an error and unwinds when the completion or submission queue
+  can't be created; its three callers (enable device, reset device, add
+  endpoint) handle it instead of dereferencing NULL later.
+  `bus_resume` no longer fails the whole controller when one port or
+  queue won't resume (usbcore would call `usb_hc_died()` and drop every
+  T2 USB device): failures are logged, and an error (positive firmware
+  codes mapped to `-EIO`) is returned only when no port came back. The
+  "completion while no requests are pending" branch now frees its queue
+  slot. The HCD reference from `usb_create_hcd()` is released on remove
+  and when adding the HCD fails. All T2 Macs.
 
 ## Decisions and failed attempts
 

@@ -29,7 +29,7 @@ static void bce_vhci_urb_free(struct bce_vhci_urb *urb);
 static void bce_vhci_transfer_queue_reset_w(struct work_struct *work);
 static void bce_vhci_transfer_queue_cancel_w(struct work_struct *work);
 
-void bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
+int bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
 				    struct bce_vhci_transfer_queue *q,
 				    struct usb_host_endpoint *endp,
 				    bce_vhci_device_t dev_addr,
@@ -57,6 +57,8 @@ void bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
 		q->max_active_requests = BCE_VHCI_BULK_MAX_ACTIVE_URBS;
 	q->remaining_active_requests = q->max_active_requests;
 	q->cq = apple_bce_cq_create(vhci->bce, 0x100);
+	if (!q->cq)
+		return -ENOMEM;
 	INIT_WORK(&q->w_reset, bce_vhci_transfer_queue_reset_w);
 	INIT_WORK(&q->w_cancel, bce_vhci_transfer_queue_cancel_w);
 	q->sq_in = NULL;
@@ -66,6 +68,8 @@ void bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
 		q->sq_in = apple_bce_sq_create(
 			vhci->bce, q->cq, name, 0x100, DMA_FROM_DEVICE,
 			bce_vhci_transfer_queue_completion, q);
+		if (!q->sq_in)
+			goto fail_cq;
 	}
 	q->sq_out = NULL;
 	if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL) {
@@ -74,7 +78,19 @@ void bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
 		q->sq_out = apple_bce_sq_create(
 			vhci->bce, q->cq, name, 0x100, DMA_TO_DEVICE,
 			bce_vhci_transfer_queue_completion, q);
+		if (!q->sq_out)
+			goto fail_sq_in;
 	}
+	return 0;
+
+fail_sq_in:
+	if (q->sq_in)
+		apple_bce_sq_destroy(q->sq_in);
+	q->sq_in = NULL;
+fail_cq:
+	apple_bce_cq_destroy(q->cq);
+	q->cq = NULL;
+	return -ENOMEM;
 }
 
 void bce_vhci_destroy_transfer_queue(struct bce_vhci *vhci,
@@ -378,6 +394,8 @@ static void bce_vhci_transfer_queue_completion(struct apple_bce_sq *sq)
 			if (is_sq_out &&
 			    atomic_dec_if_positive(&q->sq_out_pending) == 0)
 				wake_up(&q->sq_out_wait_queue);
+			/* Still frees the slot, or the queue loses one each time */
+			apple_bce_sq_complete(sq);
 			continue;
 		}
 		urb = list_first_entry(&q->endp->urb_list, struct urb,

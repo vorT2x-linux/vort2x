@@ -89,11 +89,14 @@ static int bce_vhci_create(struct device *dev, struct bce_vhci *vhci)
 
 	status = __bce_vhci_add_hcd(vhci);
 	if (status)
-		goto fail_hcd;
+		goto fail_add;
 
 	pr_info("device initialized\n");
 	return 0;
 
+fail_add:
+	usb_put_hcd(vhci->hcd);
+	vhci->hcd = NULL;
 fail_hcd:
 	bce_vhci_destroy_event_queues(vhci);
 fail_eq:
@@ -114,6 +117,9 @@ static void bce_vhci_destroy(struct bce_vhci *vhci)
 	bce_vhci_destroy_message_queues(vhci);
 	destroy_workqueue(vhci->tq_state_wq);
 	vhci->tq_state_wq = NULL;
+	/* The reference usb_create_hcd() took */
+	usb_put_hcd(vhci->hcd);
+	vhci->hcd = NULL;
 }
 
 static int __bce_vhci_add_hcd(struct bce_vhci *vhci)
@@ -438,8 +444,14 @@ static int bce_vhci_enable_device(struct usb_hcd *hcd, struct usb_device *udev)
 	vhci->port_to_device[udev->portnum] = devid;
 	vhci->devices[devid] = vdev;
 
-	bce_vhci_create_transfer_queue(vhci, &vdev->tq[0], &udev->ep0, devid,
-				       DMA_BIDIRECTIONAL);
+	if (bce_vhci_create_transfer_queue(vhci, &vdev->tq[0], &udev->ep0, devid,
+					   DMA_BIDIRECTIONAL)) {
+		vhci->devices[devid] = NULL;
+		vhci->port_to_device[udev->portnum] = 0;
+		bce_vhci_cmd_device_destroy(&vhci->cq, devid);
+		kfree(vdev);
+		return -ENOMEM;
+	}
 	udev->ep0.hcpriv = &vdev->tq[0];
 	vdev->tq_mask |= BIT(0);
 
@@ -545,10 +557,14 @@ static int bce_vhci_reset_device(struct bce_vhci *vhci, int index, u16 timeout)
 					      DMA_TO_DEVICE;
 				if (i == 0)
 					dir = DMA_BIDIRECTIONAL;
-				bce_vhci_create_transfer_queue(vhci,
-							       &dev->tq[i],
-							       dev->tq[i].endp,
-							       devid, dir);
+				if (bce_vhci_create_transfer_queue(vhci,
+								   &dev->tq[i],
+								   dev->tq[i].endp,
+								   devid, dir)) {
+					dev->tq_mask &= ~BIT(i);
+					status = -ENOMEM;
+					continue;
+				}
 				dev->tq[i].endp->hcpriv = &dev->tq[i];
 				bce_vhci_cmd_endpoint_create(
 					&vhci->cq, devid,
@@ -571,18 +587,31 @@ static int bce_vhci_get_frame_number(struct usb_hcd *hcd)
 	return 0;
 }
 
+/*
+ * usbcore treats a bus_resume error as a dead controller (usb_hc_died) and
+ * drops every T2 USB device until the module is reloaded. So a port or
+ * queue that will not resume is logged, and only a resume where no port
+ * came back is an error. Firmware status codes are positive; usbcore
+ * expects a negative errno.
+ */
 static int bce_vhci_resume_suspended(struct bce_vhci *vhci)
 {
 	int devid, endp, port;
-	int status = 0;
+	int ports = 0, resumed = 0, first_error = 0;
 	int ret;
 
 	for (port = 1; port < ARRAY_SIZE(vhci->port_to_device); port++) {
 		if (!vhci->port_to_device[port])
 			continue;
+		ports++;
 		ret = bce_vhci_cmd_port_resume(&vhci->cq, (u8)port);
-		if (ret && !status)
-			status = ret;
+		if (!ret) {
+			resumed++;
+			continue;
+		}
+		pr_warn("port %d resume failed: %d\n", port, ret);
+		if (!first_error)
+			first_error = ret;
 	}
 
 	for (devid = 1; devid < ARRAY_SIZE(vhci->devices); devid++) {
@@ -594,11 +623,14 @@ static int bce_vhci_resume_suspended(struct bce_vhci *vhci)
 			ret = bce_vhci_transfer_queue_resume(
 				&vhci->devices[devid]->tq[endp],
 				BCE_VHCI_PAUSE_SUSPEND);
-			if (ret && !status)
-				status = ret;
+			if (ret)
+				pr_warn("dev %d endpoint %d resume failed: %d\n",
+					devid, endp, ret);
 		}
 	}
-	return status;
+	if (ports && !resumed)
+		return first_error > 0 ? -EIO : first_error;
+	return 0;
 }
 
 static int bce_vhci_suspend_quiesce(struct usb_hcd *hcd)
@@ -762,10 +794,12 @@ static int bce_vhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return 0;
 	}
 
-	bce_vhci_create_transfer_queue(vhci, &vdev->tq[endp_index], endp, devid,
-				       usb_endpoint_dir_in(&endp->desc) ?
-					       DMA_FROM_DEVICE :
-					       DMA_TO_DEVICE);
+	if (bce_vhci_create_transfer_queue(vhci, &vdev->tq[endp_index], endp,
+					   devid,
+					   usb_endpoint_dir_in(&endp->desc) ?
+						   DMA_FROM_DEVICE :
+						   DMA_TO_DEVICE))
+		return -ENOMEM;
 	endp->hcpriv = &vdev->tq[endp_index];
 	vdev->tq_mask |= BIT(endp_index);
 
