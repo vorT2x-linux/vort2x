@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kirk <hello@kirkdiamond.com>
+Date: Wed, 25 Nov 2026 18:00:00 +0000
+Subject: [PATCH] drm/amd/display: compare iMac 5K CRTC states before the
+ modeset flags exist
+
+imac5k_cursor_only_commit() and imac5k_classify_commit() decide whether
+a commit needs the full iMac 5K expansion with
+drm_atomic_crtc_needs_modeset(). They run from imac5k_expand_state(),
+first in atomic check, before drm_atomic_helper_check_modeset() sets
+mode_changed, active_changed and connectors_changed. Setting ACTIVE or
+MODE_ID from userspace does not set those flags, so the test is false
+there even for a commit that turns the left CRTC off or gives it a new
+mode. Such a commit with only the cursor plane would be treated as
+cursor-only, and one with the primary plane as a plain flip, and the
+right tile would keep its old state.
+
+Compare the old and new CRTC state directly (enable, active and the
+mode) in both places, alongside the flags for states that already have
+them. Connector changes are still caught by the connector-state check.
+
+Found in a code review; it is not known whether cosmic-comp or Mutter
+send such a commit.
+
+Written with an AI coding assistant (Claude Code, Claude Opus 5.5) from
+a review finding; compile-tested only (amdgpu with Fedora's 7.3.4
+config and W=1), not tested on hardware yet.
+---
+ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 27 ++++++++++++++++---
+ 1 file changed, 22 insertions(+), 5 deletions(-)
+
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -3962,6 +3962,23 @@ static int imac5k_mirror_crtc(struct drm
+ }
+ 
+ /*
++ * imac5k_expand_state() runs before drm_atomic_helper_check_modeset() sets
++ * mode_changed, active_changed and connectors_changed, so
++ * drm_atomic_crtc_needs_modeset() is still false there for a commit that
++ * turns the CRTC on or off or gives it a new mode. Compare the states
++ * instead. Connector changes are caught separately: such a commit carries
++ * a connector state.
++ */
++static bool imac5k_crtc_changes_mode(const struct drm_crtc_state *old_state,
++				     const struct drm_crtc_state *new_state)
++{
++	return drm_atomic_crtc_needs_modeset(new_state) ||
++	       old_state->enable != new_state->enable ||
++	       old_state->active != new_state->active ||
++	       !drm_mode_equal(&old_state->mode, &new_state->mode);
++}
++
++/*
+  * A commit that only moves or changes a cursor does not touch the right tile's
+  * state: its cursor is programmed separately. Skipping the expansion keeps
+  * cursor updates as cheap as on any other output.
+@@ -3969,7 +3986,7 @@ static int imac5k_mirror_crtc(struct drm
+ static bool imac5k_cursor_only_commit(struct drm_atomic_commit *state)
+ {
+ 	struct drm_connector_state *conn_state;
+-	struct drm_crtc_state *crtc_state;
++	struct drm_crtc_state *old_crtc_state, *crtc_state;
+ 	struct drm_plane_state *plane_state;
+ 	struct drm_connector *connector;
+ 	struct drm_crtc *crtc;
+@@ -3980,8 +3997,8 @@ static bool imac5k_cursor_only_commit(st
+ 	for_each_new_connector_in_state(state, connector, conn_state, i)
+ 		return false;
+ 
+-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+-		if (drm_atomic_crtc_needs_modeset(crtc_state) ||
++	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, crtc_state, i) {
++		if (imac5k_crtc_changes_mode(old_crtc_state, crtc_state) ||
+ 		    crtc_state->color_mgmt_changed)
+ 			return false;
+ 	}
+@@ -4040,7 +4057,7 @@ static enum imac5k_commit imac5k_classif
+ 			continue;
+ 
+ 		if (!new_crtc_state->enable ||
+-		    drm_atomic_crtc_needs_modeset(new_crtc_state))
++		    imac5k_crtc_changes_mode(old_crtc_state, new_crtc_state))
+ 			return IMAC5K_COMMIT_FULL;
+ 
+ 		*left = crtc;
+-- 
+2.47.3

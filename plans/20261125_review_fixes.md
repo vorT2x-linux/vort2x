@@ -257,6 +257,18 @@ Status per item: done (commit), skipped (why).
     housekeeping, the `/proc/net/unix` poll in t2-touchid, and
     `uses_new_polling` in vhci (needs the cold-boot camera test from
     v0.2.4). Each changes timing a person should check on a Mac.
+- **D7** iMac Pro 5K series: `imac5k_cursor_only_commit()` (0003a) and
+  `imac5k_classify_commit()` (0003g) tested `drm_atomic_crtc_needs_modeset()`
+  before the DRM helpers set the flags, so a commit that changes ACTIVE
+  or MODE_ID on the left CRTC could be taken as cursor-only or a plain
+  flip. New patch `0003l` (after 0003k in the series; the existing
+  patches are unchanged) compares old and new CRTC state (enable, active,
+  mode) in both places. `gpu-series-check.sh 7.3.4 300.fc45`: the whole
+  series applies (0003l without fuzz or offset) and amdgpu builds with
+  W=1 (BUILD_OK; the one warning is in the untouched `jpeg_v2_5.c`).
+  The patch has no `Signed-off-by` yet: Kirk adds his own when he has
+  reviewed it. iMac Pro only; whether cosmic-comp or Mutter ever send
+  such a commit is unknown.
 
 ## Decisions and failed attempts
 
