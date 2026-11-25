@@ -108,6 +108,15 @@ Status per item: done (commit), skipped (why).
   that wrapped and lifted the charge limit. A tick with the clock behind
   any saved time now changes nothing, and the age sums use
   `saturating_sub`. New test. Laptops.
+- **B3** kernel patches were applied with `--fuzz=3`, which ignores all
+  context, so an add-only hunk could land in the wrong function. Patches
+  now apply with fuzz 2; only if that fails is fuzz 3 tried, and then the
+  hunks that needed it are printed and recorded as a warning. Checked in
+  a scratch tree: an add-only hunk with no matching context is applied
+  at fuzz 3 and reported. Not made a hard failure in the kernel hook:
+  the 2026-11-20 history notes an i915 hunk that needs fuzz 3 on 7.3.5,
+  and failing would leave Intel MacBooks on stock i915 (Kirk's call;
+  the patches themselves were not changed).
 
 ## Decisions and failed attempts
 
