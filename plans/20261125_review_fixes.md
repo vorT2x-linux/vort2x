@@ -80,6 +80,11 @@ Status per item: done (commit), skipped (why).
   tool and the app build, which is bigger than one review item. Helper
   tests not added yet (the helper needs root and pkexec; making it
   testable is part of that redesign).
+- **P1** the SideCar receive thread waited in uninterruptible sleep
+  (state D), adding 1.0 to the load average all the time. It now waits
+  with `TASK_IDLE`. Repeated receive errors are logged rate-limited and,
+  after three in a row, retried every 100 ms instead of in a tight loop.
+  All T2 Macs with t2-sidecar.
 
 ## Decisions and failed attempts
 
