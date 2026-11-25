@@ -38,6 +38,12 @@ Status per item: done (commit), skipped (why).
   next good reading takes them back. Five failed ticks in a row (about
   10 s, no reading or a failed fan write) end the daemon with an error
   so systemd restarts it and the hwmon paths are found again.
+- **B1 + B2** failed steps were marked applied. `install.sh` now counts
+  the hard errors before each step and treats a step that added one as
+  failed, so it is not marked applied and VorT2x Update offers it again.
+  `install-acpi-fixes.sh` catches the autofix pipeline's status, so a
+  failure is the intended warning instead of ending the installer. All
+  Macs.
 
 ## Decisions and failed attempts
 
