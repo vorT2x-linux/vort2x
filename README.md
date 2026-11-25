@@ -17,6 +17,7 @@ modules, apps and fixes come from VorT2x.
 
 | Date | Release | What |
 |---|---|---|
+| 2026-11-25 | v0.2.4 | **Camera on every boot:** the FaceTime camera, ambient light sensor and other devices behind the T2 chip (the Touch Bar on MacBooks) no longer go missing on some boots. Tested on two iMac Pros (2017), camera present on every boot. The fix is in the T2 bridge driver used by every T2 Mac; other models not tested yet. |
 | 2026-11-23 | v0.2.3 | **Gaming on the iMac Pro:** starting a game no longer puts the iMac Pro to sleep or switches it off. The fans now go to full speed the moment the GPU gets busy, and the Vega's top clock is held back slightly; full CS2 matches play through. Tested on an iMac Pro (2017). The fan boost also covers the 2020 iMac (iMac20,1/20,2), not tested yet. Desktop Macs also no longer install the laptop-only battery, Touch ID and Force Click services. |
 | 2026-11-22 | v0.2.2 | **5K display on the iMac Pro:** the 5K panel is now one 5120x2880 display, with no tearing at the centre seam and the pointer working on both halves. Tested on an iMac Pro (2017). The 2020 iMac (iMac20,1/20,2) gets the same merged display but hasn't been tested yet: reports welcome. |
 
