@@ -199,6 +199,14 @@ Status per item: done (commit), skipped (why).
   "completion while no requests are pending" branch now frees its queue
   slot. The HCD reference from `usb_create_hcd()` is released on remove
   and when adding the HCD fails. All T2 Macs.
+- **D4** t2touchbar: every Fn press took a mutex and logged with
+  `hid_info` from the input handler, which runs with IRQs off. The mode
+  bytes are now under a spinlock, the log is `hid_dbg`, and the work is
+  queued under that lock only while the keyboard is not suspending. Remove
+  unregisters the input handler before cancelling the mode work, so an Fn
+  press can't requeue it on freed memory. A failed suspend clears the
+  flag again. Touch Bar MacBook Pros only; can't be tested on the iMac
+  Pro.
 
 ## Decisions and failed attempts
 
