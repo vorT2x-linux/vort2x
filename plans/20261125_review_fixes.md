@@ -269,6 +269,23 @@ Status per item: done (commit), skipped (why).
   The patch has no `Signed-off-by` yet: Kirk adds his own when he has
   reviewed it. iMac Pro only; whether cosmic-comp or Mutter ever send
   such a commit is unknown.
+- **P4** not done: making the `pkexec`/`systemctl` calls of the GPU,
+  SMC, Power Explorer and Fans pages async (`gio::Subprocess`) and
+  stopping the t2-debug and Power Tune timers on unmap change how pages
+  load and update; they should be iterated with Kirk's screenshots (see
+  how UI work is done), so they are left for a UI branch. The hybrid GPU
+  page already skips its 3 s refresh while hidden.
+- **H1, H3, H5 (PR follow-ups), G**: hardware tests and leads, no code.
+  The tests to run are in the review (H1: one real S3 with
+  `pm_print_times`, one with `pm_async=0`; H3: `DeviceTimeout=15`;
+  G4 T2: one boot with `amdgpu.imac5k_merge=0`).
+- **H2** t2-zone-power logged "no supported dGPU found yet, dGPU step is
+  not applied" on the iMac Pro right next to "Vega 10 graphics clock
+  held", which read as if nothing was done for the GPU. With the Vega
+  clock hold present it now says the SMC's dGPU step is not applied and
+  the clock hold is used instead. Answering the SMC's PLimit steps for
+  the Vega (the review's idea to win back states 5-7) is not done: it
+  needs the B2 benchmark after the repaste.
 
 ## Decisions and failed attempts
 

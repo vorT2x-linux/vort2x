@@ -62,7 +62,7 @@ pub fn run(debug: bool) -> Result<()> {
     let mut last_discovery = Instant::now();
     let mut last = None;
     let mut first_error = true;
-    report_missing(&cpu, &idle, &igpu, &dgpu);
+    report_missing(&cpu, &idle, &igpu, &dgpu, vega.is_some());
 
     while !stop.load(Ordering::Relaxed) {
         // amdgpu may load after the daemon starts
@@ -164,7 +164,13 @@ fn report(result: Result<()>) {
     }
 }
 
-fn report_missing(cpu: &Option<CpuCap>, idle: &Option<ForcedIdle>, igpu: &Option<IGpuCap>, dgpu: &Option<DGpuCap>) {
+fn report_missing(
+    cpu: &Option<CpuCap>,
+    idle: &Option<ForcedIdle>,
+    igpu: &Option<IGpuCap>,
+    dgpu: &Option<DGpuCap>,
+    vega: bool,
+) {
     if cpu.is_none() {
         eprintln!("no cpufreq policy, CPU step is not applied");
     }
@@ -174,7 +180,11 @@ fn report_missing(cpu: &Option<CpuCap>, idle: &Option<ForcedIdle>, igpu: &Option
     if igpu.is_none() {
         eprintln!("no i915 RP0/RPn in sysfs, iGPU step is not applied");
     }
-    if dgpu.is_none() {
+    // The iMac Pro's Vega has no PowerTune floor here; its clock hold is the
+    // dGPU measure, so "no dGPU" would read as if nothing were done
+    if dgpu.is_none() && vega {
+        eprintln!("Vega 10: the SMC's dGPU step is not applied, the graphics clock hold is used instead");
+    } else if dgpu.is_none() {
         eprintln!("no supported dGPU found yet, dGPU step is not applied");
     }
 }
