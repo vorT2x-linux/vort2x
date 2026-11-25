@@ -65,6 +65,21 @@ Status per item: done (commit), skipped (why).
   free, double giveback). The status check now leaves cancelled URBs to
   the cancel worker, and `bce_vhci_urb_complete()` unlinks `cancel_list`
   before freeing. All T2 Macs (internal USB).
+- **C3** (partly) vort2x-update-helper picked the highest *local* tag of
+  the user-owned checkout. It now lists release tags with `git ls-remote`
+  on the constant GitHub URL and checks out the commit GitHub names for
+  the tag, so a tag planted in the checkout is never used; the fetch
+  prunes local `v*` tags GitHub doesn't have. The `optional` actions move
+  the checkout to the release before running anything instead of using
+  the working tree as found. **Not done, needs Kirk's decision:** the
+  checkout stays user-owned, so a process running as the user can still
+  change files between checkout and the root run, or set git filters in
+  `.git/config`; and apps are built as the user into the user's cargo
+  cache and then installed by root. The full fix (root-owned source tree,
+  builds outside the user's reach) changes vort2x-install, the multicall
+  tool and the app build, which is bigger than one review item. Helper
+  tests not added yet (the helper needs root and pkexec; making it
+  testable is part of that redesign).
 
 ## Decisions and failed attempts
 
