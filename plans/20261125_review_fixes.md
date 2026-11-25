@@ -51,6 +51,15 @@ Status per item: done (commit), skipped (why).
   removes partial files on decline, cancel or error. A second
   introduction, more than 1000 files, negative sizes and more bytes than
   the free space are refused. Macs with t2-airshare.
+- **C2** t2-drop (root) allocated whatever `Content-Length` said, up to
+  2 GiB, for any request. Bodies are now capped at 1 MiB except /Upload
+  after an accepted ask; the buffer grows with the data that arrives, not
+  with the header; request and header lines are capped at 8 KiB and 100
+  headers; chunk sizes use `checked_add`; gunzip output is capped; at
+  most 8 connections at once. The unit gets `MemoryMax=50%`,
+  `NoNewPrivileges=yes` and `ProtectSystem=strict` (the daemon writes only
+  to /proc/sys and talks netlink/D-Bus; needs the hardware test to
+  confirm). Macs with t2-drop.
 
 ## Decisions and failed attempts
 

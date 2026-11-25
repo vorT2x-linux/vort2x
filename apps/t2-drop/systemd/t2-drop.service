@@ -8,3 +8,7 @@ Documentation=https://github.com/vorT2x-linux/vort2x
 Type=dbus
 BusName=org.t2drop
 ExecStart=/usr/local/bin/t2drop daemon
+# Uploads are held in memory; cap what a flood of senders could take
+MemoryMax=50%
+NoNewPrivileges=yes
+ProtectSystem=strict
