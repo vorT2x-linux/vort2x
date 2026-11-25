@@ -432,7 +432,7 @@ fn daemon_main() -> error::Result<()> {
 /// Runs until SIGTERM/SIGINT (Ok) or an error the daemon cannot recover from.
 fn daemon_loop(runtime: &mut DaemonRuntime, events: &mpsc::Receiver<DaemonEvent>) -> error::Result<()> {
     loop {
-        runtime.tick();
+        runtime.tick()?;
         // With the SMC in charge the readings only feed the UI, so the
         // daemon sleeps until the UI asks again
         let next = if runtime.config.automatic_control_enabled || runtime.ui_active() {
@@ -484,7 +484,12 @@ struct DaemonRuntime {
     status: String,
     last_full_sensor_read: std::time::Instant,
     last_ui_request: Option<std::time::Instant>,
+    /// Control ticks in a row with no temperature reading or a failed write
+    failed_ticks: u32,
 }
+
+/// About 10 s of failed ticks before the daemon exits for a restart.
+const MAX_FAILED_TICKS: u32 = 5;
 
 impl DaemonRuntime {
     fn new() -> error::Result<Self> {
@@ -527,6 +532,7 @@ impl DaemonRuntime {
             status,
             last_full_sensor_read: std::time::Instant::now(),
             last_ui_request: None,
+            failed_ticks: 0,
         })
     }
 
@@ -535,7 +541,7 @@ impl DaemonRuntime {
             .is_some_and(|seen| seen.elapsed() <= Duration::from_secs(3))
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> error::Result<()> {
         if self.controller.should_tick() {
             let ui_active = self.ui_active();
             if ui_active {
@@ -558,14 +564,30 @@ impl DaemonRuntime {
             )
             {
                 Ok(snapshot) => {
+                    let has_reading = snapshot.effective_temp_c.is_some();
                     self.snapshot = snapshot;
                     if refresh_all_sensors {
                         self.last_full_sensor_read = std::time::Instant::now();
                     }
+                    if has_reading || !self.config.automatic_control_enabled {
+                        self.failed_ticks = 0;
+                    } else {
+                        self.failed_ticks += 1;
+                        self.status = "No temperature reading, the SMC controls the fans".into();
+                    }
                 }
                 Err(error) => {
+                    self.failed_ticks += 1;
                     self.status = format!("Fan control failed: {error}");
                 }
+            }
+            // The hwmon paths are found once at start; if t2smc came back
+            // under a new hwmonN they stay broken, so let systemd restart us
+            if self.failed_ticks >= MAX_FAILED_TICKS {
+                return Err(error::FanControlError::Protocol(format!(
+                    "{MAX_FAILED_TICKS} control ticks in a row failed ({}), restarting",
+                    self.status
+                )));
             }
         }
         let boosted = self.gpu_load.as_ref()
@@ -575,6 +597,7 @@ impl DaemonRuntime {
         }
         let ramped = self.controller.ramp(&mut self.fans);
         self.note_fan_change(ramped);
+        Ok(())
     }
 
     fn note_fan_change(&mut self, result: error::Result<bool>) {
@@ -664,7 +687,7 @@ impl DaemonRuntime {
                 self.save_config()?;
             }
         }
-        self.tick();
+        self.tick()?;
         Ok(self.state())
     }
 

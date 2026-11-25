@@ -33,6 +33,11 @@ Status per item: done (commit), skipped (why).
   to the SMC. New `--release` mode, run as `ExecStopPost=` so SIGKILL and
   panics are covered too. t2smc releases manual mode on shutdown and
   module remove. All Macs with t2-fan-control.
+- **A2** no temperature reading set the fans to minimum. With automatic
+  control on, a tick with no reading now hands the fans to the SMC; the
+  next good reading takes them back. Five failed ticks in a row (about
+  10 s, no reading or a failed fan write) end the daemon with an error
+  so systemd restarts it and the hwmon paths are found again.
 
 ## Decisions and failed attempts
 

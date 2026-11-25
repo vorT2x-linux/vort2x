@@ -105,17 +105,31 @@ impl Controller {
             self.goal_percent = target_percent;
             let small_change = self.last_applied_percent.zip(target_percent)
                 .is_some_and(|(applied, goal)| applied.abs_diff(goal) < RAMP_START_THRESHOLD_PERCENT);
-            if forced || self.last_applied_percent.is_none() || target_percent.is_none() {
-                self.ramping = false;
-                if target_percent != self.last_applied_percent {
-                    self.apply(fans, target_percent)?;
+            match target_percent {
+                // No reading: the SMC's own control is safe, a guessed
+                // minimum under load is not
+                None => {
+                    self.ramping = false;
+                    if self.last_applied_percent.is_some() {
+                        self.hand_to_smc(fans)?;
+                    }
                 }
-            } else if !self.ramping && !small_change {
-                self.ramping = true;
-                self.next_ramp_step = Instant::now();
+                Some(target) if forced || self.last_applied_percent.is_none() => {
+                    self.ramping = false;
+                    if Some(target) != self.last_applied_percent {
+                        self.apply(fans, target)?;
+                    }
+                }
+                Some(_) if !self.ramping && !small_change => {
+                    self.ramping = true;
+                    self.next_ramp_step = Instant::now();
+                }
+                Some(_) => {}
             }
             target_percent = self.last_applied_percent;
-            target_rpm_per_fan = self.target_rpm_per_fan(fans);
+            if target_percent.is_some() {
+                target_rpm_per_fan = self.target_rpm_per_fan(fans);
+            }
         }
 
         self.last_tick = Instant::now();
@@ -135,13 +149,8 @@ impl Controller {
     }
 
     pub fn release_to_system(&mut self, fans: &mut [FanEndpoint]) -> Result<()> {
-        for fan in fans {
-            fan.release_to_auto()?;
-            fan.app_controlled = Some(false);
-        }
-        self.last_applied_percent = None;
+        self.hand_to_smc(fans)?;
         self.goal_percent = None;
-        self.ramping = false;
         self.heat_soak_cooling = false;
         self.any_sensor_cooling = false;
         self.system_cooling_started_at = None;
@@ -172,7 +181,7 @@ impl Controller {
             return Ok(false);
         }
         self.ramping = false;
-        self.apply(fans, Some(100))?;
+        self.apply(fans, 100)?;
         Ok(true)
     }
 
@@ -194,7 +203,7 @@ impl Controller {
             return Ok(false);
         };
         let next = ramp_step(applied, goal);
-        self.apply(fans, Some(next))?;
+        self.apply(fans, next)?;
         self.ramping = next != goal;
         self.next_ramp_step = Instant::now()
             + if goal > applied { RAMP_UP_STEP_INTERVAL } else { RAMP_DOWN_STEP_INTERVAL };
@@ -221,14 +230,25 @@ impl Controller {
             .collect()
     }
 
-    fn apply(&mut self, fans: &mut [FanEndpoint], percent: Option<u8>) -> Result<()> {
+    fn apply(&mut self, fans: &mut [FanEndpoint], percent: u8) -> Result<()> {
         for fan in fans {
-            let rpm = percent.map(|percent| fan.percent_to_rpm(percent)).unwrap_or(fan.min_speed);
+            let rpm = fan.percent_to_rpm(percent);
             fan.set_target_speed(rpm)?;
             fan.current_speed = Some(rpm);
             fan.app_controlled = Some(true);
         }
-        self.last_applied_percent = percent;
+        self.last_applied_percent = Some(percent);
+        Ok(())
+    }
+
+    /// Leaves the fans to the SMC; the next reading takes them back.
+    fn hand_to_smc(&mut self, fans: &mut [FanEndpoint]) -> Result<()> {
+        self.last_applied_percent = None;
+        self.ramping = false;
+        for fan in fans {
+            fan.release_to_auto()?;
+            fan.app_controlled = Some(false);
+        }
         Ok(())
     }
 
