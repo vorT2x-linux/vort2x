@@ -241,11 +241,15 @@ static int t2audio_quiesce(struct t2audio_device *t2audio, bool suspend_pcm)
 	struct t2audio_subdevice *sdev;
 	int status;
 
-	if (t2audio->pm_quiesced)
-		return 0;
-
+	/*
+	 * A quick wake-then-sleep leaves the resume work pending while still
+	 * quiesced; cancel it first so it can't run into this suspend
+	 */
 	cancel_work_sync(&t2audio->resume_work);
 	t2audio->resume_deferred = false;
+
+	if (t2audio->pm_quiesced)
+		return 0;
 
 	/* stop PCM I/O while the bridge queues still work */
 	list_for_each_entry(sdev, &t2audio->subdevice_list, list) {

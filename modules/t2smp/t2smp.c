@@ -79,7 +79,13 @@ static void t2smp_offline_cpus(void)
 static int t2smp_prepare_notify(struct notifier_block *nb,
 				unsigned long action, void *unused)
 {
-	if (action == PM_SUSPEND_PREPARE)
+	/*
+	 * s2idle never runs the firmware suspend path this works around, so
+	 * the CPUs stay online for it. The requested state is not known yet at
+	 * this point; the mem_sleep setting is (a direct "freeze" write to
+	 * /sys/power/state still takes them offline).
+	 */
+	if (action == PM_SUSPEND_PREPARE && !pm_suspend_default_s2idle())
 		t2smp_offline_cpus();
 
 	return NOTIFY_OK;

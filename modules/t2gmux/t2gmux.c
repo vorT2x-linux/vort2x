@@ -671,14 +671,21 @@ static bool gmux_mmio_busy(struct apple_gmux_data *gmux_data)
 	return busy;
 }
 
-/* Skip the access while the mailbox is busy. */
+/*
+ * Skip the access while the mailbox is busy and return GMUX_MMIO_BUSY_VALUE;
+ * @busy, when given, tells the caller so it doesn't take that as data.
+ */
 static u32 gmux_mmio_read(struct apple_gmux_data *gmux_data, int port,
-			  int size)
+			  int size, bool *busy)
 {
 	u32 val = GMUX_MMIO_BUSY_VALUE;
+	bool skipped;
 
 	mutex_lock(&gmux_data->index_lock);
-	if (!gmux_mmio_busy(gmux_data)) {
+	skipped = gmux_mmio_busy(gmux_data);
+	if (busy)
+		*busy = skipped;
+	if (!skipped) {
 		iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
 		iowrite8(GMUX_MMIO_READ | size,
 			 gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
@@ -716,7 +723,7 @@ static void gmux_mmio_write(struct apple_gmux_data *gmux_data, int port,
 
 static u8 gmux_mmio_read8(struct apple_gmux_data *gmux_data, int port)
 {
-	return gmux_mmio_read(gmux_data, port, 1);
+	return gmux_mmio_read(gmux_data, port, 1, NULL);
 }
 
 static void gmux_mmio_write8(struct apple_gmux_data *gmux_data, int port,
@@ -727,7 +734,7 @@ static void gmux_mmio_write8(struct apple_gmux_data *gmux_data, int port,
 
 static u32 gmux_mmio_read32(struct apple_gmux_data *gmux_data, int port)
 {
-	return gmux_mmio_read(gmux_data, port, 4);
+	return gmux_mmio_read(gmux_data, port, 4, NULL);
 }
 
 static void gmux_mmio_write32(struct apple_gmux_data *gmux_data, int port,
@@ -757,6 +764,24 @@ static void gmux_write32(struct apple_gmux_data *gmux_data, int port,
 	return gmux_data->config->write32(gmux_data, port, val);
 }
 
+/*
+ * Like gmux_read8()/gmux_read32(), but false when the MMIO mailbox was busy
+ * and nothing was read. The busy value would otherwise pass as data.
+ */
+static bool gmux_try_read(struct apple_gmux_data *gmux_data, int port,
+			  int size, u32 *val)
+{
+	bool busy = false;
+
+	if (gmux_data->config->read8 == gmux_mmio_read8)
+		*val = gmux_mmio_read(gmux_data, port, size, &busy);
+	else if (size == 4)
+		*val = gmux_read32(gmux_data, port);
+	else
+		*val = gmux_read8(gmux_data, port);
+	return !busy;
+}
+
 /**
  * DOC: Backlight control
  *
@@ -774,8 +799,11 @@ static void gmux_write32(struct apple_gmux_data *gmux_data, int port,
 static int gmux_get_brightness(struct backlight_device *bd)
 {
 	struct apple_gmux_data *gmux_data = bl_get_data(bd);
-	return gmux_read32(gmux_data, GMUX_PORT_BRIGHTNESS) &
-	       GMUX_BRIGHTNESS_MASK;
+	u32 val;
+
+	if (!gmux_try_read(gmux_data, GMUX_PORT_BRIGHTNESS, 4, &val))
+		return -EBUSY;
+	return val & GMUX_BRIGHTNESS_MASK;
 }
 
 static int gmux_update_status(struct backlight_device *bd)
@@ -924,16 +952,26 @@ static void gmux_write_gpu_active(struct apple_gmux_data *gmux_data)
 {
 	efi_guid_t guid = APPLE_GPU_VARS_GUID;
 	u32 active = gmux_data->switch_state_display == VGA_SWITCHEROO_IGD;
+	unsigned long size = sizeof(u32);
 	efi_status_t status;
+	u32 stored;
 
-	if (!efivar_is_available())
+	if (!efivar_is_available() || efivar_lock())
 		return;
 
-	status = efivar_set_variable(gmux_gpu_active_name, &guid,
-				     EFI_VARIABLE_NON_VOLATILE |
-				     EFI_VARIABLE_BOOTSERVICE_ACCESS |
-				     EFI_VARIABLE_RUNTIME_ACCESS,
-				     sizeof(active), &active);
+	/* NVRAM wears, so an unchanged value is not written again */
+	status = efivar_get_variable(gmux_gpu_active_name, &guid, NULL, &size,
+				     &stored);
+	if (status == EFI_SUCCESS && size == sizeof(u32) && stored == active) {
+		efivar_unlock();
+		return;
+	}
+	status = efivar_set_variable_locked(gmux_gpu_active_name, &guid,
+					    EFI_VARIABLE_NON_VOLATILE |
+					    EFI_VARIABLE_BOOTSERVICE_ACCESS |
+					    EFI_VARIABLE_RUNTIME_ACCESS,
+					    sizeof(active), &active, false);
+	efivar_unlock();
 	if (status != EFI_SUCCESS)
 		pr_warn("writing gpu-active failed: 0x%lx\n", status);
 	else
@@ -948,7 +986,7 @@ static int gmux_switchto(enum vga_switcheroo_client_id id)
 		apple_gmux_data->switch_state_external = id;
 
 	gmux_write_switch_state(apple_gmux_data);
-	/* The T2 reads gpu-active, write it on every switch like macOS. */
+	/* The T2 reads gpu-active; it is written when a switch changes it */
 	if (apple_gmux_data->iomem_base)
 		gmux_write_gpu_active(apple_gmux_data);
 
@@ -1222,9 +1260,14 @@ static inline void gmux_enable_interrupts(struct apple_gmux_data *gmux_data)
 		    GMUX_INTERRUPT_ENABLE);
 }
 
+/* 0 while the mailbox is busy, so the interrupt loop can't spin on it */
 static inline u8 gmux_interrupt_get_status(struct apple_gmux_data *gmux_data)
 {
-	return gmux_read8(gmux_data, GMUX_PORT_INTERRUPT_STATUS);
+	u32 status;
+
+	if (!gmux_try_read(gmux_data, GMUX_PORT_INTERRUPT_STATUS, 1, &status))
+		return 0;
+	return status;
 }
 
 /* Prevent flood of status=0 interrupts */
@@ -1309,9 +1352,13 @@ static void gmux_interrupt_work(struct work_struct *work)
 			 * but GET_DISPLAY only tells whether any display is
 			 * connected, so wake the dGPU on every hotplug.
 			 */
-			bool external_state = !!gmux_read8(gmux_data,
-						GMUX_PORT_SWITCH_GET_DISPLAY);
+			u32 display;
+			bool external_state;
 
+			if (!gmux_try_read(gmux_data, GMUX_PORT_SWITCH_GET_DISPLAY,
+					   1, &display))
+				display = gmux_data->external_state;
+			external_state = !!display;
 			if (external_state != gmux_data->external_state) {
 				gmux_data->external_state = external_state;
 				pr_debug("hotplug: display %s\n",
@@ -1431,6 +1478,7 @@ static int gmux_resume(struct device *dev)
 {
 	struct pnp_dev *pnp = to_pnp_dev(dev);
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
+	u32 power;
 
 	gmux_write8(gmux_data, GMUX_PORT_INTERRUPT_STATUS, 0xff);
 	gmux_enable_interrupts(gmux_data);
@@ -1439,7 +1487,8 @@ static int gmux_resume(struct device *dev)
 	/* Only power down a dGPU that came back powered. */
 	mutex_lock(&gmux_data->transition_lock);
 	if (gmux_data->power_state == VGA_SWITCHEROO_OFF &&
-	    (gmux_read8(gmux_data, GMUX_PORT_DISCRETE_POWER) & 3) == 3)
+	    gmux_try_read(gmux_data, GMUX_PORT_DISCRETE_POWER, 1, &power) &&
+	    (power & 3) == 3)
 		__gmux_set_discrete_state(gmux_data, VGA_SWITCHEROO_OFF);
 	mutex_unlock(&gmux_data->transition_lock);
 	return 0;

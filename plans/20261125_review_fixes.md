@@ -211,6 +211,24 @@ Status per item: done (commit), skipped (why).
   another caller had filled the cache entry while it waited for the
   mutex (hidden on Fedora by `CONFIG_INIT_STACK_ALL_ZERO`). `ret` now
   starts at 0. All T2 Macs.
+- **D6** smaller module findings:
+  - snd-apple-t2: `t2audio_quiesce()` returned early while quiesced
+    without cancelling a pending resume work, so a quick wake-then-sleep
+    let it run into the next suspend. The cancel now comes first. All T2
+    Macs.
+  - t2gmux: the MMIO "mailbox busy" value `0xdeadbeef` was taken as data.
+    New `gmux_try_read()` says when nothing was read; the interrupt loop
+    sees status 0 (no endless loop), the hotplug check keeps the old
+    state, resume doesn't power down the dGPU on a busy read, and the
+    backlight returns `-EBUSY`. `gpu-active` is read first and written
+    only when it changes (NVRAM wear). Dual-GPU MacBook Pros.
+  - t2bdrm: probe unregisters the DRM device when clearing the display
+    fails after registration. Touch Bar MacBook Pros.
+  - t2smp: no longer takes CPUs offline when mem_sleep is s2idle, which
+    never runs the firmware path it works around. **Not changed:** CPUs
+    still go offline at `PM_SUSPEND_PREPARE`, before tasks are frozen, so
+    task and IRQ affinities are widened after the first suspend; doing it
+    later needs a different hook than a PM notifier (redesign).
 
 ## Decisions and failed attempts
 
