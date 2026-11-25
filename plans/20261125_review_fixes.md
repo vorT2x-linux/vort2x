@@ -140,6 +140,16 @@ Status per item: done (commit), skipped (why).
   (no DNS until exit). The copy and its restore are now skipped when the
   target's resolv.conf is a symlink or the same file as the live one (a
   symlink already leads to the live resolver). Live USB rescue.
+- **B7** three small installer fixes. `prepare-fedora-installer.sh
+  --reuse-media` no longer overwrites `grub.cfg.fedora-original` with
+  VorT2x's own grub.cfg. `vort2x-rescue` reports "carries all T2 input
+  drivers" per kernel again (the missing flag was not reset per kernel).
+  The gpu, i915, thunderbolt, wireless and ACPI scripts replaced lib.sh's
+  EXIT trap, so their own runs (kernel hooks) never printed the summary
+  or removed the `/tmp/vort2x-install-errors.*` ledger; they now use
+  `cleanup_then_exit`, and a run without errors removes its empty
+  ledger. Checked with a scratch script: work dir and ledger removed,
+  exit status kept.
 
 ## Decisions and failed attempts
 

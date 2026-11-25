@@ -4,7 +4,7 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
 status=0
 log=$(mktemp)
-trap 'rm -f "$log"' EXIT
+trap 'cleanup_then_exit rm -f "$log"' EXIT
 # Under errexit and pipefail a failing pipeline would end the script here,
 # before the warning below, so its status is caught instead
 python3 "$SCRIPT_DIR/acpi-autofix.py" 2>&1 | tee "$log" || status=${PIPESTATUS[0]}

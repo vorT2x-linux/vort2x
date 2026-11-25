@@ -215,7 +215,7 @@ source_tree=$(kernel_source_tree "$KVER") ||
 
 info "using /var/tmp for the wireless module build"
 workdir=$(mktemp -d /var/tmp/vort2x-wireless.XXXXXXXXXX)
-trap 'rm -rf "$workdir"' EXIT
+trap 'cleanup_then_exit rm -rf "$workdir"' EXIT
 tree="$workdir/linux"
 install -d "$tree/${BRCMFMAC_DIR%/*}" "$tree/${BLUETOOTH_DIR%/*}"
 cp -a --reflink=auto "$source_tree/$BRCMFMAC_DIR" "$tree/${BRCMFMAC_DIR%/*}/" ||

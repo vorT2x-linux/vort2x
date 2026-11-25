@@ -185,7 +185,7 @@ fi
 
 info "using /var/tmp for kernel sources and module build"
 workdir=$(mktemp -d /var/tmp/vort2x-i915.XXXXXXXXXX)
-trap 'rm -rf "$workdir"' EXIT
+trap 'cleanup_then_exit rm -rf "$workdir"' EXIT
 if ((local_kernel_tree)); then
 	kernel_tree=$build_tree
 else

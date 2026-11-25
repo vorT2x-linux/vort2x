@@ -56,6 +56,8 @@ installation_summary() {
 		return 0
 	fi
 	info "installation completed without recorded errors"
+	# Nothing to keep; kernel hooks run this on every kernel update
+	rm -f "$VORT2X_INSTALL_ERRORS"
 }
 
 installer_exit() {
@@ -65,6 +67,14 @@ installer_exit() {
 		installation_summary || status=1
 	fi
 	exit "$status"
+}
+
+# For an EXIT trap with its own cleanup: runs the command, then the
+# installer's exit handler, which reports and removes the error ledger.
+cleanup_then_exit() {
+	local status=$?
+	"$@" || true
+	installer_exit "$status"
 }
 
 trap 'record_error "command failed (status $?) at ${BASH_SOURCE[0]:-$0}:$LINENO: $BASH_COMMAND"' ERR
