@@ -4,6 +4,7 @@ use std::{
     cell::Cell,
     io,
     path::{Path, PathBuf},
+    time::{Duration, Instant, SystemTime},
 };
 
 use crate::{
@@ -256,36 +257,69 @@ const VEGA10_MAX_SCLK_STATE: u8 = 4;
 /// load step at the top clocks, not from average power.
 pub struct VegaClockLimit {
     device: PathBuf,
+    /// Last write of the state mask
+    written: Option<Instant>,
+    /// Wall clock of the last call; the monotonic clock stops in suspend
+    last_call: SystemTime,
+    was_active: bool,
 }
+
+/// A gap this long between calls means the Mac slept.
+const VEGA_RESUME_GAP: Duration = Duration::from_secs(2);
+/// The mask is rewritten this often while the GPU is active. amdgpu can drop
+/// it (a GPU reset keeps `manual` but not the mask) while the GPU idles in a
+/// low state, where it can't be seen, and the next load would then jump
+/// straight to the top states.
+const VEGA_REWRITE: Duration = Duration::from_secs(5);
 
 impl VegaClockLimit {
     pub fn discover() -> Result<Option<Self>> {
         for device in glob_paths("/sys/class/drm/card*/device")? {
             let is_amd = read_string(&device.join("vendor")).is_ok_and(|vendor| vendor == "0x1002");
             if is_amd && pci_device_id(&device).is_some_and(|id| (0x6860..=0x687f).contains(&id)) {
-                return Ok(Some(Self { device }));
+                return Ok(Some(Self {
+                    device,
+                    written: None,
+                    last_call: SystemTime::now(),
+                    was_active: false,
+                }));
             }
         }
         Ok(None)
     }
 
-    /// Cheap enough to run every tick, which also catches a GPU reset: after
-    /// one amdgpu keeps `manual` but drops the state mask
-    pub fn apply(&self) -> Result<()> {
+    /// Runs every tick. The mask is rewritten when the clock is seen above
+    /// the limit, after a sleep or a runtime resume, and every few seconds
+    /// while the GPU is active, so a dropped mask never waits for the GPU
+    /// to reach the top states first.
+    pub fn apply(&mut self) -> Result<()> {
+        let now = SystemTime::now();
+        let slept = now.duration_since(self.last_call).is_ok_and(|gap| gap >= VEGA_RESUME_GAP);
+        self.last_call = now;
         // Reads fail with EBUSY while the GPU is runtime suspended
-        if !read_string(&self.device.join("power/runtime_status")).is_ok_and(|status| status == "active") {
+        let active = read_string(&self.device.join("power/runtime_status")).is_ok_and(|status| status == "active");
+        let woke = active && !self.was_active;
+        self.was_active = active;
+        if slept {
+            self.written = None;
+        }
+        if !active {
             return Ok(());
         }
         let level = self.device.join("power_dpm_force_performance_level");
         let sclk = self.device.join("pp_dpm_sclk");
         let held = read_string(&level)? == "manual"
             && current_state(&read_string(&sclk)?).is_none_or(|state| state <= VEGA10_MAX_SCLK_STATE);
-        if held {
+        let due = self.written.is_none_or(|written| written.elapsed() >= VEGA_REWRITE);
+        if held && !woke && !due {
             return Ok(());
         }
         write_value(&level, "manual")?;
         write_value(&sclk, state_mask(VEGA10_MAX_SCLK_STATE))?;
-        eprintln!("Vega 10 graphics clock held at sclk states 0-{VEGA10_MAX_SCLK_STATE}");
+        self.written = Some(Instant::now());
+        if !held {
+            eprintln!("Vega 10 graphics clock held at sclk states 0-{VEGA10_MAX_SCLK_STATE}");
+        }
         Ok(())
     }
 

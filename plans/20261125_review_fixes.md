@@ -85,6 +85,15 @@ Status per item: done (commit), skipped (why).
   with `TASK_IDLE`. Repeated receive errors are logged rate-limited and,
   after three in a row, retried every 100 ms instead of in a tight loop.
   All T2 Macs with t2-sidecar.
+- **A3** the Vega clock hold only rewrote the sclk mask after seeing the
+  GPU in states 5-7, so a mask dropped by a GPU reset while idling was
+  noticed only after the jump to the top clocks. The mask is now also
+  rewritten after a system sleep (a wall-clock gap of 2 s or more between
+  ticks; the monotonic clock stops in suspend), when the GPU comes back
+  from runtime suspend, and every 5 s while it is active. The log line
+  appears only when the clock was actually above the limit. iMac Pro.
+  logind `PrepareForSleep` was not used: the wall-clock gap catches the
+  same resume without a D-Bus dependency.
 
 ## Decisions and failed attempts
 

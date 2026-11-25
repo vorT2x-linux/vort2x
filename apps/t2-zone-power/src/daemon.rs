@@ -76,7 +76,7 @@ pub fn run(debug: bool) -> Result<()> {
             }
             last_discovery = Instant::now();
         }
-        if let Some(vega) = &vega {
+        if let Some(vega) = &mut vega {
             report(vega.apply());
         }
 
