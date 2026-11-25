@@ -1,0 +1,68 @@
+/* VorT2x Dashboard: the sidebar sits on the window background, the page
+   floats on it in a rounded card. Colours are in style-dark.css and
+   style-light.css. */
+
+window.vort2x-dashboard {
+  --sidebar-bg-color: transparent;
+  --sidebar-backdrop-color: transparent;
+  --sidebar-shade-color: transparent;
+  --sidebar-border-color: transparent;
+  --headerbar-bg-color: transparent;
+  --headerbar-backdrop-color: transparent;
+  --headerbar-shade-color: transparent;
+  --headerbar-border-color: transparent;
+}
+
+.vort2x-content {
+  margin: 10px 10px 10px 0;
+  border-radius: 18px;
+}
+
+.vort2x-tile {
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.vort2x-nav {
+  background: transparent;
+  margin: 6px 12px;
+}
+
+.vort2x-nav row {
+  border-radius: 12px;
+  margin: 2px 0;
+  padding: 10px 12px;
+  font-weight: 500;
+  outline: none;
+}
+
+.vort2x-nav row image {
+  -gtk-icon-size: 18px;
+}
+
+.vort2x-machine {
+  margin: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.vort2x-machine .title {
+  font-weight: 600;
+}
+
+.vort2x-machine .subtitle {
+  font-size: smaller;
+}
+
+/* Several pages give the window, header bars and their own root a
+   background, made for their standalone windows. Here the card and the
+   window background show through instead. */
+window.vort2x-dashboard headerbar,
+.vort2x-content preferencespage,
+.vort2x-content .app-background,
+.vort2x-content .debug-root,
+.vort2x-content .force-root,
+.vort2x-content .smc-root {
+  background: transparent;
+  box-shadow: none;
+}

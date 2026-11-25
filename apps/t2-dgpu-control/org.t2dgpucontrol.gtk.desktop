@@ -1,4 +1,6 @@
 [Desktop Entry]
+# Opened from the VorT2x Dashboard; kept for its icon and app ID.
+NoDisplay=true
 Name=T2 GPU Control
 Comment=Configure graphics hardware in T2 MacBook Pro models
 Exec=t2-dgpu-control

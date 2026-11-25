@@ -484,7 +484,37 @@ fn rebuild_tree(
     }
 }
 
+/// The power page, shown in the standalone window and in the VorT2x Dashboard.
+pub struct Page {
+    pub title: adw::WindowTitle,
+    /// Goes at the end of the header bar: the rescan button.
+    pub header_end: gtk::Widget,
+    pub content: gtk::Widget,
+}
+
 pub fn build(app: &adw::Application) {
+    let page = page();
+    let window = adw::ApplicationWindow::builder()
+        .application(app)
+        .title("T2 Power Explorer")
+        .default_width(1400)
+        .default_height(760)
+        .build();
+    let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let header = adw::HeaderBar::new();
+    header.set_title_widget(Some(&page.title));
+    let brand = vort2x_brand();
+    brand.set_margin_start(10);
+    brand.set_margin_end(10);
+    header.pack_start(&brand);
+    header.pack_end(&page.header_end);
+    root.append(&header);
+    root.append(&page.content);
+    window.set_content(Some(&root));
+    window.present();
+}
+
+pub fn page() -> Page {
     install_css();
     let tree = collector::collect();
     let diagnostics = diagnostics::read();
@@ -501,28 +531,15 @@ pub fn build(app: &adw::Application) {
         filter: Filter::All,
     }));
 
-    let window = adw::ApplicationWindow::builder()
-        .application(app)
-        .title("T2 Power Explorer")
-        .default_width(1400)
-        .default_height(760)
-        .build();
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.add_css_class("app-background");
-    let header = adw::HeaderBar::new();
+    root.set_vexpand(true);
     let title = adw::WindowTitle::new(
         "Power Explorer",
         "Kernel device topology and runtime power state",
     );
-    header.set_title_widget(Some(&title));
-    let brand = vort2x_brand();
-    brand.set_margin_start(10);
-    brand.set_margin_end(10);
-    header.pack_start(&brand);
     let refresh = gtk::Button::from_icon_name("view-refresh-symbolic");
     refresh.set_tooltip_text(Some("Rescan device topology"));
-    header.pack_end(&refresh);
-    root.append(&header);
 
     let paned = gtk::Paned::new(gtk::Orientation::Horizontal);
     paned.set_position(700);
@@ -570,7 +587,6 @@ pub fn build(app: &adw::Application) {
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0); spacer.set_hexpand(true); footer.append(&spacer);
     footer.append(&gtk::Label::new(Some(&format!("v{APP_VERSION}"))));
     root.append(&footer);
-    window.set_content(Some(&root));
 
     rebuild_tree(&list, &details, &counts, &state);
     show_properties(&details, &state);
@@ -630,5 +646,9 @@ pub fn build(app: &adw::Application) {
         });
     }
 
-    window.present();
+    Page {
+        title,
+        header_end: refresh.upcast(),
+        content: root.upcast(),
+    }
 }

@@ -1,0 +1,42 @@
+window.vort2x-dashboard {
+  --window-bg-color: #e9ecf1;
+  background-color: #e9ecf1;
+}
+
+/* Pages inside the card see the card as their window colour. */
+.vort2x-content {
+  --window-bg-color: #ffffff;
+  background-color: #ffffff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+.vort2x-tile {
+  background-color: #101010;
+}
+
+.vort2x-nav row {
+  color: rgba(36, 36, 36, 0.8);
+}
+
+.vort2x-nav row:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.vort2x-nav row:selected {
+  background-color: #ffffff;
+  color: #0284c7;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.vort2x-machine {
+  background-color: #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+.vort2x-machine .title {
+  color: #242424;
+}
+
+.vort2x-machine .subtitle {
+  color: rgba(36, 36, 36, 0.6);
+}

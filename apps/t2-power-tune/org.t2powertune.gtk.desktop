@@ -1,4 +1,6 @@
 [Desktop Entry]
+# Opened from the VorT2x Dashboard; kept for its icon and app ID.
+NoDisplay=true
 Type=Application
 Version=1.0
 Name=T2 Power Tune

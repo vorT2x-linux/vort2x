@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=VorT2x Dashboard
+Comment=Fans, updates and the other T2 Mac settings in one place
+Exec=/usr/local/bin/vort2x-dashboard
+Icon=org.vort2x.Dashboard
+Terminal=false
+Categories=System;Settings;
+Keywords=T2;Mac;VorT2x;fan;update;settings;
+StartupNotify=true

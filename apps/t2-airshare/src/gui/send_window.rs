@@ -16,11 +16,11 @@ use adw::prelude::*;
 use gtk4 as gtk;
 use tokio::task::JoinHandle;
 
-use t2_airshare::discover::{Discovery, Peer};
-use t2_airshare::endpoint::DeviceType;
-use t2_airshare::send::{self, Progress, SendOutcome};
+use crate::discover::{Discovery, Peer};
+use crate::endpoint::DeviceType;
+use crate::send::{self, Progress, SendOutcome};
 
-use crate::{airdrop, bluetooth};
+use super::{airdrop, bluetooth};
 
 /// The async work runs on a tokio runtime next to the GTK main loop.
 fn runtime() -> &'static tokio::runtime::Runtime {
@@ -283,7 +283,7 @@ fn spawn_airdrop(tx: async_channel::Sender<Event>) -> JoinHandle<()> {
         // air while this task lives, the controller sends the AirDrop one
         // more often then. Ending the task drops the connection, the
         // service resumes.
-        let _pause = t2_airshare::bluetooth::pause_receiver_advertising().await;
+        let _pause = crate::bluetooth::pause_receiver_advertising().await;
         let report = |update| {
             let event = match update {
                 airdrop::Update::Receivers(list) => Event::AirDrop(list),

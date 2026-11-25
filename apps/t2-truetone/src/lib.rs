@@ -8,6 +8,8 @@ pub mod config;
 pub mod daemon;
 pub mod gamma;
 pub mod gnome;
+#[cfg(feature = "gui")]
+pub mod gui;
 pub mod model;
 pub mod mutter;
 pub mod night;
