@@ -28,7 +28,7 @@ use gtk4::{
     gdk,
 };
 use ipc::{DaemonState, Request};
-use signal_hook::consts::signal::SIGHUP;
+use signal_hook::consts::signal::{SIGHUP, SIGINT, SIGTERM};
 use sysfs::{discover_fans, discover_gpu_load, discover_temperature_sources, FanEndpoint, GpuLoad, TemperatureSnapshot, TemperatureSource};
 
 fn vort2x_brand() -> DrawingArea {
@@ -354,14 +354,14 @@ impl AppModel {
     }
 }
 
-/// Runs the fan daemon with `--daemon`, otherwise the standalone window.
+/// Runs the fan daemon with `--daemon`, hands the fans back to the SMC with
+/// `--release`, otherwise opens the standalone window.
 pub fn run() -> glib::ExitCode {
+    if std::env::args().any(|arg| arg == "--release") {
+        return exit_code(release_fans());
+    }
     if std::env::args().any(|arg| arg == "--daemon") {
-        if let Err(error) = daemon_main() {
-            eprintln!("{error}");
-            return glib::ExitCode::from(1);
-        }
-        return glib::ExitCode::SUCCESS;
+        return exit_code(daemon_main());
     }
 
     register_embedded_resources();
@@ -373,43 +373,77 @@ pub fn run() -> glib::ExitCode {
     app.run()
 }
 
+fn exit_code(result: error::Result<()>) -> glib::ExitCode {
+    match result {
+        Ok(()) => glib::ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            glib::ExitCode::from(1)
+        }
+    }
+}
+
+/// The SMC keeps manual fan mode after the daemon is gone, so the unit's
+/// ExecStopPost runs this to cover SIGKILL and panics.
+fn release_fans() -> error::Result<()> {
+    let mut fans = discover_fans()?;
+    Controller::new().release_to_system(&mut fans)
+}
+
+/// What wakes the daemon loop besides its own timer.
+enum DaemonEvent {
+    Connection(std::io::Result<std::os::unix::net::UnixStream>),
+    Reload,
+    Stop,
+}
+
 fn daemon_main() -> error::Result<()> {
     let listener = ipc::bind_listener()?;
-    // SIGHUP arrives as None on the same channel so a sleeping daemon wakes
-    let (connections_tx, connections_rx) = mpsc::channel();
-    let hup_tx = connections_tx.clone();
+    let (events_tx, events_rx) = mpsc::channel();
+    let signal_tx = events_tx.clone();
     thread::spawn(move || loop {
-        if connections_tx.send(Some(listener.accept())).is_err() {
+        let connection = listener.accept().map(|(stream, _addr)| stream);
+        if events_tx.send(DaemonEvent::Connection(connection)).is_err() {
             break;
         }
     });
-    let mut signals = signal_hook::iterator::Signals::new([SIGHUP]).map_err(|source| {
+    let mut signals = signal_hook::iterator::Signals::new([SIGHUP, SIGINT, SIGTERM]).map_err(|source| {
         error::FanControlError::Io {
             path: std::path::PathBuf::from("<signal-hook>"),
             source,
         }
     })?;
     thread::spawn(move || {
-        for _ in signals.forever() {
-            if hup_tx.send(None).is_err() {
+        for signal in signals.forever() {
+            let event = if signal == SIGHUP { DaemonEvent::Reload } else { DaemonEvent::Stop };
+            if signal_tx.send(event).is_err() {
                 break;
             }
         }
     });
     let mut runtime = DaemonRuntime::new()?;
+    let result = daemon_loop(&mut runtime, &events_rx);
+    // Never leave the fans pinned at the last manual speed with nothing
+    // controlling them, whatever ended the loop
+    let released = runtime.controller.release_to_system(&mut runtime.fans);
+    result.and(released)
+}
 
+/// Runs until SIGTERM/SIGINT (Ok) or an error the daemon cannot recover from.
+fn daemon_loop(runtime: &mut DaemonRuntime, events: &mpsc::Receiver<DaemonEvent>) -> error::Result<()> {
     loop {
         runtime.tick();
         // With the SMC in charge the readings only feed the UI, so the
         // daemon sleeps until the UI asks again
         let next = if runtime.config.automatic_control_enabled || runtime.ui_active() {
-            connections_rx.recv_timeout(runtime.next_wakeup())
+            events.recv_timeout(runtime.next_wakeup())
         } else {
-            connections_rx.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
+            events.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
         };
         match next {
-            Ok(None) => runtime.reload_config()?,
-            Ok(Some(Ok((stream, _addr)))) => {
+            Ok(DaemonEvent::Stop) => return Ok(()),
+            Ok(DaemonEvent::Reload) => runtime.reload_config()?,
+            Ok(DaemonEvent::Connection(Ok(stream))) => {
                 let request = ipc::read_request(&stream);
                 match request {
                     Ok(request) => match runtime.handle_request(request) {
@@ -425,7 +459,7 @@ fn daemon_main() -> error::Result<()> {
                     }
                 }
             }
-            Ok(Some(Err(source))) => return Err(error::FanControlError::Io {
+            Ok(DaemonEvent::Connection(Err(source))) => return Err(error::FanControlError::Io {
                 path: std::path::PathBuf::from(ipc::SOCKET_PATH),
                 source,
             }),
