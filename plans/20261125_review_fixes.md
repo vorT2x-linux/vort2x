@@ -183,6 +183,11 @@ Status per item: done (commit), skipped (why).
     giving the login user access to `/dev/uinput` and the internal
     keyboard nodes (moving device access into a system service is a
     redesign of t2-touchbar).
+- **D2** vhci: the control setup completion started the data stage with a
+  1000-jiffy wait for a submission slot while holding `q->urb_lock` with
+  IRQs off (sleeping in atomic context when the queue is full). It now
+  passes no timeout, like `bce_vhci_urb_init()`, so a full queue fails
+  at once and the URB completes with the error. All T2 Macs.
 
 ## Decisions and failed attempts
 

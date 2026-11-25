@@ -1277,7 +1277,6 @@ bce_vhci_urb_control_transfer_completion(struct bce_vhci_urb *urb,
 					 struct apple_bce_completion *c)
 {
 	int status;
-	unsigned long timeout;
 
 	if (urb->state == BCE_VHCI_URB_CONTROL_WAITING_FOR_SETUP_COMPLETION) {
 		if (c->data_size != sizeof(struct usb_ctrlrequest))
@@ -1285,8 +1284,11 @@ bce_vhci_urb_control_transfer_completion(struct bce_vhci_urb *urb,
 			       urb->q->endp_addr, c->data_size,
 			       sizeof(struct usb_ctrlrequest));
 
-		timeout = 1000;
-		status = bce_vhci_urb_data_start(urb, &timeout);
+		/*
+		 * The caller holds q->urb_lock with IRQs off, so this must not
+		 * wait for a free submission slot; a full queue fails at once
+		 */
+		status = bce_vhci_urb_data_start(urb, NULL);
 		if (status) {
 			bce_vhci_urb_complete(urb, status);
 			return -ENOENT;
