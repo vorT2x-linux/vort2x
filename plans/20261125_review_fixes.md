@@ -94,6 +94,15 @@ Status per item: done (commit), skipped (why).
   appears only when the clock was actually above the limit. iMac Pro.
   logind `PrepareForSleep` was not used: the wall-clock gap catches the
   same resume without a D-Bus dependency.
+- **A4** the fan daemon's socket was mode 0666 and read with no timeout
+  or length cap inside the control loop. The daemon now reads and writes
+  with a 200 ms timeout and at most 4096 bytes per request; the GUI side
+  has a 3 s timeout, so a stuck daemon no longer freezes the dashboard
+  for good. `SET_*` requests are taken only from root or a user whose
+  logind state is `active` (checked with `SO_PEERCRED` and `loginctl`);
+  anyone may still read the state. The config is saved through a temp
+  file and rename. New direct dependency `libc` (already in the lock
+  file through signal-hook). All Macs with t2-fan-control.
 
 ## Decisions and failed attempts
 

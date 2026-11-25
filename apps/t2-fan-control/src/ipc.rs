@@ -1,8 +1,10 @@
 use std::{
     fs,
-    io::{BufRead, BufReader, Write},
-    os::unix::{fs::PermissionsExt, net::{UnixListener, UnixStream}},
+    io::{BufRead, BufReader, Read, Write},
+    os::{fd::AsRawFd, unix::{fs::PermissionsExt, net::{UnixListener, UnixStream}}},
     path::{Path, PathBuf},
+    process::Command,
+    time::Duration,
 };
 
 use crate::{
@@ -13,6 +15,13 @@ use crate::{
 
 pub const SOCKET_DIR: &str = "/run/t2-fancontrol";
 pub const SOCKET_PATH: &str = "/run/t2-fancontrol/daemon.sock";
+/// The daemon reads requests inline in its control loop, so a client that
+/// sends nothing may hold it up only this long
+const DAEMON_IO_TIMEOUT: Duration = Duration::from_millis(200);
+/// A request can wait for a control tick or `systemctl enable`, but a stuck
+/// daemon must not freeze the GUI for good
+const CLIENT_IO_TIMEOUT: Duration = Duration::from_secs(3);
+const MAX_REQUEST_LINE: u64 = 4096;
 
 #[derive(Clone, Debug, Default)]
 pub struct FanStatus {
@@ -104,6 +113,7 @@ pub fn send_request(request: Request) -> Result<DaemonState> {
         path: PathBuf::from(SOCKET_PATH),
         source,
     })?;
+    set_timeouts(&stream, CLIENT_IO_TIMEOUT)?;
     let payload = encode_request(&request);
     stream
         .write_all(payload.as_bytes())
@@ -152,13 +162,46 @@ pub fn handle_request_line(line: &str) -> Result<Request> {
     Err(protocol_error(format!("unknown request: {line}")))
 }
 
+fn set_timeouts(stream: &UnixStream, timeout: Duration) -> Result<()> {
+    stream.set_read_timeout(Some(timeout)).map_err(FanControlError::ProcessSpawn)?;
+    stream.set_write_timeout(Some(timeout)).map_err(FanControlError::ProcessSpawn)
+}
+
 pub fn read_request(stream: &UnixStream) -> Result<Request> {
-    let mut reader = BufReader::new(stream);
+    set_timeouts(stream, DAEMON_IO_TIMEOUT)?;
+    let mut reader = BufReader::new(stream).take(MAX_REQUEST_LINE);
     let mut line = String::new();
     reader
         .read_line(&mut line)
         .map_err(FanControlError::ProcessSpawn)?;
     handle_request_line(&line)
+}
+
+/// Whether the client may change settings: root, or a user with an active
+/// local session (the person at the Mac). Reading the state is open to all.
+pub fn peer_may_change(stream: &UnixStream) -> bool {
+    let Some(uid) = peer_uid(stream) else { return false };
+    uid == 0
+        || Command::new("loginctl")
+            .args(["show-user", &uid.to_string(), "--property=State", "--value"])
+            .output()
+            .is_ok_and(|output| output.status.success() && output.stdout.trim_ascii() == b"active")
+}
+
+fn peer_uid(stream: &UnixStream) -> Option<u32> {
+    let mut cred = libc::ucred { pid: 0, uid: 0, gid: 0 };
+    let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+    // SAFETY: cred and len are valid for writes and len holds cred's size
+    let ret = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_PEERCRED,
+            (&raw mut cred).cast(),
+            &mut len,
+        )
+    };
+    (ret == 0).then_some(cred.uid)
 }
 
 pub fn write_response(mut stream: &UnixStream, state: &DaemonState) -> Result<()> {

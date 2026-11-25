@@ -645,6 +645,7 @@ dependencies = [
  "glob",
  "gtk4",
  "libadwaita",
+ "libc",
  "signal-hook",
  "thiserror",
 ]

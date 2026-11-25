@@ -53,7 +53,10 @@ impl AppConfig {
     pub fn save(&self) -> std::io::Result<()> {
         let path = primary_config_path();
         if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
-        fs::write(path, self.to_disk_format())
+        // A crash mid-write must not leave half a config behind
+        let temp = path.with_extension("txt.tmp");
+        fs::write(&temp, self.to_disk_format())?;
+        fs::rename(&temp, &path)
     }
 
     fn to_disk_format(&self) -> String {

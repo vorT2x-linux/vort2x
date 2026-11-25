@@ -446,6 +446,9 @@ fn daemon_loop(runtime: &mut DaemonRuntime, events: &mpsc::Receiver<DaemonEvent>
             Ok(DaemonEvent::Connection(Ok(stream))) => {
                 let request = ipc::read_request(&stream);
                 match request {
+                    Ok(request) if !matches!(request, Request::GetState) && !ipc::peer_may_change(&stream) => {
+                        let _ = ipc::write_error(&stream, "only root or the user at the Mac can change fan settings");
+                    }
                     Ok(request) => match runtime.handle_request(request) {
                         Ok(state) => {
                             let _ = ipc::write_response(&stream, &state);
