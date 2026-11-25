@@ -69,6 +69,12 @@ impl State {
         }
     }
 
+    /// The SMC clock can be stale at boot until NTP runs. Behind a saved
+    /// time every age would be wrong, so such a tick changes nothing.
+    fn clock_behind(&self, now: u64) -> bool {
+        now < self.dod0_changed || now < self.full_charge || now < self.attempt_started
+    }
+
     /// disableSocLimitPolicy: true while a full charge is needed
     fn update(&mut self, now: u64, dod0: &str, fully_charged: bool) -> bool {
         if self.dod0 != dod0 {
@@ -80,11 +86,11 @@ impl State {
             self.attempt_started = 0;
         }
 
-        let mut charge = now - self.dod0_changed >= DOD0_MAX_AGE;
-        if now - self.full_charge > FULL_CHARGE_MAX_AGE {
+        let mut charge = now.saturating_sub(self.dod0_changed) >= DOD0_MAX_AGE;
+        if now.saturating_sub(self.full_charge) > FULL_CHARGE_MAX_AGE {
             if self.attempt_started == 0 {
                 self.attempt_started = now;
-            } else if now - self.attempt_started > FULL_CHARGE_ATTEMPT {
+            } else if now.saturating_sub(self.attempt_started) > FULL_CHARGE_ATTEMPT {
                 self.full_charge = now;
                 self.attempt_started = 0;
             }
@@ -122,8 +128,12 @@ fn tick(hwmon: &Path, state: &mut State) {
         && read_trimmed(&hwmon.join("smc_battery_capacity_percent"))
             .and_then(|soc| soc.parse::<u32>().ok())
             .is_some_and(|soc| soc >= 99);
+    let now = now();
+    if state.clock_behind(now) {
+        return;
+    }
     let before = format!("{state:?}");
-    let charge = state.update(now(), &dod0, fully_charged);
+    let charge = state.update(now, &dod0, fully_charged);
     if format!("{state:?}") != before {
         state.save();
     }
@@ -196,5 +206,13 @@ mod tests {
         }
         assert!(state.update(now + 6 * 3_600, "8100", false));
         assert!(!state.update(now + 13 * 3_600, "8101", false));
+    }
+
+    #[test]
+    fn a_clock_behind_the_saved_times_is_noticed_and_never_wraps() {
+        let mut state = settled(1_000_000);
+        assert!(state.clock_behind(999_000));
+        assert!(!state.clock_behind(1_000_000));
+        assert!(!state.update(999_000, "8736", false));
     }
 }

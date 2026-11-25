@@ -103,6 +103,11 @@ Status per item: done (commit), skipped (why).
   anyone may still read the state. The config is saved through a temp
   file and rename. New direct dependency `libc` (already in the lock
   file through signal-hook). All Macs with t2-fan-control.
+- **A5** t2-smc gauging subtracted saved timestamps from the current time
+  as plain `u64`; with the clock behind them (stale SMC RTC before NTP)
+  that wrapped and lifted the charge limit. A tick with the clock behind
+  any saved time now changes nothing, and the age sums use
+  `saturating_sub`. New test. Laptops.
 
 ## Decisions and failed attempts
 
