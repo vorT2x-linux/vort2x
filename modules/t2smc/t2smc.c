@@ -470,7 +470,8 @@ static struct t2smc_entry *t2smc_get_entry_by_index(struct t2smc_device *t2,
 {
 	struct t2smc_entry *cache = &t2->cache[index];
 	char key[4];
-	int ret;
+	/* 0: another caller filled the entry while this one waited */
+	int ret = 0;
 
 	if (cache->valid)
 		return cache;

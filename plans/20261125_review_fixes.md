@@ -207,6 +207,10 @@ Status per item: done (commit), skipped (why).
   press can't requeue it on freed memory. A failed suspend clears the
   flag again. Touch Bar MacBook Pros only; can't be tested on the iMac
   Pro.
+- **D5** t2smc: `t2smc_get_entry_by_index()` read `ret` uninitialised when
+  another caller had filled the cache entry while it waited for the
+  mutex (hidden on Fedora by `CONFIG_INIT_STACK_ALL_ZERO`). `ret` now
+  starts at 0. All T2 Macs.
 
 ## Decisions and failed attempts
 
