@@ -44,6 +44,13 @@ Status per item: done (commit), skipped (why).
   `install-acpi-fixes.sh` catches the autofix pipeline's status, so a
   failure is the intended warning instead of ending the installer. All
   Macs.
+- **C1** t2-airshare wrote Quick Share files before anyone accepted. The
+  introduction now only notes the files; file chunks before acceptance end
+  the connection; after acceptance data goes to `name.part` (created with
+  `create_new`) and is renamed when complete. A `Drop` on the session
+  removes partial files on decline, cancel or error. A second
+  introduction, more than 1000 files, negative sizes and more bytes than
+  the free space are refused. Macs with t2-airshare.
 
 ## Decisions and failed attempts
 

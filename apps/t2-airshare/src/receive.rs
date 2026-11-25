@@ -62,16 +62,24 @@ pub enum Outcome {
     Cancelled,
 }
 
+/// Most files one transfer may announce.
+const MAX_FILES: usize = 1000;
+
+/// A file the sender announced. Nothing is written until the user accepts;
+/// then data goes to a `.part` file that gets the real name when complete.
 struct PendingFile {
-    path: PathBuf,
-    file: File,
+    name: String,
     size: i64,
     written: i64,
+    part: Option<(PathBuf, File)>,
 }
 
 struct Session {
     link: Link,
     bytes: BytesPayloads,
+    /// set once the user accepted, file chunks before that are refused
+    accepted: bool,
+    introduced: bool,
     files: HashMap<i64, PendingFile>,
     text_ids: HashMap<i64, String>,
     done_files: Vec<PathBuf>,
@@ -131,6 +139,8 @@ where
     let mut session = Session {
         link: Link::new(channel, writer),
         bytes: BytesPayloads::default(),
+        accepted: false,
+        introduced: false,
         files: HashMap::new(),
         text_ids: HashMap::new(),
         done_files: Vec::new(),
@@ -140,7 +150,6 @@ where
 
     let mut keepalive = tokio::time::interval(KEEPALIVE);
     let mut pending_consent: Option<JoinHandle<bool>> = None;
-    let mut accepted = false;
     // as nearby, the receiver starts the upgrade once the connection stands
     let mut preparing: Option<JoinHandle<Result<Prepared>>> =
         upgrade.then(|| tokio::spawn(upgrade::prepare()));
@@ -199,7 +208,7 @@ where
                         }
                     }
                     nc::v1_frame::FrameType::Disconnection => {
-                        return Ok(if accepted { session.outcome() } else { Outcome::Cancelled });
+                        return Ok(if session.accepted { session.outcome() } else { Outcome::Cancelled });
                     }
                     nc::v1_frame::FrameType::PayloadTransfer => {
                         let transfer = v1.payload_transfer.unwrap_or_default();
@@ -217,14 +226,13 @@ where
                                 }
                                 Some((sn::v1_frame::FrameType::Cancel, _)) => {
                                     info!("sender cancelled");
-                                    session.discard();
                                     return Ok(Outcome::Cancelled);
                                 }
                                 Some((other, _)) => debug!("ignoring sharing frame {other:?}"),
                                 None => {}
                             }
                         }
-                        if accepted && session.complete() {
+                        if session.accepted && session.complete() {
                             session.link.send_disconnection().await?;
                             return Ok(session.outcome());
                         }
@@ -235,7 +243,7 @@ where
             answer = async { pending_consent.as_mut().unwrap().await }, if pending_consent.is_some() => {
                 pending_consent = None;
                 let status = if answer.unwrap_or(false) {
-                    accepted = true;
+                    session.accept(&dir)?;
                     sn::connection_response_frame::Status::Accept
                 } else {
                     sn::connection_response_frame::Status::Reject
@@ -247,8 +255,7 @@ where
                     }),
                     ..Default::default()
                 }).await?;
-                if !accepted {
-                    session.discard();
+                if !session.accepted {
                     return Ok(Outcome::Rejected);
                 }
             }
@@ -320,24 +327,35 @@ impl Session {
                 Ok(Some(sn::Frame::decode(data.as_slice())?))
             }
             nc::payload_transfer_frame::payload_header::PayloadType::File => {
+                if !self.accepted {
+                    bail!("file data before the transfer was accepted");
+                }
                 let pending = self
                     .files
                     .get_mut(&id)
                     .ok_or_else(|| anyhow!("file payload {id} was not announced"))?;
+                let Some((part_path, file)) = &pending.part else {
+                    bail!("file payload {id} has no open file");
+                };
                 if chunk.offset() != pending.written {
                     bail!("file chunk at {} after {} bytes", chunk.offset(), pending.written);
                 }
                 let body = chunk.body();
                 if pending.written + body.len() as i64 > pending.size {
-                    bail!("file {} grows past its announced size", pending.path.display());
+                    bail!("file {} grows past its announced size", part_path.display());
                 }
-                pending.file.write_all_at(body, pending.written as u64)?;
+                file.write_all_at(body, pending.written as u64)?;
                 pending.written += body.len() as i64;
                 if last {
-                    let pending = self.files.remove(&id).expect("present above");
-                    pending.file.sync_all()?;
-                    info!("received {}", pending.path.display());
-                    self.done_files.push(pending.path);
+                    let mut pending = self.files.remove(&id).expect("present above");
+                    let (part_path, file) = pending.part.take().expect("checked above");
+                    file.sync_all()?;
+                    let dir = part_path.parent().unwrap_or(Path::new("."));
+                    let path = unique_path(dir, &pending.name);
+                    std::fs::rename(&part_path, &path)
+                        .with_context(|| format!("rename {}", part_path.display()))?;
+                    info!("received {}", path.display());
+                    self.done_files.push(path);
                 }
                 Ok(None)
             }
@@ -345,8 +363,8 @@ impl Session {
         }
     }
 
-    /// Creates the target files for an introduction and describes the
-    /// transfer for the consent prompt.
+    /// Notes the files and texts of an introduction and describes the
+    /// transfer for the consent prompt. Nothing is written to disk yet.
     fn prepare(
         &mut self,
         intro: &sn::IntroductionFrame,
@@ -355,19 +373,26 @@ impl Session {
         sender: Option<String>,
         device_type: DeviceType,
     ) -> Result<Incoming> {
+        if std::mem::replace(&mut self.introduced, true) {
+            bail!("second introduction in one transfer");
+        }
+        if intro.file_metadata.len() > MAX_FILES {
+            bail!("{} files offered, at most {MAX_FILES} are taken", intro.file_metadata.len());
+        }
+        let mut total: u64 = 0;
         let mut files = Vec::new();
         for meta in &intro.file_metadata {
-            let path = unique_path(dir, meta.name());
-            let file = File::options()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-                .with_context(|| format!("create {}", path.display()))?;
+            let size = u64::try_from(meta.size())
+                .map_err(|_| anyhow!("negative size for {:?}", meta.name()))?;
+            total = total.saturating_add(size);
             files.push(IncomingFile { name: meta.name().to_string(), size: meta.size() });
             self.files.insert(
                 meta.payload_id(),
-                PendingFile { path, file, size: meta.size(), written: 0 },
+                PendingFile { name: meta.name().to_string(), size: meta.size(), written: 0, part: None },
             );
+        }
+        if free_space(dir).is_some_and(|free| total > free) {
+            bail!("{total} bytes offered, more than the free space in {}", dir.display());
         }
         let mut texts = Vec::new();
         for meta in &intro.text_metadata {
@@ -375,6 +400,21 @@ impl Session {
             self.text_ids.insert(meta.payload_id(), meta.text_title().to_string());
         }
         Ok(Incoming { sender, device_type, pin: pin.to_string(), files, texts })
+    }
+
+    /// Opens a `.part` file for every announced file once the user said yes.
+    fn accept(&mut self, dir: &Path) -> Result<()> {
+        for pending in self.files.values_mut() {
+            let path = unique_path(dir, &format!("{}.part", base_name(&pending.name)));
+            let file = File::options()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+                .with_context(|| format!("create {}", path.display()))?;
+            pending.part = Some((path, file));
+        }
+        self.accepted = true;
+        Ok(())
     }
 
     fn complete(&self) -> bool {
@@ -388,23 +428,42 @@ impl Session {
         }
     }
 
-    /// Removes files created for a transfer that did not complete.
-    fn discard(&mut self) {
-        for (_, pending) in self.files.drain() {
-            let _ = std::fs::remove_file(&pending.path);
+}
+
+/// Whatever ends a transfer (decline, cancel, error), partial files go.
+impl Drop for Session {
+    fn drop(&mut self) {
+        for (path, _) in self.files.drain().filter_map(|(_, pending)| pending.part) {
+            let _ = std::fs::remove_file(path);
         }
     }
+}
 
+/// Bytes an unprivileged user can still write in `dir`, None if unknown.
+fn free_space(dir: &Path) -> Option<u64> {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    // SAFETY: path is NUL-terminated and stat is a valid out pointer
+    if unsafe { libc::statvfs(path.as_ptr(), &mut stat) } != 0 {
+        return None;
+    }
+    Some((stat.f_bavail as u64).saturating_mul(stat.f_frsize as u64))
+}
+
+/// The last path component of a name the sender chose, never empty, `.` or `..`.
+fn base_name(name: &str) -> String {
+    Path::new(name)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .filter(|n| !n.is_empty() && n != "." && n != "..")
+        .unwrap_or_else(|| "received".to_string())
 }
 
 /// A free path in `dir` for a name the sender chose. Only the last path
 /// component is used, an existing file gets " (n)" before the extension.
 pub(crate) fn unique_path(dir: &Path, name: &str) -> PathBuf {
-    let base = Path::new(name)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .filter(|n| !n.is_empty() && n != "." && n != "..")
-        .unwrap_or_else(|| "received".to_string());
+    let base = base_name(name);
     let candidate = dir.join(&base);
     if !candidate.exists() {
         return candidate;
@@ -431,5 +490,12 @@ mod tests {
         std::fs::write(dir.join("photo.jpg"), b"x").unwrap();
         assert_eq!(unique_path(&dir, "photo.jpg"), dir.join("photo (1).jpg"));
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn part_names_use_only_the_last_component() {
+        assert_eq!(base_name("../../.config/autostart/x.desktop"), "x.desktop");
+        assert_eq!(base_name(".."), "received");
+        assert!(free_space(&std::env::temp_dir()).is_some());
     }
 }
