@@ -225,22 +225,26 @@ fn daemon_main() -> error::Result<()> {
                         if uid == 0
                             || service::active_session().is_ok_and(|session| session.uid == uid)
                         {
-                            Ok(())
+                            Ok(uid)
                         } else {
                             Err(error::ForceClickError::Protocol(
                                 "request is not from the active local user".to_owned(),
                             ))
                         }
                     });
-                if let Err(error) = authorized {
-                    let _ = ipc::write_error(&stream, &error.to_string());
-                    continue;
-                }
+                let peer = match authorized {
+                    Ok(uid) => uid,
+                    Err(error) => {
+                        let _ = ipc::write_error(&stream, &error.to_string());
+                        continue;
+                    }
+                };
                 match request {
                     Ok(Request::GetState) => {
                         let _ = ipc::write_response(&stream, &state_from_config(&config));
                     }
-                    Ok(Request::SetConfig(new_config)) => {
+                    Ok(Request::SetConfig(mut new_config)) => {
+                        new_config.command_uid = (!new_config.command.is_empty()).then_some(peer);
                         config = new_config;
                         apply_thresholds(&config);
                         if let Err(error) = config.save() {
@@ -566,6 +570,7 @@ pub fn page() -> Page {
                 } else {
                     String::new()
                 },
+                command_uid: None,
             };
             match ipc::send_request(Request::SetConfig(config)) {
                 Ok(_) => {

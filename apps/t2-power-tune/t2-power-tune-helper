@@ -9,6 +9,8 @@ RUNTIME_DIR = "/run/t2-power-tune"
 RUNTIME_STATE = f"{RUNTIME_DIR}/items.json"
 DEBUG_LOG = f"{RUNTIME_DIR}/debug.jsonl"
 PCI_RE = re.compile(r"^0000:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]$")
+# A sysfs device or interface name: no shell characters, no "." or ".."
+DEVICE_NAME = r"[0-9A-Za-z][0-9A-Za-z:._-]*"
 
 def fail(message):
     print(f"t2-power-tune: {message}", file=sys.stderr); raise SystemExit(1)
@@ -296,9 +298,11 @@ def validate(raw):
             fixed = {"/sys/module/snd_hda_intel/parameters/power_save":"1",
                      "/proc/sys/kernel/nmi_watchdog":"0",
                      "/proc/sys/vm/dirty_writeback_centisecs":"1500"}
-            runtime = re.fullmatch(r"/sys/bus/(usb|pci)/devices/[^/]+/power/control", ident)
-            wakeup = (re.fullmatch(r"/sys/class/net/[^/]+/device/power/wakeup", ident)
-                      or re.fullmatch(r"/sys/bus/usb/devices/[^/]+/power/wakeup", ident))
+            # Device names go into "sh -c" in the generated unit, so only
+            # plain sysfs names pass, nothing a shell would read
+            runtime = re.fullmatch(rf"/sys/bus/(usb|pci)/devices/{DEVICE_NAME}/power/control", ident)
+            wakeup = (re.fullmatch(rf"/sys/class/net/{DEVICE_NAME}/device/power/wakeup", ident)
+                      or re.fullmatch(rf"/sys/bus/usb/devices/{DEVICE_NAME}/power/wakeup", ident))
             allowed = ident in fixed or runtime or wakeup
             expected = fixed.get(ident, "disabled" if wakeup else "auto")
             if ident in fixed: valid_original = re.fullmatch(r"[0-9]+", original)
@@ -392,8 +396,9 @@ def persist(items):
     if any(item[0]=="ltr" for item in selected):
         lines += ["RequiresMountsFor=/sys/kernel/debug","After=sys-kernel-debug.mount"]
     lines += ["","[Service]","Type=oneshot","RemainAfterExit=yes"]
-    lines += [f'ExecStart=/bin/sh -c "{command(x,True)}"' for x in selected]
-    lines += [f'ExecStop=/bin/sh -c "{command(x,False)}"' for x in reversed(selected)]
+    # "-": a device that is gone must not fail the other settings
+    lines += [f'ExecStart=-/bin/sh -c "{command(x,True)}"' for x in selected]
+    lines += [f'ExecStop=-/bin/sh -c "{command(x,False)}"' for x in reversed(selected)]
     lines += ["","[Install]","WantedBy=multi-user.target",""]
     write_unit(SERVICE, lines)
     # ExecStop runs once sleep.target is left, after the system has resumed.
@@ -402,7 +407,7 @@ def persist(items):
     if any(item[0]=="ltr" for item in selected):
         resume += ["RequiresMountsFor=/sys/kernel/debug"]
     resume += ["","[Service]","Type=oneshot","RemainAfterExit=yes","ExecStart=/bin/true"]
-    resume += [f'ExecStop=/bin/sh -c "{command(x,True)}"' for x in selected]
+    resume += [f'ExecStop=-/bin/sh -c "{command(x,True)}"' for x in selected]
     resume += ["","[Install]","WantedBy=sleep.target",""]
     write_unit(RESUME_SERVICE, resume)
     if os.path.exists(LEGACY_CONFIG): os.unlink(LEGACY_CONFIG)

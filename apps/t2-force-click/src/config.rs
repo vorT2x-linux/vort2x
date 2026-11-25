@@ -54,6 +54,9 @@ pub struct AppConfig {
     pub key_combo: String,
     /// A shell command line, run via `sh -c` as the active desktop user.
     pub command: String,
+    /// Who set the command. It runs only while that user's session is the
+    /// active one, never for another user or the login screen.
+    pub command_uid: Option<u32>,
 }
 
 impl Default for AppConfig {
@@ -65,6 +68,7 @@ impl Default for AppConfig {
             action_kind: ActionKind::None,
             key_combo: String::new(),
             command: String::new(),
+            command_uid: None,
         }
     }
 }
@@ -91,7 +95,7 @@ impl AppConfig {
 
     fn to_disk_format(&self) -> String {
         format!(
-            "config_version={}\nclick_strength={}\nforce_click_threshold_percent={}\nforce_click_disabled={}\naction_kind={}\nkey_combo={}\ncommand={}\n",
+            "config_version={}\nclick_strength={}\nforce_click_threshold_percent={}\nforce_click_disabled={}\naction_kind={}\nkey_combo={}\ncommand={}\ncommand_uid={}\n",
             CONFIG_VERSION,
             self.click_strength,
             self.force_click_threshold_percent,
@@ -99,6 +103,7 @@ impl AppConfig {
             self.action_kind.as_str(),
             self.key_combo,
             self.command,
+            self.command_uid.map(|uid| uid.to_string()).unwrap_or_default(),
         )
     }
 }
@@ -144,6 +149,7 @@ fn parse_config(raw: &str) -> Option<AppConfig> {
             "action_kind" => config.action_kind = ActionKind::from_str(value),
             "key_combo" => config.key_combo = value.to_owned(),
             "command" => config.command = value.to_owned(),
+            "command_uid" => config.command_uid = value.parse().ok(),
             _ => {}
         }
     }
@@ -166,6 +172,7 @@ mod tests {
             action_kind: ActionKind::KeyCombo,
             key_combo: "leftctrl+leftalt+t".to_owned(),
             command: String::new(),
+            command_uid: Some(1000),
         };
         let parsed = parse_config(&config.to_disk_format()).unwrap();
         assert_eq!(parsed.click_strength, CLICK_STRENGTH_FIRM);
@@ -173,6 +180,7 @@ mod tests {
         assert!(parsed.force_click_disabled);
         assert_eq!(parsed.action_kind, ActionKind::KeyCombo);
         assert_eq!(parsed.key_combo, "leftctrl+leftalt+t");
+        assert_eq!(parsed.command_uid, Some(1000));
     }
 
     #[test]

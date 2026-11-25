@@ -155,6 +155,34 @@ Status per item: done (commit), skipped (why).
   now compare the count against the room left (`limit - pos`, divided by
   the reference size for containers), so nothing is summed with it and
   the dict/array index sums stay in bounds. T2 Macs with t2-sidecar.
+- **C5** other trust problems, as far as they could be fixed without a
+  redesign:
+  - t2-drop saved into the home folder when `~/Downloads` was missing,
+    where a sender's subfolders could reach `.config/autostart`. It now
+    always uses `~/Downloads` (created when missing).
+  - t2-quickshare-hotspot started a hotspot for any local user. The helper
+    now asks the bus for the caller's uid and starts it only for root or a
+    user whose logind state is `active`.
+  - t2-airshare: bytes payloads may not grow past their announced size,
+    at most 16 are open at once; L2CAP frames over 5 MiB are refused; an
+    accept error (EMFILE) is logged instead of ending the service.
+  - t2-force-click ran a command stored in `/etc` as whoever was active,
+    the login screen included, and never reaped it. The daemon now records
+    who set the command (`command_uid`, from the socket peer) and runs it
+    only while that user's session is active; each child is waited for on
+    its own thread. An existing command without `command_uid` does not
+    run until it is saved again from the app.
+  - t2-power-tune-helper: device names in generated `sh -c` lines must be
+    plain sysfs names (`[0-9A-Za-z][0-9A-Za-z:._-]*`), and `ExecStart=`/
+    `ExecStop=` lines start with `-` so one missing device doesn't fail
+    the rest.
+  - **Not done, need a design decision:** "Always trust" in t2-airshare
+    matches the sender-supplied device name (Quick Share as implemented
+    here has no authenticated sender identity to use instead; options are
+    dropping auto-accept or asking every time). The Touch Bar udev rule
+    giving the login user access to `/dev/uinput` and the internal
+    keyboard nodes (moving device access into a system service is a
+    redesign of t2-touchbar).
 
 ## Decisions and failed attempts
 

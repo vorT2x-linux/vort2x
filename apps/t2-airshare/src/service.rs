@@ -54,7 +54,15 @@ pub async fn run(name: &str) -> Result<()> {
     loop {
         tokio::select! {
             accepted = listener.accept() => {
-                let (stream, peer) = accepted?;
+                // A full file table (EMFILE) passes, it must not end the service
+                let (stream, peer) = match accepted {
+                    Ok(connection) => connection,
+                    Err(err) => {
+                        warn!("accept: {err}");
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                };
                 info!("connection from {peer}");
                 tokio::spawn(receive(stream, peer.to_string(), consent.clone(), false));
             }

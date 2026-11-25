@@ -27,7 +27,7 @@ impl ActionRunner {
             ActionKind::None => {}
             ActionKind::CopyPaste => self.run_copy_paste(),
             ActionKind::KeyCombo => self.run_key_combo(&config.key_combo),
-            ActionKind::Command => run_command(&config.command, session),
+            ActionKind::Command => run_command(&config.command, config.command_uid, session),
         }
     }
 
@@ -73,7 +73,7 @@ impl ActionRunner {
 
 }
 
-fn run_command(command: &str, session: Option<&ActiveSession>) {
+fn run_command(command: &str, owner: Option<u32>, session: Option<&ActiveSession>) {
     if command.trim().is_empty() {
         return;
     }
@@ -81,14 +81,23 @@ fn run_command(command: &str, session: Option<&ActiveSession>) {
         eprintln!("t2-force-click: no active graphical session, skipping command");
         return;
     };
+    // The command was stored by one user; it never runs as anyone else
+    if owner != Some(session.uid) {
+        eprintln!("t2-force-click: the command belongs to another user, skipping it");
+        return;
+    }
     let runtime_dir = format!("/run/user/{}", session.uid);
-    if let Err(error) = Command::new("runuser")
+    match Command::new("runuser")
         .args(["--preserve-environment", "-u", &session.user, "--", "sh", "-c", command])
         .env("XDG_RUNTIME_DIR", &runtime_dir)
         .env("DBUS_SESSION_BUS_ADDRESS", format!("unix:path={runtime_dir}/bus"))
         .spawn()
     {
-        eprintln!("t2-force-click: command spawn failed: {error}");
+        // Reaped on its own thread so finished commands leave no zombies
+        Ok(mut child) => {
+            std::thread::spawn(move || child.wait());
+        }
+        Err(error) => eprintln!("t2-force-click: command spawn failed: {error}"),
     }
 }
 
