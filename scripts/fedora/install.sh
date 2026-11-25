@@ -282,26 +282,6 @@ if (( ${#ONLY_STEPS[@]} > 0 )); then
 	done
 fi
 
-hard_error_count() {
-	if [[ -e "$VORT2X_INSTALL_HARD_ERRORS" ]]; then
-		wc -l <"$VORT2X_INSTALL_HARD_ERRORS"
-	else
-		echo 0
-	fi
-}
-
-# Steps that use run_step for their own parts exit 0 after a failed part,
-# so a step also counts as failed when it added a hard error. Otherwise it
-# would be marked applied and VorT2x Update would never offer it again.
-run_install_step() {
-	local errors_before
-	errors_before=$(hard_error_count)
-	run_step "$@"
-	if (( STEP_STATUS == 0 && $(hard_error_count) > errors_before )); then
-		STEP_STATUS=1
-	fi
-}
-
 failed_steps=()
 for step in "${STEPS[@]}"; do
 	selected "$step" || continue

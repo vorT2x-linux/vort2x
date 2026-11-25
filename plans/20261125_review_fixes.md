@@ -292,6 +292,14 @@ Status per item: done (commit), skipped (why).
   each command on its own thread, so SIGCHLD handling isn't needed and
   the dependency is removed (lock files of t2-force-click and the
   dashboard updated offline). The open PRs (#3, #4, #6) are Kirk's.
+- **H6** a test for the B1/B2 class of bug: new
+  `scripts/tests/step-status.sh` (run by the static checks) checks that a
+  step whose part failed is not counted as applied, and that
+  `install-acpi-fixes.sh` with a failing autofix (stub `python3`) exits 0
+  and records the warning. `hard_error_count`/`run_install_step` moved
+  from install.sh to lib.sh so the test can use them. Checked that the
+  ACPI part fails against `main`'s scripts (exit 1, no warning) and
+  passes on this branch.
 
 ## Decisions and failed attempts
 

@@ -107,6 +107,26 @@ info() {
 	printf '[vort2x] %s\n' "$*"
 }
 
+hard_error_count() {
+	if [[ -e "$VORT2X_INSTALL_HARD_ERRORS" ]]; then
+		wc -l <"$VORT2X_INSTALL_HARD_ERRORS"
+	else
+		echo 0
+	fi
+}
+
+# Steps that use run_step for their own parts exit 0 after a failed part,
+# so a step also counts as failed when it added a hard error. Otherwise it
+# would be marked applied and VorT2x Update would never offer it again.
+run_install_step() {
+	local errors_before
+	errors_before=$(hard_error_count)
+	run_step "$@"
+	if (( STEP_STATUS == 0 && $(hard_error_count) > errors_before )); then
+		STEP_STATUS=1
+	fi
+}
+
 # Records the commit a step or app was last installed from.
 # vort2x-update compares it with GitHub to pick what has to run again.
 VORT2X_APPLIED_DIR=${VORT2X_APPLIED_DIR:-/var/lib/vort2x-installer/applied}
