@@ -150,6 +150,11 @@ Status per item: done (commit), skipped (why).
   `cleanup_then_exit`, and a run without errors removes its empty
   ledger. Checked with a scratch script: work dir and ledger removed,
   exit status kept.
+- **C4** t2-sidecar's bplist reader checked `pos + count > limit` with a
+  device-supplied 64-bit count, which wraps. Data, dict and array readers
+  now compare the count against the room left (`limit - pos`, divided by
+  the reference size for containers), so nothing is summed with it and
+  the dict/array index sums stay in bounds. T2 Macs with t2-sidecar.
 
 ## Decisions and failed attempts
 
