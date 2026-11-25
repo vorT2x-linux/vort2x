@@ -18,11 +18,18 @@ that are only leads or hardware tests (H, G) are noted, not coded.
 
 ## Acceptance criteria
 
-- [ ] Static checks print `STATIC_CHECK_OK` (podman, Fedora 45)
-- [ ] `cargo test` passes, without new warnings, for every changed crate
-- [ ] Every changed kernel module builds against 7.3.4-300.fc45 with `W=1`
-      and no new warnings
-- [ ] `bash -n` and shellcheck pass for every changed shell script
+- [x] Static checks print `STATIC_CHECK_OK` (podman, Fedora 45, run on
+      the final commit; includes the new `step-status.sh` test)
+- [x] `cargo test --locked` passes without warnings for every changed
+      crate: t2-fan-control, t2-airshare, t2-drop, t2-zone-power,
+      t2-smc-control, t2-force-click, t2-touchid, vort2x-dashboard
+- [x] Every changed kernel module builds against 7.3.4-300.fc45 with
+      `W=1` and no warnings: apple-t2-bridge (vhci, audio), t2smc,
+      t2touchbar, t2gmux, t2bdrm, t2smp, t2-sidecar
+- [x] The gpu-runtime-pm series with the new 0003l applies to
+      7.3.4-300.fc45 and amdgpu builds (`gpu-series-check.sh`: BUILD_OK)
+- [x] `bash -n` and shellcheck (warning level) pass for every changed
+      shell script
 
 ## Items
 
@@ -305,6 +312,16 @@ Status per item: done (commit), skipped (why).
 
 Newest first.
 
+- 2026-11-25: items that need a redesign or a person at the Mac were not
+  coded and are listed per item (C3 root-owned source, C5 airshare trust
+  and Touch Bar device access, D6 t2smp affinities, P2 build stamps, P3
+  remaining daemons, P4 dashboard async). Hardware leads (H1, H3, G)
+  need Kirk.
+- 2026-11-25: D7 as a new patch 0003l instead of editing 0003a/0003g,
+  so the tested patches stay as they are and the fix can be dropped on
+  its own if it misbehaves.
+- 2026-11-25: B3 keeps fuzz 3 as a reported fallback rather than a hard
+  failure in the kernel hook (an i915 hunk needs it on 7.3.5).
 - 2026-11-25: A1 also releases manual fan mode in t2smc's shutdown and
   remove paths, so a reboot or module reload hands the fans back even when
   the daemon never got to.
