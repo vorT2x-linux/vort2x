@@ -222,7 +222,10 @@ check_touch_id() {
 			"${report:-bioutil failed}"
 		return 0
 	fi
-	templates=$(printf '%s\n' "$report" | grep -oE '[0-9]+ (biometric )?template' | grep -oE '^[0-9]+' | head -n1)
+	# grep finds nothing on Macs without Touch ID; under pipefail that would
+	# end the script instead of reaching the message below
+	templates=$(printf '%s\n' "$report" | grep -oE '[0-9]+ (biometric )?template' | grep -oE '^[0-9]+' | head -n1) ||
+		templates=
 	if [[ -z "$templates" ]]; then
 		printf 'Could not read the Touch ID enrollment count; continuing.\n'
 	elif ((templates == 0)); then

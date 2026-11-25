@@ -130,6 +130,11 @@ Status per item: done (commit), skipped (why).
   removes the marker and logs that a restart is needed when it was the
   running kernel. A retry that fails again is not re-marked, so it is
   tried once, not at every boot. All Macs.
+- **B5** the macOS USB script's Touch ID count ended the script under
+  `pipefail` when grep found nothing (likely on Macs without Touch ID).
+  The assignment now falls back to empty, so the "could not read" message
+  is reached. Same idea as the change KAIT2EN made for this check. Macs
+  without Touch ID, macOS side.
 
 ## Decisions and failed attempts
 
