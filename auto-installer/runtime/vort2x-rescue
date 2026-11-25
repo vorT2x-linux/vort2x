@@ -350,7 +350,10 @@ mount_target() {
 		fi
 	fi
 
-	if [[ -r /etc/resolv.conf ]]; then
+	# With the live /run bound into the target, its resolv.conf symlink can
+	# lead to the live file itself, and copying a file onto itself empties it
+	if [[ -r /etc/resolv.conf && ! -L "$mount_root/etc/resolv.conf" &&
+		! "$mount_root/etc/resolv.conf" -ef /etc/resolv.conf ]]; then
 		resolv_backup=$(mktemp "${TMPDIR:-/tmp}/vort2x-resolv.XXXXXX")
 		cat "$mount_root/etc/resolv.conf" >"$resolv_backup" 2>/dev/null || :
 		cat /etc/resolv.conf >"$mount_root/etc/resolv.conf" 2>/dev/null || :

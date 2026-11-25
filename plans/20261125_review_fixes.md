@@ -135,6 +135,11 @@ Status per item: done (commit), skipped (why).
   The assignment now falls back to empty, so the "could not read" message
   is reached. Same idea as the change KAIT2EN made for this check. Macs
   without Touch ID, macOS side.
+- **B6** `vort2x-rescue` copied the live resolv.conf onto the target's,
+  which with the live `/run` bound in is the same file, so it was emptied
+  (no DNS until exit). The copy and its restore are now skipped when the
+  target's resolv.conf is a symlink or the same file as the live one (a
+  symlink already leads to the live resolver). Live USB rescue.
 
 ## Decisions and failed attempts
 
