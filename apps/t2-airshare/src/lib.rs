@@ -12,6 +12,8 @@ pub mod bluetooth;
 pub mod config;
 pub mod discover;
 pub mod endpoint;
+#[cfg(feature = "gui")]
+pub mod gui;
 pub mod hotspot;
 pub mod l2cap;
 pub mod link;

@@ -1,4 +1,6 @@
 [Desktop Entry]
+# Opened from the VorT2x Dashboard; kept for its icon and app ID.
+NoDisplay=true
 Name=T2 Power Explorer
 Comment=Inspect kernel device topology and runtime power state
 Exec=t2-power-explorer

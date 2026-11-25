@@ -221,11 +221,14 @@ pub fn run() -> glib::ExitCode {
     app.run_with_args::<&str>(&[])
 }
 
-fn build_ui(app: &Application) {
-    let css_provider = install_css();
-    let model = Rc::new(RefCell::new(AppModel::new()));
-    let ui = Rc::new(build_widgets());
+/// The zone power page, shown in the standalone window and in the VorT2x Dashboard.
+pub struct Page {
+    pub title: adw::WindowTitle,
+    pub content: gtk4::Widget,
+}
 
+fn build_ui(app: &Application) {
+    let page = page();
     let window = ApplicationWindow::builder()
         .application(app)
         .title("T2 Zone Power")
@@ -234,16 +237,24 @@ fn build_ui(app: &Application) {
         .build();
     window.set_resizable(true);
 
-    let root = GtkBox::new(Orientation::Vertical, 8);
-    style::pad(&root);
-
     let header = adw::HeaderBar::new();
-    header.set_title_widget(Some(&adw::WindowTitle::new("Zone Power", "")));
+    header.set_title_widget(Some(&page.title));
     let brand = vort2x_brand();
     brand.set_margin_start(10);
     brand.set_margin_end(10);
     header.pack_start(&brand);
     window.set_titlebar(Some(&header));
+    window.set_child(Some(&page.content));
+    window.present();
+}
+
+pub fn page() -> Page {
+    let css_provider = install_css();
+    let model = Rc::new(RefCell::new(AppModel::new()));
+    let ui = Rc::new(build_widgets());
+
+    let root = GtkBox::new(Orientation::Vertical, 8);
+    style::pad(&root);
 
     // Zone 2 follows the dGPU rail on Macs with a dGPU, on others it is something else
     let (zone2, zone2_key) = if has_dgpu() { ("dGPU", "dGPU zone") } else { ("Zone 2", "Zone 2") };
@@ -288,7 +299,6 @@ fn build_ui(app: &Application) {
     footer.append(&version);
     root.append(&footer);
 
-    window.set_child(Some(&root));
     watch_theme_changes(&css_provider, &ui);
     connect_drawings(&model, &ui);
     connect_meters(&model, &ui);
@@ -297,15 +307,26 @@ fn build_ui(app: &Application) {
     {
         let model = model.clone();
         let ui = ui.clone();
+        let root = root.downgrade();
         glib::timeout_add_local(Duration::from_secs(1), move || {
-            let mut model = model.borrow_mut();
-            model.tick();
-            sync_ui(&model, &ui);
+            let Some(root) = root.upgrade() else {
+                return glib::ControlFlow::Break;
+            };
+            // In the dashboard the page stays alive while another page is
+            // shown; only read the sensors while it is on screen.
+            if root.is_mapped() {
+                let mut model = model.borrow_mut();
+                model.tick();
+                sync_ui(&model, &ui);
+            }
             glib::ControlFlow::Continue
         });
     }
 
-    window.present();
+    Page {
+        title: adw::WindowTitle::new("Zone Power", ""),
+        content: root.upcast(),
+    }
 }
 
 fn build_widgets() -> UiRefs {

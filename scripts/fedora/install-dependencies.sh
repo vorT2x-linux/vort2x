@@ -41,6 +41,7 @@ packages=(
 	dracut \
 	grubby \
 	polkit \
+	pciutils \
 	cargo \
 	rust \
 	gtk4-devel \

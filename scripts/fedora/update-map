@@ -42,6 +42,7 @@ app:t2-zone-power             apps/t2-zone-power/
 app:vort2x-update            apps/vort2x-update/
 app:t2-power-tune             apps/t2-power-tune/
 app:t2-sidecar                apps/t2-sidecar/
+app:vort2x-dashboard          apps/vort2x-dashboard/ apps/t2-airshare/ apps/t2-debug/ apps/t2-dgpu-control/ apps/t2-fan-control/ apps/t2-force-click/ apps/t2-hybrid-gpu-control/ apps/t2-power-explorer/ apps/t2-power-tune/ apps/t2-smc-control/ apps/t2-truetone/ apps/t2-zone-power/ apps/vort2x-update/
 install-t2-services-common.sh t2-services/shared/ packaging/lifecycle/
 install-t2-remote.sh          t2-services/t2-ave/Cargo.toml t2-services/t2-ave/Cargo.lock t2-services/t2-ave/Makefile t2-services/t2-ave/cli/ t2-services/t2-ave/daemon/ t2-services/t2-ave/integration/ t2-services/t2-ave/packaging/ t2-services/t2-ave/protocols/ packaging/lifecycle/
 install-touchid.sh            t2-services/t2-touchid/ packaging/lifecycle/

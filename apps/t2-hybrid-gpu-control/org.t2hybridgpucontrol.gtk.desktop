@@ -1,4 +1,6 @@
 [Desktop Entry]
+# Opened from the VorT2x Dashboard; kept for its icon and app ID.
+NoDisplay=true
 Name=T2 Hybrid GPU Control
 Comment=Configure hybrid graphics on supported T2 MacBooks
 Exec=t2-hybrid-gpu-control

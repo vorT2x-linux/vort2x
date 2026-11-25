@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Icons built into the binary, so they show on any icon theme and before
+     the app is installed. GtkApplication adds <base path>/icons
+     itself and looks for <size>/<context>/<name> below it. -->
+<gresources>
+  <gresource prefix="/org/vort2x/Dashboard/icons">
+    <file alias="scalable/apps/org.vort2x.Dashboard.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/org.vort2x.Dashboard.svg</file>
+    <file alias="scalable/apps/vort2x-airshare-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-airshare-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-debug-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-debug-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-fan-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-fan-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-force-click-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-force-click-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-graphics-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-graphics-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-power-explorer-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-power-explorer-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-power-tune-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-power-tune-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-smc-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-smc-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-truetone-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-truetone-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-update-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-update-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-zone-power-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-zone-power-symbolic.svg</file>
+  </gresource>
+</gresources>

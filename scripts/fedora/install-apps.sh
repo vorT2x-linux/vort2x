@@ -256,7 +256,9 @@ wanted t2-zone-power && run_step "t2-zone-power" install_rust_app "$REPO_ROOT/ap
 if wanted vort2x-update; then
 	run_step "vort2x-update" install_rust_app "$REPO_ROOT/apps/vort2x-update" "vort2x-update"
 fi
-wanted t2-power-tune && install_script_app t2-power-tune || true
+wanted t2-power-tune && run_step "t2-power-tune" install_rust_app "$REPO_ROOT/apps/t2-power-tune" "t2-power-tune"
 wanted t2-sidecar && install_script_app t2-sidecar || true
+# The dashboard builds in the pages of the apps above.
+wanted vort2x-dashboard && run_step "vort2x-dashboard" install_rust_app "$REPO_ROOT/apps/vort2x-dashboard" "vort2x-dashboard"
 
 info "apps installed"

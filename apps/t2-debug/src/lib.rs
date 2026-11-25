@@ -6,6 +6,8 @@
 
 pub mod archive;
 pub mod dtx;
+#[cfg(feature = "gui")]
+pub mod gui;
 pub mod logfmt;
 pub mod session;
 pub mod sysmon;

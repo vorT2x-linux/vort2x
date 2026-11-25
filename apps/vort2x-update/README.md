@@ -12,7 +12,7 @@ it. A step runs again when one of its sources changed since its record.
 | Change | Runs |
 |---|---|
 | `modules/t2smc/t2smc.c` | DKMS modules and the initramfs, then a reboot |
-| `apps/t2-fan-control/src/main.rs` | only T2 Fan Control |
+| `apps/t2-fan-control/src/lib.rs` | only T2 Fan Control and the VorT2x Dashboard |
 | `assets/eddy/...` | only VorT2x Eddy, where it is installed |
 | `README.md`, `website/` | nothing |
 | `scripts/fedora/lib.sh`, `install.sh` | a full installation is offered |

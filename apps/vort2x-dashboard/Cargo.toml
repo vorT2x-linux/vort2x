@@ -1,0 +1,25 @@
+[package]
+name = "vort2x-dashboard"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies.adw]
+package = "libadwaita"
+version = "0.7"
+features = ["v1_4"]
+
+[dependencies]
+gtk4 = { version = "0.9", features = ["v4_12"] }
+t2-airshare = { path = "../t2-airshare" }
+t2-debug = { path = "../t2-debug" }
+t2-dgpu-control = { path = "../t2-dgpu-control" }
+t2-fancontrol-gtk = { path = "../t2-fan-control" }
+t2-force-click = { path = "../t2-force-click" }
+t2-hybrid-gpu-control = { path = "../t2-hybrid-gpu-control" }
+t2-power-explorer = { path = "../t2-power-explorer" }
+t2-power-tune = { path = "../t2-power-tune" }
+t2-smc-control = { path = "../t2-smc-control" }
+t2-truetone = { path = "../t2-truetone" }
+t2-zonepower-gtk = { path = "../t2-zone-power" }
+vort2x-update = { path = "../vort2x-update" }
