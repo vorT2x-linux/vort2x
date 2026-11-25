@@ -286,6 +286,12 @@ Status per item: done (commit), skipped (why).
   the clock hold is used instead. Answering the SMC's PLimit steps for
   the Vega (the review's idea to win back states 5-7) is not done: it
   needs the B2 benchmark after the repaste.
+- **H4** camera follow-ups: the `bus_resume` part is done in D3;
+  `uses_new_polling` is left (see P3).
+- **H5** t2-force-click's unused `signal-hook` (open item): C5 now reaps
+  each command on its own thread, so SIGCHLD handling isn't needed and
+  the dependency is removed (lock files of t2-force-click and the
+  dashboard updated offline). The open PRs (#3, #4, #6) are Kirk's.
 
 ## Decisions and failed attempts
 
