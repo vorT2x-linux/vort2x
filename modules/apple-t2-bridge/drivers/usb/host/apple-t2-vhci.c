@@ -1045,6 +1045,20 @@ static const char *bce_vhci_port_state_change_label(u64 p2)
 	return (p2 & 0x4) ? "connected" : "disconnected";
 }
 
+/*
+ * The root hub autosuspends when it has no children, which happens at boot
+ * if usbcore checks it before bridgeOS has reported its devices. A
+ * suspended root hub is not polled, so a port change must wake it, or the
+ * new device (e.g. the FaceTime camera) is never enumerated.
+ */
+static void bce_vhci_notify_port_change(struct usb_hcd *hcd)
+{
+	if (HCD_RH_RUNNING(hcd))
+		usb_hcd_poll_rh_status(hcd);
+	else
+		usb_hcd_resume_root_hub(hcd);
+}
+
 static void bce_vhci_handle_system_event(struct bce_vhci_event_queue *q,
 					 struct bce_vhci_message *msg)
 {
@@ -1054,6 +1068,7 @@ static void bce_vhci_handle_system_event(struct bce_vhci_event_queue *q,
 		   msg->param1 > 0 &&
 		   msg->param1 < ARRAY_SIZE(q->vhci->port_to_device)) {
 		set_bit(msg->param1 - 1, &q->vhci->port_change_pending);
+		bce_vhci_notify_port_change(q->vhci->hcd);
 		pr_debug(
 			"port state change event: port=%u state=%s status=%x p2=%llx\n",
 			msg->param1,
