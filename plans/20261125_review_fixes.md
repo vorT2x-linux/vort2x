@@ -238,6 +238,25 @@ Status per item: done (commit), skipped (why).
   need the `gpu-series-check.sh` build test and a hardware run, so they
   are left for a separate branch. The other scripts' toolchain `dnf`
   calls are already skipped in kernel hooks (`--no-deps`).
+- **P3** (partly) daemons that never idle:
+  - t2-touchid: the Escape watcher keeps libinput suspended outside a
+    match window (it used to handle every mouse and trackpad event all
+    day); `Verifying::set` wakes it. An unreachable sensor is retried
+    with a back-off (750 ms at first, doubling up to 30 s, cut short by a
+    prompt or a resume) and logged on attempts 1, 2, 4, 8, ...
+  - t2-zone-power: an unchanged CPU cap is checked against sysfs every
+    5 s instead of reading `scaling_max_freq` of every policy each 250 ms
+    tick (about 150 reads a second on the iMac Pro).
+  - t2touchbar: the inactivity timer is re-armed at most once a second
+    instead of on every input event with IRQs off.
+  - t2-force-click: the trackpad watcher checks its event node with one
+    sysfs read every 5 s instead of opening every `/dev/input/event*`
+    once a second.
+  - **Not done:** t2-touchbar's libinput context and per-frame dumb
+    buffer mapping, t2-truetone's fixed ticks, t2-drop's 1 Hz
+    housekeeping, the `/proc/net/unix` poll in t2-touchid, and
+    `uses_new_polling` in vhci (needs the cold-boot camera test from
+    v0.2.4). Each changes timing a person should check on a Mac.
 
 ## Decisions and failed attempts
 

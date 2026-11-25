@@ -170,10 +170,9 @@ fn daemon_main() -> error::Result<()> {
                 loop {
                     match wait_for_input(&device) {
                         Ok(false) => {
-                            let reenumerated = sysfs::find_trackpad_device_with_path()
-                                .map(|(path, _)| path != device_path)
-                                .unwrap_or(true);
-                            if reenumerated {
+                            // One sysfs read instead of opening every event
+                            // node; a full scan only once the node changed
+                            if !sysfs::is_trackpad_node(&device_path) {
                                 eprintln!("t2-force-click: trackpad event device changed");
                                 break;
                             }
@@ -271,7 +270,7 @@ fn wait_for_input(device: &evdev::Device) -> io::Result<bool> {
         events: libc::POLLIN,
         revents: 0,
     };
-    let result = unsafe { libc::poll(&mut fd, 1, 1000) };
+    let result = unsafe { libc::poll(&mut fd, 1, 5000) };
     if result < 0 {
         return Err(io::Error::last_os_error());
     }

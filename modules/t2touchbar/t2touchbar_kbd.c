@@ -72,6 +72,8 @@ struct appletb_kbd {
 	bool suspended;
 	bool has_dimmed;
 	bool has_turned_off;
+	/* jiffies of the last inactivity timer re-arm */
+	unsigned long last_rearm;
 	u8 saved_mode;
 	u8 current_mode;
 	u8 pending_mode;
@@ -255,8 +257,15 @@ static void reset_inactivity_timer(struct appletb_kbd *kbd)
 			kbd->has_turned_off = false;
 			schedule_work(&kbd->restore_brightness_work);
 		}
-		mod_delayed_work(system_wq, &kbd->inactivity_work,
-				 secs_to_jiffies(appletb_tb_dim_timeout));
+		/*
+		 * Every key and trackpad event lands here with IRQs off; the
+		 * timeout counts in seconds, so re-arming once a second is enough
+		 */
+		if (time_after(jiffies, READ_ONCE(kbd->last_rearm) + HZ)) {
+			WRITE_ONCE(kbd->last_rearm, jiffies);
+			mod_delayed_work(system_wq, &kbd->inactivity_work,
+					 secs_to_jiffies(appletb_tb_dim_timeout));
+		}
 	}
 }
 
@@ -479,6 +488,7 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 		INIT_DELAYED_WORK(&kbd->inactivity_work, appletb_inactivity_work);
 		INIT_WORK(&kbd->restore_brightness_work,
 			  appletb_restore_brightness_work);
+		kbd->last_rearm = jiffies;
 		mod_delayed_work(system_wq, &kbd->inactivity_work,
 				 secs_to_jiffies(appletb_tb_dim_timeout));
 	}

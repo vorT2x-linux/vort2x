@@ -1,4 +1,7 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use evdev::Device;
 
@@ -58,6 +61,15 @@ pub fn find_trackpad_device() -> Result<Device> {
 
 /// Return the evdev path as well as the device. The daemon uses the path to
 /// notice re-enumeration after the kernel trackpad module is reloaded.
+/// Whether the event node (e.g. /dev/input/event7) still belongs to the
+/// trackpad, read from sysfs without opening the device.
+pub fn is_trackpad_node(node: &Path) -> bool {
+    node.file_name()
+        .map(|name| Path::new("/sys/class/input").join(name).join("device/name"))
+        .and_then(|path| fs::read_to_string(path).ok())
+        .is_some_and(|name| name.trim_end() == FORCE_CLICK_DEVICE_NAME)
+}
+
 pub fn find_trackpad_device_with_path() -> Result<(PathBuf, Device)> {
     for (path, device) in evdev::enumerate() {
         if device.name() == Some(FORCE_CLICK_DEVICE_NAME) {

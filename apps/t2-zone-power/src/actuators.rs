@@ -20,9 +20,14 @@ pub struct CpuCap {
     policies: Vec<PathBuf>,
     min_khz: u32,
     max_khz: u32,
+    /// The value every policy last took and when they were checked
+    applied: Cell<Option<(u32, Instant)>>,
 }
 
 const CPU_RATIO_KHZ: u32 = 100_000;
+/// An unchanged cap is checked against sysfs this often, not every tick
+/// (36 policies on the iMac Pro): resume and CPU hotplug can reset it.
+const CPU_CAP_RESYNC: Duration = Duration::from_secs(5);
 
 impl CpuCap {
     pub fn discover() -> Result<Option<Self>> {
@@ -32,6 +37,7 @@ impl CpuCap {
             min_khz: read_value(&first.join("cpuinfo_min_freq"))?,
             max_khz: read_value(&first.join("cpuinfo_max_freq"))?,
             policies,
+            applied: Cell::new(None),
         }))
     }
 
@@ -42,6 +48,12 @@ impl CpuCap {
     }
 
     pub fn apply(&self, khz: u32) -> Result<()> {
+        if self.applied.get().is_some_and(|(applied, checked)| {
+            applied == khz && checked.elapsed() < CPU_CAP_RESYNC
+        }) {
+            return Ok(());
+        }
+        let mut all_set = true;
         for policy in &self.policies {
             let path = policy.join("scaling_max_freq");
             if read_value::<u32>(&path).ok() != Some(khz) {
@@ -49,11 +61,16 @@ impl CpuCap {
                     // A policy is busy while CPU hotplug rebuilds it on
                     // resume, the next tick writes it again
                     Err(ZonePowerError::Io { source, .. })
-                        if source.kind() == io::ErrorKind::ResourceBusy => {}
-                    result => result?,
+                        if source.kind() == io::ErrorKind::ResourceBusy => all_set = false,
+                    Err(error) => {
+                        self.applied.set(None);
+                        return Err(error);
+                    }
+                    Ok(()) => {}
                 }
             }
         }
+        self.applied.set(all_set.then(|| (khz, Instant::now())));
         Ok(())
     }
 

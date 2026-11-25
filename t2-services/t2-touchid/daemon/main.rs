@@ -41,6 +41,9 @@ const BETWEEN: Duration = Duration::from_millis(150);
 /// asking, keep trying to reach the sensor for this long before giving up to
 /// the password, so the prompt waits the link out.
 const REACH_GRACE: Duration = Duration::from_secs(15);
+/// Longest wait between attempts to reach a sensor that stays unreachable.
+/// The wait ends early when fprintd asks for a finger or the Mac resumes.
+const REACH_BACKOFF_MAX: Duration = Duration::from_secs(30);
 
 
 /// Labels for automatically bound fingers. The SEP does not say which finger a
@@ -73,7 +76,7 @@ fn main() -> Result<()> {
     let mut bind_pending = config.bind_user.is_some();
     let mut prompt = Signal::new();
     let mut wait_for_fprintd_close = false;
-    let verifying = Arc::new(AtomicBool::new(false));
+    let verifying = Arc::new(keyboard::Verifying::default());
     let cancel_requested = Arc::new(AtomicBool::new(false));
     if let Err(error) =
         keyboard::watch_escape(Arc::clone(&verifying), Arc::clone(&cancel_requested))
@@ -82,6 +85,7 @@ fn main() -> Result<()> {
     }
     let resumed = resume::watch();
     let mut unreachable_since: Option<Instant> = None;
+    let mut open_failures: u32 = 0;
     log(&format!(
         "watching {} for uid {} with flags {:#x}",
         config.socket,
@@ -103,11 +107,17 @@ fn main() -> Result<()> {
             match Session::open(None, None) {
                 Ok(mut opened) => {
                     log("BiometricKit session open");
+                    open_failures = 0;
                     (user_id, identities) = find_fingers(&mut opened, user_id);
                     session = Some(opened);
                 }
                 Err(error) => {
-                    log(&format!("cannot reach the sensor: {error:#}"));
+                    open_failures = open_failures.saturating_add(1);
+                    // The first failure and then every power of two, so a
+                    // sensor that stays away doesn't fill the journal
+                    if open_failures.is_power_of_two() {
+                        log(&format!("cannot reach the sensor (attempt {open_failures}): {error:#}"));
+                    }
                     // Only fall the prompt back to the password once the sensor
                     // has stayed unreachable past the grace window; a link
                     // returning after resume settles well within it.
@@ -120,7 +130,7 @@ fn main() -> Result<()> {
                     } else {
                         unreachable_since = None;
                     }
-                    sleep(SETTLE);
+                    wait_before_retry(open_failures, &config.socket, &resumed);
                     continue;
                 }
             }
@@ -297,6 +307,24 @@ fn bind_missing(config: &Config, user: &str, identities: &[Identity]) -> bool {
     all_bound
 }
 
+/// SETTLE after the first failures, then doubling up to REACH_BACKOFF_MAX.
+/// Each attempt runs the link discovery, so a sensor that is gone for good
+/// must not be retried every SETTLE. A prompt or a resume ends the wait.
+fn wait_before_retry(failures: u32, socket: &str, resumed: &AtomicBool) {
+    let doublings = failures.saturating_sub(3).min(6);
+    let wait = (SETTLE * 2u32.pow(doublings)).min(REACH_BACKOFF_MAX);
+    let until = Instant::now() + wait;
+    loop {
+        sleep(SETTLE);
+        if Instant::now() >= until
+            || resumed.load(Ordering::Relaxed)
+            || fprint::device_is_open(socket)
+        {
+            return;
+        }
+    }
+}
+
 fn log(message: &str) {
     eprintln!("t2-touchid: {message}");
 }
@@ -310,7 +338,7 @@ fn serve(
     config: &Config,
     identities: &[Identity],
     prompt: &mut Signal,
-    verifying: &AtomicBool,
+    verifying: &keyboard::Verifying,
     cancel_requested: &AtomicBool,
     wait_for_fprintd_close: &mut bool,
 ) -> Result<()> {
@@ -338,7 +366,7 @@ fn serve(
     // an enrolment throws its progress away.
     cancel_requested.store(false, Ordering::Relaxed);
     session.start_match(config.flags, proto::NO_CREDENTIAL_SET)?;
-    verifying.store(true, Ordering::Release);
+    verifying.set(true);
     log("put your finger on the sensor");
 
     let deadline = Instant::now() + MATCH_WINDOW;
@@ -348,7 +376,7 @@ fn serve(
         let event = match session.next_event(EVENT_WAIT) {
             Ok(event) => event,
             Err(error) => {
-                verifying.store(false, Ordering::Release);
+                verifying.set(false);
                 return Err(error.into());
             }
         };
@@ -374,7 +402,7 @@ fn serve(
             Some(Event::Statistics(_)) | None => {}
         }
     }
-    verifying.store(false, Ordering::Release);
+    verifying.set(false);
     cancelled |= cancel_requested.swap(false, Ordering::AcqRel);
     session.cancel()?;
 
