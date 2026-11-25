@@ -32,6 +32,7 @@ shell_files=(
 	scripts/fedora/install-thunderbolt.sh
 	scripts/fedora/install-wireless.sh
 	scripts/fedora/install-rtc-sync.sh
+	scripts/fedora/vort2x-kernel-retry.sh
 	scripts/fedora/lib.sh
 	scripts/macos/download-fedora-iso.sh
 	scripts/macos/prepare-fedora-installer.sh

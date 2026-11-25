@@ -117,6 +117,19 @@ Status per item: done (commit), skipped (why).
   the 2026-11-20 history notes an i915 hunk that needs fuzz 3 on 7.3.5,
   and failing would leave Intel MacBooks on stock i915 (Kirk's call;
   the patches themselves were not changed).
+- **B4** kernel updates installed offline (GNOME Software / Discover,
+  `system-update.target`) could not download the kernel source, so the
+  new kernel booted with stock amdgpu, brcmfmac, i915 and thunderbolt
+  and nothing retried. The kernel source hook now leaves a marker in
+  `/var/lib/vort2x-installer/pending-kernel/<kver>` when the source is
+  unavailable. New `vort2x-kernel-retry.sh` runs from
+  `vort2x-kernel-retry.timer` two minutes after boot (a timer, so an
+  amdgpu rebuild never holds up the desktop; the service has
+  `ConditionDirectoryNotEmpty=` and `After=network-online.target`): it
+  re-runs the 44-47 hooks for each marked kernel, runs `dracut --force`,
+  removes the marker and logs that a restart is needed when it was the
+  running kernel. A retry that fails again is not re-marked, so it is
+  tried once, not at every boot. All Macs.
 
 ## Decisions and failed attempts
 
