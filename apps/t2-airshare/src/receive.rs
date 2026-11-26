@@ -66,7 +66,8 @@ pub enum Outcome {
 const MAX_FILES: usize = 1000;
 
 /// A file the sender announced. Nothing is written until the user accepts;
-/// then data goes to a `.part` file that gets the real name when complete.
+/// then data goes to a short hidden `.part` file (a long name plus `.part`
+/// could pass the filesystem's name limit) that gets the real name when complete.
 struct PendingFile {
     name: String,
     size: i64,
@@ -347,13 +348,10 @@ impl Session {
                 file.write_all_at(body, pending.written as u64)?;
                 pending.written += body.len() as i64;
                 if last {
-                    let mut pending = self.files.remove(&id).expect("present above");
-                    let (part_path, file) = pending.part.take().expect("checked above");
                     file.sync_all()?;
-                    let dir = part_path.parent().unwrap_or(Path::new("."));
-                    let path = unique_path(dir, &pending.name);
-                    std::fs::rename(&part_path, &path)
-                        .with_context(|| format!("rename {}", part_path.display()))?;
+                    let path = finish_part(part_path, &pending.name)?;
+                    // Only now: until here Drop must still find the .part file
+                    self.files.remove(&id);
                     info!("received {}", path.display());
                     self.done_files.push(path);
                 }
@@ -404,8 +402,8 @@ impl Session {
 
     /// Opens a `.part` file for every announced file once the user said yes.
     fn accept(&mut self, dir: &Path) -> Result<()> {
-        for pending in self.files.values_mut() {
-            let path = unique_path(dir, &format!("{}.part", base_name(&pending.name)));
+        for (id, pending) in &mut self.files {
+            let path = unique_path(dir, &format!(".t2airshare-{id}.part"));
             let file = File::options()
                 .write(true)
                 .create_new(true)
@@ -460,6 +458,36 @@ fn base_name(name: &str) -> String {
         .unwrap_or_else(|| "received".to_string())
 }
 
+/// Gives a finished `.part` file the sender's name. Transfers run at the
+/// same time, so the rename must never replace a file another one finished
+/// meanwhile: RENAME_NOREPLACE fails instead and the next free name is tried.
+fn finish_part(part: &Path, name: &str) -> Result<PathBuf> {
+    use std::os::unix::ffi::OsStrExt;
+    let dir = part.parent().unwrap_or(Path::new("."));
+    let from = std::ffi::CString::new(part.as_os_str().as_bytes())?;
+    loop {
+        let path = unique_path(dir, name);
+        let to = std::ffi::CString::new(path.as_os_str().as_bytes())?;
+        // SAFETY: both paths are NUL-terminated and outlive the call
+        let ret = unsafe {
+            libc::renameat2(
+                libc::AT_FDCWD,
+                from.as_ptr(),
+                libc::AT_FDCWD,
+                to.as_ptr(),
+                libc::RENAME_NOREPLACE,
+            )
+        };
+        if ret == 0 {
+            return Ok(path);
+        }
+        let err = std::io::Error::last_os_error();
+        if err.kind() != std::io::ErrorKind::AlreadyExists {
+            return Err(err).with_context(|| format!("rename {}", part.display()));
+        }
+    }
+}
+
 /// A free path in `dir` for a name the sender chose. Only the last path
 /// component is used, an existing file gets " (n)" before the extension.
 pub(crate) fn unique_path(dir: &Path, name: &str) -> PathBuf {
@@ -489,6 +517,19 @@ mod tests {
         assert_eq!(unique_path(&dir, "../../etc/passwd"), dir.join("passwd"));
         std::fs::write(dir.join("photo.jpg"), b"x").unwrap();
         assert_eq!(unique_path(&dir, "photo.jpg"), dir.join("photo (1).jpg"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn finish_part_never_replaces_a_file() {
+        let dir = std::env::temp_dir().join(format!("t2airshare-finish-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), b"old").unwrap();
+        std::fs::write(dir.join(".t2airshare-1.part"), b"new").unwrap();
+        let path = finish_part(&dir.join(".t2airshare-1.part"), "a.txt").unwrap();
+        assert_eq!(path, dir.join("a (1).txt"));
+        assert_eq!(std::fs::read(dir.join("a.txt")).unwrap(), b"old");
+        assert!(!dir.join(".t2airshare-1.part").exists());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
