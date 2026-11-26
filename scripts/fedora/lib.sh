@@ -56,6 +56,8 @@ installation_summary() {
 		return 0
 	fi
 	info "installation completed without recorded errors"
+	# Nothing to keep; kernel hooks run this on every kernel update
+	rm -f "$VORT2X_INSTALL_ERRORS"
 }
 
 installer_exit() {
@@ -65,6 +67,14 @@ installer_exit() {
 		installation_summary || status=1
 	fi
 	exit "$status"
+}
+
+# For an EXIT trap with its own cleanup: runs the command, then the
+# installer's exit handler, which reports and removes the error ledger.
+cleanup_then_exit() {
+	local status=$?
+	"$@" || true
+	installer_exit "$status"
 }
 
 trap 'record_error "command failed (status $?) at ${BASH_SOURCE[0]:-$0}:$LINENO: $BASH_COMMAND"' ERR
@@ -95,6 +105,26 @@ run_step() {
 
 info() {
 	printf '[vort2x] %s\n' "$*"
+}
+
+hard_error_count() {
+	if [[ -e "$VORT2X_INSTALL_HARD_ERRORS" ]]; then
+		wc -l <"$VORT2X_INSTALL_HARD_ERRORS"
+	else
+		echo 0
+	fi
+}
+
+# Steps that use run_step for their own parts exit 0 after a failed part,
+# so a step also counts as failed when it added a hard error. Otherwise it
+# would be marked applied and VorT2x Update would never offer it again.
+run_install_step() {
+	local errors_before
+	errors_before=$(hard_error_count)
+	run_step "$@"
+	if (( STEP_STATUS == 0 && $(hard_error_count) > errors_before )); then
+		STEP_STATUS=1
+	fi
 }
 
 # Records the commit a step or app was last installed from.
@@ -363,20 +393,31 @@ prune_kernel_sources() {
 # Patch helpers for scripts that rebuild in-tree drivers. They expect
 # PATCH_DIR, PATCH_SERIES, PATCH_FILES and KVER from the caller.
 apply_patch_if_needed() {
-	local tree=$1 patch_file=$2
+	local tree=$1 patch_file=$2 name=${2#"$REPO_ROOT/"} output
 
-	if patch -d "$tree" -p1 --dry-run --batch --forward --fuzz=3 \
+	if patch -d "$tree" -p1 --dry-run --batch --forward --fuzz=2 \
 			--no-backup-if-mismatch \
 			<"$patch_file" >/dev/null 2>&1; then
-		info "applying ${patch_file#"$REPO_ROOT/"}"
-		patch -d "$tree" -p1 --batch --forward --fuzz=3 \
+		info "applying $name"
+		patch -d "$tree" -p1 --batch --forward --fuzz=2 \
 			--no-backup-if-mismatch <"$patch_file"
+	elif patch -d "$tree" -p1 --dry-run --batch --forward --fuzz=3 \
+			--no-backup-if-mismatch \
+			<"$patch_file" >/dev/null 2>&1; then
+		# Fuzz 3 ignores all three context lines, so an add-only hunk lands
+		# at its old line number whatever is there now. Kept so a small
+		# kernel change doesn't drop the whole series, but always reported.
+		info "applying $name with fuzz 3"
+		output=$(patch -d "$tree" -p1 --batch --forward --fuzz=3 \
+			--no-backup-if-mismatch <"$patch_file")
+		printf '%s\n' "$output"
+		warn "$name needed fuzz 3 on $KVER, check these hunks landed in the right place: $(grep 'with fuzz 3' <<<"$output" | tr '\n' ' ')"
 	elif patch -d "$tree" -p1 --dry-run --batch --reverse --fuzz=3 \
 			--no-backup-if-mismatch \
 			<"$patch_file" >/dev/null 2>&1; then
-		info "${patch_file#"$REPO_ROOT/"} is already present"
+		info "$name is already present"
 	else
-		fail "patch does not apply to $KVER: ${patch_file#"$REPO_ROOT/"}"
+		fail "patch does not apply to $KVER: $name"
 	fi
 }
 

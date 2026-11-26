@@ -66,9 +66,14 @@ struct appletb_kbd {
 	struct delayed_work inactivity_work;
 	struct work_struct restore_brightness_work;
 	struct work_struct mode_work;
-	struct mutex mode_lock;
+	/* the input handler runs with IRQs off, so no mutex */
+	spinlock_t mode_lock;
+	/* set while suspending or suspended: Fn presses queue no mode work */
+	bool suspended;
 	bool has_dimmed;
 	bool has_turned_off;
+	/* jiffies of the last inactivity timer re-arm */
+	unsigned long last_rearm;
 	u8 saved_mode;
 	u8 current_mode;
 	u8 pending_mode;
@@ -133,12 +138,13 @@ static void appletb_kbd_mode_work(struct work_struct *work)
 	struct appletb_kbd *kbd = container_of(work, struct appletb_kbd,
 					       mode_work);
 	struct hid_device *hdev = kbd->mode_field->report->device;
+	unsigned long flags;
 	u8 mode;
 	int ret;
 
-	mutex_lock(&kbd->mode_lock);
+	spin_lock_irqsave(&kbd->mode_lock, flags);
 	mode = kbd->pending_mode;
-	mutex_unlock(&kbd->mode_lock);
+	spin_unlock_irqrestore(&kbd->mode_lock, flags);
 
 	ret = appletb_kbd_set_mode(kbd, mode);
 	if (ret)
@@ -149,14 +155,19 @@ static void appletb_kbd_mode_work(struct work_struct *work)
 static void appletb_kbd_queue_mode(struct appletb_kbd *kbd, u8 mode)
 {
 	struct hid_device *hdev = kbd->mode_field->report->device;
+	unsigned long flags;
 
-	mutex_lock(&kbd->mode_lock);
+	spin_lock_irqsave(&kbd->mode_lock, flags);
+	if (kbd->suspended) {
+		spin_unlock_irqrestore(&kbd->mode_lock, flags);
+		return;
+	}
 	kbd->pending_mode = mode;
 	kbd->current_mode = mode;
-	mutex_unlock(&kbd->mode_lock);
-
-	hid_info(hdev, "touchbar mode queued from input path: mode=%u\n", mode);
 	schedule_work(&kbd->mode_work);
+	spin_unlock_irqrestore(&kbd->mode_lock, flags);
+
+	hid_dbg(hdev, "touchbar mode queued from input path: mode=%u\n", mode);
 }
 
 static ssize_t mode_show(struct device *dev,
@@ -246,8 +257,15 @@ static void reset_inactivity_timer(struct appletb_kbd *kbd)
 			kbd->has_turned_off = false;
 			schedule_work(&kbd->restore_brightness_work);
 		}
-		mod_delayed_work(system_wq, &kbd->inactivity_work,
-				 secs_to_jiffies(appletb_tb_dim_timeout));
+		/*
+		 * Every key and trackpad event lands here with IRQs off; the
+		 * timeout counts in seconds, so re-arming once a second is enough
+		 */
+		if (time_after(jiffies, READ_ONCE(kbd->last_rearm) + HZ)) {
+			WRITE_ONCE(kbd->last_rearm, jiffies);
+			mod_delayed_work(system_wq, &kbd->inactivity_work,
+					 secs_to_jiffies(appletb_tb_dim_timeout));
+		}
 	}
 }
 
@@ -449,7 +467,7 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 		return -ENOMEM;
 
 	kbd->mode_field = mode_field;
-	mutex_init(&kbd->mode_lock);
+	spin_lock_init(&kbd->mode_lock);
 	INIT_WORK(&kbd->mode_work, appletb_kbd_mode_work);
 
 	ret = hid_hw_start(hdev, HID_CONNECT_HIDINPUT);
@@ -470,6 +488,7 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 		INIT_DELAYED_WORK(&kbd->inactivity_work, appletb_inactivity_work);
 		INIT_WORK(&kbd->restore_brightness_work,
 			  appletb_restore_brightness_work);
+		kbd->last_rearm = jiffies;
 		mod_delayed_work(system_wq, &kbd->inactivity_work,
 				 secs_to_jiffies(appletb_tb_dim_timeout));
 	}
@@ -517,10 +536,11 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
 
+	/* No Fn press may queue the work again once it is cancelled */
+	input_unregister_handler(&kbd->inp_handler);
 	cancel_work_sync(&kbd->mode_work);
 	appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_OFF);
 
-	input_unregister_handler(&kbd->inp_handler);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 
@@ -534,7 +554,12 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 static int appletb_kbd_suspend(struct hid_device *hdev, pm_message_t msg)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
+	unsigned long flags;
+	int ret;
 
+	spin_lock_irqsave(&kbd->mode_lock, flags);
+	kbd->suspended = true;
+	spin_unlock_irqrestore(&kbd->mode_lock, flags);
 	cancel_work_sync(&kbd->mode_work);
 	kbd->saved_mode = kbd->current_mode;
 
@@ -542,14 +567,27 @@ static int appletb_kbd_suspend(struct hid_device *hdev, pm_message_t msg)
 	 * nested runtime-PM reference would wait for that transition to complete
 	 * and deadlock the USB PM state machine.
 	 */
-	return appletb_kbd_set_mode_active(kbd, APPLETB_KBD_MODE_OFF);
+	ret = appletb_kbd_set_mode_active(kbd, APPLETB_KBD_MODE_OFF);
+	if (ret) {
+		/* The suspend is aborted, so no resume will clear the flag */
+		spin_lock_irqsave(&kbd->mode_lock, flags);
+		kbd->suspended = false;
+		spin_unlock_irqrestore(&kbd->mode_lock, flags);
+	}
+	return ret;
 }
 
 static int appletb_kbd_resume(struct hid_device *hdev)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
+	unsigned long flags;
+	int ret;
 
-	return appletb_kbd_set_mode_active(kbd, kbd->saved_mode);
+	ret = appletb_kbd_set_mode_active(kbd, kbd->saved_mode);
+	spin_lock_irqsave(&kbd->mode_lock, flags);
+	kbd->suspended = false;
+	spin_unlock_irqrestore(&kbd->mode_lock, flags);
+	return ret;
 }
 
 static const struct hid_device_id appletb_kbd_hid_ids[] = {

@@ -1,0 +1,377 @@
+# Fixes from the 2026-11-25 code review
+
+## Goal
+
+Work through the findings of the 2026-11-25 read-only code review of
+`main` (v0.3.0) on one branch, one commit per item (Kirk's call: one
+branch for the whole review instead of one per item). The items cover the
+fan and power daemons, the installer and updater scripts, the network
+receivers (t2-airshare, t2-drop), the updater's trust model, kernel
+modules (vhci, t2touchbar, t2smc, t2gmux, t2bdrm, t2smp, sidecar, audio)
+and idle wakeups. Which Macs each item affects is noted per item below.
+
+## Plan
+
+One commit per review item, in the review's suggested order first
+(A1, A2, B1+B2, C1, C2, D1, C3, P1, A3), then the rest by section. Items
+that are only leads or hardware tests (H, G) are noted, not coded.
+
+## Acceptance criteria
+
+- [x] Static checks print `STATIC_CHECK_OK` (podman, Fedora 45, run on
+      the final commit; includes the new `step-status.sh` test)
+- [x] `cargo test --locked` passes without warnings for every changed
+      crate: t2-fan-control, t2-airshare, t2-drop, t2-zone-power,
+      t2-smc-control, t2-force-click, t2-touchid, vort2x-dashboard
+- [x] After the PR feedback and donation removal: `cargo test --locked`
+      with `-D warnings` passes for t2-fan-control, t2-airshare,
+      vort2x-dashboard, vort2x-update, t2-force-click, t2-zone-power,
+      t2-smc-control, t2-power-tune, t2-hybrid-gpu-control,
+      t2-power-explorer, t2-debug, t2-dgpu-control; t2gmux builds W=1
+      without warnings; the deprecated Python app compiles; no
+      Patreon/donation reference is left outside plans and history
+- [x] Every changed kernel module builds against 7.3.4-300.fc45 with
+      `W=1` and no warnings: apple-t2-bridge (vhci, audio), t2smc,
+      t2touchbar, t2gmux, t2bdrm, t2smp, t2-sidecar
+- [x] The gpu-runtime-pm series with the new 0003l applies to
+      7.3.4-300.fc45 and amdgpu builds (`gpu-series-check.sh`: BUILD_OK)
+- [x] `bash -n` and shellcheck (warning level) pass for every changed
+      shell script
+
+## Items
+
+Status per item: done (commit), skipped (why).
+
+- **A1** fan daemon left the fans in manual mode on exit. SIGTERM/SIGINT
+  now end the loop, and every exit path (signal, error) releases the fans
+  to the SMC. New `--release` mode, run as `ExecStopPost=` so SIGKILL and
+  panics are covered too. t2smc releases manual mode on shutdown and
+  module remove. All Macs with t2-fan-control.
+- **A2** no temperature reading set the fans to minimum. With automatic
+  control on, a tick with no reading now hands the fans to the SMC; the
+  next good reading takes them back. Five failed ticks in a row (about
+  10 s, no reading or a failed fan write) end the daemon with an error
+  so systemd restarts it and the hwmon paths are found again.
+- **B1 + B2** failed steps were marked applied. `install.sh` now counts
+  the hard errors before each step and treats a step that added one as
+  failed, so it is not marked applied and VorT2x Update offers it again.
+  `install-acpi-fixes.sh` catches the autofix pipeline's status, so a
+  failure is the intended warning instead of ending the installer. All
+  Macs.
+- **C1** t2-airshare wrote Quick Share files before anyone accepted. The
+  introduction now only notes the files; file chunks before acceptance end
+  the connection; after acceptance data goes to `name.part` (created with
+  `create_new`) and is renamed when complete. A `Drop` on the session
+  removes partial files on decline, cancel or error. A second
+  introduction, more than 1000 files, negative sizes and more bytes than
+  the free space are refused. Macs with t2-airshare.
+- **C2** t2-drop (root) allocated whatever `Content-Length` said, up to
+  2 GiB, for any request. Bodies are now capped at 1 MiB except /Upload
+  after an accepted ask; the buffer grows with the data that arrives, not
+  with the header; request and header lines are capped at 8 KiB and 100
+  headers; chunk sizes use `checked_add`; gunzip output is capped; at
+  most 8 connections at once. The unit gets `MemoryMax=50%`,
+  `NoNewPrivileges=yes` and `ProtectSystem=strict` (the daemon writes only
+  to /proc/sys and talks netlink/D-Bus; needs the hardware test to
+  confirm). Macs with t2-drop.
+- **D1** vhci: a control status for a URB already marked cancelled
+  completed and freed it while it was still on the cancel list (use after
+  free, double giveback). The status check now leaves cancelled URBs to
+  the cancel worker, and `bce_vhci_urb_complete()` unlinks `cancel_list`
+  before freeing. All T2 Macs (internal USB).
+- **C3** (partly) vort2x-update-helper picked the highest *local* tag of
+  the user-owned checkout. It now lists release tags with `git ls-remote`
+  on the constant GitHub URL and checks out the commit GitHub names for
+  the tag, so a tag planted in the checkout is never used; the fetch
+  prunes local `v*` tags GitHub doesn't have. The `optional` actions move
+  the checkout to the release before running anything instead of using
+  the working tree as found. **Not done, needs Kirk's decision:** the
+  checkout stays user-owned, so a process running as the user can still
+  change files between checkout and the root run, or set git filters in
+  `.git/config`; and apps are built as the user into the user's cargo
+  cache and then installed by root. The full fix (root-owned source tree,
+  builds outside the user's reach) changes vort2x-install, the multicall
+  tool and the app build, which is bigger than one review item. Helper
+  tests not added yet (the helper needs root and pkexec; making it
+  testable is part of that redesign).
+- **P1** the SideCar receive thread waited in uninterruptible sleep
+  (state D), adding 1.0 to the load average all the time. It now waits
+  with `TASK_IDLE`. Repeated receive errors are logged rate-limited and,
+  after three in a row, retried every 100 ms instead of in a tight loop.
+  All T2 Macs with t2-sidecar.
+- **A3** the Vega clock hold only rewrote the sclk mask after seeing the
+  GPU in states 5-7, so a mask dropped by a GPU reset while idling was
+  noticed only after the jump to the top clocks. The mask is now also
+  rewritten after a system sleep (a wall-clock gap of 2 s or more between
+  ticks; the monotonic clock stops in suspend), when the GPU comes back
+  from runtime suspend, and every 5 s while it is active. The log line
+  appears only when the clock was actually above the limit. iMac Pro.
+  logind `PrepareForSleep` was not used: the wall-clock gap catches the
+  same resume without a D-Bus dependency.
+- **A4** the fan daemon's socket was mode 0666 and read with no timeout
+  or length cap inside the control loop. The daemon now reads and writes
+  with a 200 ms timeout and at most 4096 bytes per request; the GUI side
+  has a 3 s timeout, so a stuck daemon no longer freezes the dashboard
+  for good. `SET_*` requests are taken only from root or a user whose
+  logind state is `active` (checked with `SO_PEERCRED` and `loginctl`);
+  anyone may still read the state. The config is saved through a temp
+  file and rename. New direct dependency `libc` (already in the lock
+  file through signal-hook). All Macs with t2-fan-control.
+- **A5** t2-smc gauging subtracted saved timestamps from the current time
+  as plain `u64`; with the clock behind them (stale SMC RTC before NTP)
+  that wrapped and lifted the charge limit. A tick with the clock behind
+  any saved time now changes nothing, and the age sums use
+  `saturating_sub`. New test. Laptops.
+- **B3** kernel patches were applied with `--fuzz=3`, which ignores all
+  context, so an add-only hunk could land in the wrong function. Patches
+  now apply with fuzz 2; only if that fails is fuzz 3 tried, and then the
+  hunks that needed it are printed and recorded as a warning. Checked in
+  a scratch tree: an add-only hunk with no matching context is applied
+  at fuzz 3 and reported. Not made a hard failure in the kernel hook:
+  the 2026-11-20 history notes an i915 hunk that needs fuzz 3 on 7.3.5,
+  and failing would leave Intel MacBooks on stock i915 (Kirk's call;
+  the patches themselves were not changed).
+- **B4** kernel updates installed offline (GNOME Software / Discover,
+  `system-update.target`) could not download the kernel source, so the
+  new kernel booted with stock amdgpu, brcmfmac, i915 and thunderbolt
+  and nothing retried. The kernel source hook now leaves a marker in
+  `/var/lib/vort2x-installer/pending-kernel/<kver>` when the source is
+  unavailable. New `vort2x-kernel-retry.sh` runs from
+  `vort2x-kernel-retry.timer` two minutes after boot (a timer, so an
+  amdgpu rebuild never holds up the desktop; the service has
+  `ConditionDirectoryNotEmpty=` and `After=network-online.target`): it
+  re-runs the 44-47 hooks for each marked kernel, runs `dracut --force`,
+  removes the marker and logs that a restart is needed when it was the
+  running kernel. A retry that fails again is not re-marked, so it is
+  tried once, not at every boot. All Macs.
+- **B5** the macOS USB script's Touch ID count ended the script under
+  `pipefail` when grep found nothing (likely on Macs without Touch ID).
+  The assignment now falls back to empty, so the "could not read" message
+  is reached. Same idea as the change KAIT2EN made for this check. Macs
+  without Touch ID, macOS side.
+- **B6** `vort2x-rescue` copied the live resolv.conf onto the target's,
+  which with the live `/run` bound in is the same file, so it was emptied
+  (no DNS until exit). The copy and its restore are now skipped when the
+  target's resolv.conf is a symlink or the same file as the live one (a
+  symlink already leads to the live resolver). Live USB rescue.
+- **B7** three small installer fixes. `prepare-fedora-installer.sh
+  --reuse-media` no longer overwrites `grub.cfg.fedora-original` with
+  VorT2x's own grub.cfg. `vort2x-rescue` reports "carries all T2 input
+  drivers" per kernel again (the missing flag was not reset per kernel).
+  The gpu, i915, thunderbolt, wireless and ACPI scripts replaced lib.sh's
+  EXIT trap, so their own runs (kernel hooks) never printed the summary
+  or removed the `/tmp/vort2x-install-errors.*` ledger; they now use
+  `cleanup_then_exit`, and a run without errors removes its empty
+  ledger. Checked with a scratch script: work dir and ledger removed,
+  exit status kept.
+- **C4** t2-sidecar's bplist reader checked `pos + count > limit` with a
+  device-supplied 64-bit count, which wraps. Data, dict and array readers
+  now compare the count against the room left (`limit - pos`, divided by
+  the reference size for containers), so nothing is summed with it and
+  the dict/array index sums stay in bounds. T2 Macs with t2-sidecar.
+- **C5** other trust problems, as far as they could be fixed without a
+  redesign:
+  - t2-drop saved into the home folder when `~/Downloads` was missing,
+    where a sender's subfolders could reach `.config/autostart`. It now
+    always uses `~/Downloads` (created when missing).
+  - t2-quickshare-hotspot started a hotspot for any local user. The helper
+    now asks the bus for the caller's uid and starts it only for root or a
+    user whose logind state is `active`.
+  - t2-airshare: bytes payloads may not grow past their announced size,
+    at most 16 are open at once; L2CAP frames over 5 MiB are refused; an
+    accept error (EMFILE) is logged instead of ending the service.
+  - t2-force-click ran a command stored in `/etc` as whoever was active,
+    the login screen included, and never reaped it. The daemon now records
+    who set the command (`command_uid`, from the socket peer) and runs it
+    only while that user's session is active; each child is waited for on
+    its own thread. An existing command without `command_uid` does not
+    run until it is saved again from the app.
+  - t2-power-tune-helper: device names in generated `sh -c` lines must be
+    plain sysfs names (`[0-9A-Za-z][0-9A-Za-z:._-]*`), and `ExecStart=`/
+    `ExecStop=` lines start with `-` so one missing device doesn't fail
+    the rest.
+  - **Not done, need a design decision:** "Always trust" in t2-airshare
+    matches the sender-supplied device name (Quick Share as implemented
+    here has no authenticated sender identity to use instead; options are
+    dropping auto-accept or asking every time). The Touch Bar udev rule
+    giving the login user access to `/dev/uinput` and the internal
+    keyboard nodes (moving device access into a system service is a
+    redesign of t2-touchbar).
+- **D2** vhci: the control setup completion started the data stage with a
+  1000-jiffy wait for a submission slot while holding `q->urb_lock` with
+  IRQs off (sleeping in atomic context when the queue is full). It now
+  passes no timeout, like `bce_vhci_urb_init()`, so a full queue fails
+  at once and the URB completes with the error. All T2 Macs.
+- **D3** vhci error paths. `bce_vhci_create_transfer_queue()` now
+  returns an error and unwinds when the completion or submission queue
+  can't be created; its three callers (enable device, reset device, add
+  endpoint) handle it instead of dereferencing NULL later.
+  `bus_resume` no longer fails the whole controller when one port or
+  queue won't resume (usbcore would call `usb_hc_died()` and drop every
+  T2 USB device): failures are logged, and an error (positive firmware
+  codes mapped to `-EIO`) is returned only when no port came back. The
+  "completion while no requests are pending" branch now frees its queue
+  slot. The HCD reference from `usb_create_hcd()` is released on remove
+  and when adding the HCD fails. All T2 Macs.
+- **D4** t2touchbar: every Fn press took a mutex and logged with
+  `hid_info` from the input handler, which runs with IRQs off. The mode
+  bytes are now under a spinlock, the log is `hid_dbg`, and the work is
+  queued under that lock only while the keyboard is not suspending. Remove
+  unregisters the input handler before cancelling the mode work, so an Fn
+  press can't requeue it on freed memory. A failed suspend clears the
+  flag again. Touch Bar MacBook Pros only; can't be tested on the iMac
+  Pro.
+- **D5** t2smc: `t2smc_get_entry_by_index()` read `ret` uninitialised when
+  another caller had filled the cache entry while it waited for the
+  mutex (hidden on Fedora by `CONFIG_INIT_STACK_ALL_ZERO`). `ret` now
+  starts at 0. All T2 Macs.
+- **D6** smaller module findings:
+  - snd-apple-t2: `t2audio_quiesce()` returned early while quiesced
+    without cancelling a pending resume work, so a quick wake-then-sleep
+    let it run into the next suspend. The cancel now comes first. All T2
+    Macs.
+  - t2gmux: the MMIO "mailbox busy" value `0xdeadbeef` was taken as data.
+    New `gmux_try_read()` says when nothing was read; the interrupt loop
+    sees status 0 (no endless loop), the hotplug check keeps the old
+    state, resume doesn't power down the dGPU on a busy read, and the
+    backlight returns `-EBUSY`. `gpu-active` is read first and written
+    only when it changes (NVRAM wear). Dual-GPU MacBook Pros.
+  - t2bdrm: probe unregisters the DRM device when clearing the display
+    fails after registration. Touch Bar MacBook Pros.
+  - t2smp: no longer takes CPUs offline when mem_sleep is s2idle, which
+    never runs the firmware path it works around. **Not changed:** CPUs
+    still go offline at `PM_SUSPEND_PREPARE`, before tasks are frozen, so
+    task and IRQ affinities are widened after the first suspend; doing it
+    later needs a different hook than a PM notifier (redesign).
+- **P2** (partly) `install-dependencies.sh` ran about 32 separate
+  `dnf install` calls on every full run. It now installs all packages in
+  one transaction and falls back to one call per package only when that
+  fails. **Not done:** per-module build stamps (skip unchanged DKMS and
+  in-tree driver builds) and copying only `drivers/gpu/drm/...` instead
+  of the whole kernel tree; both change how the driver builds work and
+  need the `gpu-series-check.sh` build test and a hardware run, so they
+  are left for a separate branch. The other scripts' toolchain `dnf`
+  calls are already skipped in kernel hooks (`--no-deps`).
+- **P3** (partly) daemons that never idle:
+  - t2-touchid: the Escape watcher keeps libinput suspended outside a
+    match window (it used to handle every mouse and trackpad event all
+    day); `Verifying::set` wakes it. An unreachable sensor is retried
+    with a back-off (750 ms at first, doubling up to 30 s, cut short by a
+    prompt or a resume) and logged on attempts 1, 2, 4, 8, ...
+  - t2-zone-power: an unchanged CPU cap is checked against sysfs every
+    5 s instead of reading `scaling_max_freq` of every policy each 250 ms
+    tick (about 150 reads a second on the iMac Pro).
+  - t2touchbar: the inactivity timer is re-armed at most once a second
+    instead of on every input event with IRQs off.
+  - t2-force-click: the trackpad watcher checks its event node with one
+    sysfs read every 5 s instead of opening every `/dev/input/event*`
+    once a second.
+  - **Not done:** t2-touchbar's libinput context and per-frame dumb
+    buffer mapping, t2-truetone's fixed ticks, t2-drop's 1 Hz
+    housekeeping, the `/proc/net/unix` poll in t2-touchid, and
+    `uses_new_polling` in vhci (needs the cold-boot camera test from
+    v0.2.4). Each changes timing a person should check on a Mac.
+- **D7** iMac Pro 5K series: `imac5k_cursor_only_commit()` (0003a) and
+  `imac5k_classify_commit()` (0003g) tested `drm_atomic_crtc_needs_modeset()`
+  before the DRM helpers set the flags, so a commit that changes ACTIVE
+  or MODE_ID on the left CRTC could be taken as cursor-only or a plain
+  flip. New patch `0003l` (after 0003k in the series; the existing
+  patches are unchanged) compares old and new CRTC state (enable, active,
+  mode) in both places. `gpu-series-check.sh 7.3.4 300.fc45`: the whole
+  series applies (0003l without fuzz or offset) and amdgpu builds with
+  W=1 (BUILD_OK; the one warning is in the untouched `jpeg_v2_5.c`).
+  The patch has no `Signed-off-by` yet: Kirk adds his own when he has
+  reviewed it. iMac Pro only; whether cosmic-comp or Mutter ever send
+  such a commit is unknown.
+- **P4** not done: making the `pkexec`/`systemctl` calls of the GPU,
+  SMC, Power Explorer and Fans pages async (`gio::Subprocess`) and
+  stopping the t2-debug and Power Tune timers on unmap change how pages
+  load and update; they should be iterated with Kirk's screenshots (see
+  how UI work is done), so they are left for a UI branch. The hybrid GPU
+  page already skips its 3 s refresh while hidden.
+- **H1, H3, H5 (PR follow-ups), G**: hardware tests and leads, no code.
+  The tests to run are in the review (H1: one real S3 with
+  `pm_print_times`, one with `pm_async=0`; H3: `DeviceTimeout=15`;
+  G4 T2: one boot with `amdgpu.imac5k_merge=0`).
+- **H2** t2-zone-power logged "no supported dGPU found yet, dGPU step is
+  not applied" on the iMac Pro right next to "Vega 10 graphics clock
+  held", which read as if nothing was done for the GPU. With the Vega
+  clock hold present it now says the SMC's dGPU step is not applied and
+  the clock hold is used instead. Answering the SMC's PLimit steps for
+  the Vega (the review's idea to win back states 5-7) is not done: it
+  needs the B2 benchmark after the repaste.
+- **H4** camera follow-ups: the `bus_resume` part is done in D3;
+  `uses_new_polling` is left (see P3).
+- **H5** t2-force-click's unused `signal-hook` (open item): C5 now reaps
+  each command on its own thread, so SIGCHLD handling isn't needed and
+  the dependency is removed (lock files of t2-force-click and the
+  dashboard updated offline). The open PRs (#3, #4, #6) are Kirk's.
+- **H6** a test for the B1/B2 class of bug: new
+  `scripts/tests/step-status.sh` (run by the static checks) checks that a
+  step whose part failed is not counted as applied, and that
+  `install-acpi-fixes.sh` with a failing autofix (stub `python3`) exits 0
+  and records the warning. `hard_error_count`/`run_install_step` moved
+  from install.sh to lib.sh so the test can use them. Checked that the
+  ACPI part fails against `main`'s scripts (exit 1, no warning) and
+  passes on this branch.
+- **R1-R9** Copilot's review of PR #12 (2026-11-26), all agreed:
+  - R1 t2-airshare: concurrent transfers could overwrite each other's
+    finished file (`unique_path` then `rename`). `finish_part` renames
+    with `RENAME_NOREPLACE` and tries the next free name on `EEXIST`.
+  - R4 the file entry stays in the session until sync and rename
+    succeed, so `Drop` still removes the `.part` file if either fails.
+  - R5 `.part` files are named `.t2airshare-<payload id>.part`: a
+    255-byte name plus `.part` went past the filename limit.
+  - R2 t2-fan-control: the 200 ms socket timeout was per read, so a
+    client sending a byte at a time could stall the control loop for
+    minutes. One deadline now covers the whole request line.
+  - R3 fan settings and the Quick Share hotspot: logind calls a user
+    "active" for SSH and background sessions too (checked: the
+    seatless `manager` session shows `Active=yes`). Changes now need an
+    active, non-remote session on a seat.
+  - R6 a failed control tick didn't set `last_tick`, so the daemon
+    retried at once and used its five-failure budget in a burst; the
+    same in `ramp()` with `next_ramp_step`. Both are now set first.
+  - R7 handing the fans to the SMC stopped at the first failing fan and
+    forgot the applied level, so it was never retried and shutdown
+    skipped the other fans. Every fan is tried, the level is cleared
+    only when all are free, and a fan left with the SMC is taken back
+    when a reading returns.
+  - R8 GPU-boost and ramp write failures now count as a failed tick.
+  - R9 t2gmux: a read command that times out no longer reads the
+    (stale) data register; it reports busy like the pre-command check.
+- **Donations removed** (Kirk, 2026-11-26: no donations at all). The
+  "Fund our bugs" Patreon link and its CSS are gone from every app (and
+  so from the dashboard), along with `.github/FUNDING.yml`, the Support
+  sections in the fan-control and bridge READMEs and the Patreon tier
+  artwork in `assets/branding/`.
+
+## Decisions and failed attempts
+
+Newest first.
+
+- 2026-11-26: Kirk asked to add the donation removal to this branch
+  rather than a new one.
+- 2026-11-26: R7 reuses each fan's `app_controlled` flag to find fans a
+  failed handover left with the SMC, instead of a new tracking field.
+
+- 2026-11-25: items that need a redesign or a person at the Mac were not
+  coded and are listed per item (C3 root-owned source, C5 airshare trust
+  and Touch Bar device access, D6 t2smp affinities, P2 build stamps, P3
+  remaining daemons, P4 dashboard async). Hardware leads (H1, H3, G)
+  need Kirk.
+- 2026-11-25: D7 as a new patch 0003l instead of editing 0003a/0003g,
+  so the tested patches stay as they are and the fix can be dropped on
+  its own if it misbehaves.
+- 2026-11-25: B3 keeps fuzz 3 as a reported fallback rather than a hard
+  failure in the kernel hook (an i915 hunk needs it on 7.3.5).
+- 2026-11-25: A1 also releases manual fan mode in t2smc's shutdown and
+  remove paths, so a reboot or module reload hands the fans back even when
+  the daemon never got to.
+
+## Tested
+
+Filled in by a person once it's tested on hardware:
+
+- YYYY-MM-DD, name, Mac model, Fedora version: what was checked. Ready to
+  merge.

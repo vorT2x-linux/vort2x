@@ -120,11 +120,11 @@ fn save(dir: &Path, names: Vec<String>, fds: Vec<OwnedFd>) -> Result<Vec<PathBuf
     Ok(saved)
 }
 
-/// ~/Downloads, or the home folder without one.
+/// ~/Downloads, created when missing. Never the home folder itself: a
+/// sender's subfolders could land in `.config/autostart` there.
 pub fn downloads() -> Result<PathBuf> {
     let home = PathBuf::from(std::env::var_os("HOME").context("HOME is not set")?);
-    let downloads = home.join("Downloads");
-    Ok(if downloads.is_dir() { downloads } else { home })
+    Ok(home.join("Downloads"))
 }
 
 pub async fn run(dir: PathBuf, name: String, yes: bool, ble: bool) -> Result<()> {

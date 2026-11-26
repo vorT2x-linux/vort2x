@@ -350,7 +350,10 @@ mount_target() {
 		fi
 	fi
 
-	if [[ -r /etc/resolv.conf ]]; then
+	# With the live /run bound into the target, its resolv.conf symlink can
+	# lead to the live file itself, and copying a file onto itself empties it
+	if [[ -r /etc/resolv.conf && ! -L "$mount_root/etc/resolv.conf" &&
+		! "$mount_root/etc/resolv.conf" -ef /etc/resolv.conf ]]; then
 		resolv_backup=$(mktemp "${TMPDIR:-/tmp}/vort2x-resolv.XXXXXX")
 		cat "$mount_root/etc/resolv.conf" >"$resolv_backup" 2>/dev/null || :
 		cat /etc/resolv.conf >"$mount_root/etc/resolv.conf" 2>/dev/null || :
@@ -363,7 +366,7 @@ run_shell() {
 }
 
 rebuild_initramfs() {
-	local image kernel listing module missing=0
+	local image kernel listing module missing=0 kernel_missing
 
 	confirm "This rebuilds every initramfs in $mount_root/boot." || return 0
 	if [[ ! -r "$mount_root/etc/dracut.conf.d/90-vort2x-input.conf" ]]; then
@@ -379,14 +382,16 @@ rebuild_initramfs() {
 			log "warning: could not read the initramfs for $kernel"
 			continue
 		}
+		kernel_missing=0
 		for module in "${input_modules[@]}"; do
 			if grep -Eq "/${module}\.ko(\.[a-z0-9]+)?$" <<<"$listing"; then
 				continue
 			fi
 			log "MISSING: $module is not in the initramfs for $kernel"
+			kernel_missing=1
 			missing=1
 		done
-		((missing == 1)) || log "$kernel carries all T2 input drivers"
+		((kernel_missing == 1)) || log "$kernel carries all T2 input drivers"
 	done
 	((missing == 0)) ||
 		log 'this system will boot without a keyboard; do not reboot into it yet'

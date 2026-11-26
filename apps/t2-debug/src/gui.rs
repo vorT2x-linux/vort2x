@@ -157,12 +157,6 @@ pub fn page() -> Page {
     footer.set_margin_end(18);
     footer.set_margin_top(6);
     footer.set_margin_bottom(6);
-    let donate = gtk4::LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.add_css_class("donate-link");
-    footer.append(&donate);
     let spacer = gtk4::Box::new(gtk4::Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
     footer.append(&spacer);
@@ -918,7 +912,6 @@ fn palette_css(dark: bool) -> String {
              box-shadow: inset 0 0 0 1px {line};
          }}
          .debug-panel text {{ background: {box_bg}; }}
-         .overview-value {{ font-family: 'JetBrains Mono'; font-feature-settings: 'tnum'; }}
-         .donate-link, .donate-link > label {{ color: alpha({window_fg}, 0.72); }}"
+         .overview-value {{ font-family: 'JetBrains Mono'; font-feature-settings: 'tnum'; }}"
     )
 }

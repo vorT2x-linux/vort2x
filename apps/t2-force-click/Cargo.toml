@@ -13,5 +13,4 @@ evdev = "0.13"
 glib = "0.20"
 gtk4 = { version = "0.9", features = ["v4_12"] }
 libc = "0.2"
-signal-hook = "0.3"
 thiserror = "2"

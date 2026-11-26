@@ -26,7 +26,7 @@ use gtk4::{
     gdk, glib,
     prelude::*,
     Align, Application, ApplicationWindow, Box as GtkBox, Button, CheckButton, DropDown,
-    Entry, EventControllerKey, Label, LinkButton, Orientation, Scale, Stack, StringList, Window,
+    Entry, EventControllerKey, Label, Orientation, Scale, Stack, StringList, Window,
 };
 use ipc::{DaemonState, Request};
 
@@ -170,10 +170,9 @@ fn daemon_main() -> error::Result<()> {
                 loop {
                     match wait_for_input(&device) {
                         Ok(false) => {
-                            let reenumerated = sysfs::find_trackpad_device_with_path()
-                                .map(|(path, _)| path != device_path)
-                                .unwrap_or(true);
-                            if reenumerated {
+                            // One sysfs read instead of opening every event
+                            // node; a full scan only once the node changed
+                            if !sysfs::is_trackpad_node(&device_path) {
                                 eprintln!("t2-force-click: trackpad event device changed");
                                 break;
                             }
@@ -225,22 +224,26 @@ fn daemon_main() -> error::Result<()> {
                         if uid == 0
                             || service::active_session().is_ok_and(|session| session.uid == uid)
                         {
-                            Ok(())
+                            Ok(uid)
                         } else {
                             Err(error::ForceClickError::Protocol(
                                 "request is not from the active local user".to_owned(),
                             ))
                         }
                     });
-                if let Err(error) = authorized {
-                    let _ = ipc::write_error(&stream, &error.to_string());
-                    continue;
-                }
+                let peer = match authorized {
+                    Ok(uid) => uid,
+                    Err(error) => {
+                        let _ = ipc::write_error(&stream, &error.to_string());
+                        continue;
+                    }
+                };
                 match request {
                     Ok(Request::GetState) => {
                         let _ = ipc::write_response(&stream, &state_from_config(&config));
                     }
-                    Ok(Request::SetConfig(new_config)) => {
+                    Ok(Request::SetConfig(mut new_config)) => {
+                        new_config.command_uid = (!new_config.command.is_empty()).then_some(peer);
                         config = new_config;
                         apply_thresholds(&config);
                         if let Err(error) = config.save() {
@@ -267,7 +270,7 @@ fn wait_for_input(device: &evdev::Device) -> io::Result<bool> {
         events: libc::POLLIN,
         revents: 0,
     };
-    let result = unsafe { libc::poll(&mut fd, 1, 1000) };
+    let result = unsafe { libc::poll(&mut fd, 1, 5000) };
     if result < 0 {
         return Err(io::Error::last_os_error());
     }
@@ -464,13 +467,6 @@ pub fn page() -> Page {
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
     footer.set_margin_top(10);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.set_halign(Align::Start);
-    donate.add_css_class("footer-link");
-    footer.append(&donate);
     let footer_spacer = GtkBox::new(Orientation::Horizontal, 0);
     footer_spacer.set_hexpand(true);
     footer.append(&footer_spacer);
@@ -566,6 +562,7 @@ pub fn page() -> Page {
                 } else {
                     String::new()
                 },
+                command_uid: None,
             };
             match ipc::send_request(Request::SetConfig(config)) {
                 Ok(_) => {

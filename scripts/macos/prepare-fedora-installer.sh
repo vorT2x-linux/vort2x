@@ -222,7 +222,10 @@ check_touch_id() {
 			"${report:-bioutil failed}"
 		return 0
 	fi
-	templates=$(printf '%s\n' "$report" | grep -oE '[0-9]+ (biometric )?template' | grep -oE '^[0-9]+' | head -n1)
+	# grep finds nothing on Macs without Touch ID; under pipefail that would
+	# end the script instead of reaching the message below
+	templates=$(printf '%s\n' "$report" | grep -oE '[0-9]+ (biometric )?template' | grep -oE '^[0-9]+' | head -n1) ||
+		templates=
 	if [[ -z "$templates" ]]; then
 		printf 'Could not read the Touch ID enrollment count; continuing.\n'
 	elif ((templates == 0)); then
@@ -661,7 +664,9 @@ available_kib=$(df -k "$efi_mount" | awk 'END {print $4}')
 [[ "$available_kib" =~ ^[0-9]+$ && $((available_kib * 1024)) -ge $required_bytes ]] ||
 	die 'the Fedora EFI partition does not have enough free space for VorT2x'
 install -d -m 0755 "$vort2x_directory"
-cp -p "$grub_destination" "$grub_destination.fedora-original"
+# With --reuse-media grub.cfg is already VorT2x's own; keep the first backup
+[[ -e "$grub_destination.fedora-original" ]] ||
+	cp -p "$grub_destination" "$grub_destination.fedora-original"
 install -m 0644 "$WORK/grub.cfg" "$grub_destination"
 install -m 0644 "$KIT_ROOT/vort2x-input-initramfs.img" \
 	"$vort2x_directory/vort2x-input-initramfs.img"

@@ -977,6 +977,8 @@ static int appletbdrm_probe(struct usb_interface *intf,
 	ret = appletbdrm_clear_display(adev);
 	if (ret) {
 		drm_err(drm, "Failed to clear display\n");
+		/* a failed probe must not leave the device registered */
+		drm_dev_unregister(drm);
 		return ret;
 	}
 

@@ -24,11 +24,11 @@ use gtk4::{
     glib,
     prelude::*, Align, Application, ApplicationWindow, Box as GtkBox, CheckButton, CssProvider,
     DrawingArea, DropDown, Entry, EventControllerFocus, EventControllerMotion, Expander,
-    GestureDrag, Grid, Label, LinkButton, Orientation, Popover, PositionType, StringList, Switch,
+    GestureDrag, Grid, Label, Orientation, Popover, PositionType, StringList, Switch,
     gdk,
 };
 use ipc::{DaemonState, Request};
-use signal_hook::consts::signal::SIGHUP;
+use signal_hook::consts::signal::{SIGHUP, SIGINT, SIGTERM};
 use sysfs::{discover_fans, discover_gpu_load, discover_temperature_sources, FanEndpoint, GpuLoad, TemperatureSnapshot, TemperatureSource};
 
 fn vort2x_brand() -> DrawingArea {
@@ -354,14 +354,14 @@ impl AppModel {
     }
 }
 
-/// Runs the fan daemon with `--daemon`, otherwise the standalone window.
+/// Runs the fan daemon with `--daemon`, hands the fans back to the SMC with
+/// `--release`, otherwise opens the standalone window.
 pub fn run() -> glib::ExitCode {
+    if std::env::args().any(|arg| arg == "--release") {
+        return exit_code(release_fans());
+    }
     if std::env::args().any(|arg| arg == "--daemon") {
-        if let Err(error) = daemon_main() {
-            eprintln!("{error}");
-            return glib::ExitCode::from(1);
-        }
-        return glib::ExitCode::SUCCESS;
+        return exit_code(daemon_main());
     }
 
     register_embedded_resources();
@@ -373,45 +373,82 @@ pub fn run() -> glib::ExitCode {
     app.run()
 }
 
+fn exit_code(result: error::Result<()>) -> glib::ExitCode {
+    match result {
+        Ok(()) => glib::ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            glib::ExitCode::from(1)
+        }
+    }
+}
+
+/// The SMC keeps manual fan mode after the daemon is gone, so the unit's
+/// ExecStopPost runs this to cover SIGKILL and panics.
+fn release_fans() -> error::Result<()> {
+    let mut fans = discover_fans()?;
+    Controller::new().release_to_system(&mut fans)
+}
+
+/// What wakes the daemon loop besides its own timer.
+enum DaemonEvent {
+    Connection(std::io::Result<std::os::unix::net::UnixStream>),
+    Reload,
+    Stop,
+}
+
 fn daemon_main() -> error::Result<()> {
     let listener = ipc::bind_listener()?;
-    // SIGHUP arrives as None on the same channel so a sleeping daemon wakes
-    let (connections_tx, connections_rx) = mpsc::channel();
-    let hup_tx = connections_tx.clone();
+    let (events_tx, events_rx) = mpsc::channel();
+    let signal_tx = events_tx.clone();
     thread::spawn(move || loop {
-        if connections_tx.send(Some(listener.accept())).is_err() {
+        let connection = listener.accept().map(|(stream, _addr)| stream);
+        if events_tx.send(DaemonEvent::Connection(connection)).is_err() {
             break;
         }
     });
-    let mut signals = signal_hook::iterator::Signals::new([SIGHUP]).map_err(|source| {
+    let mut signals = signal_hook::iterator::Signals::new([SIGHUP, SIGINT, SIGTERM]).map_err(|source| {
         error::FanControlError::Io {
             path: std::path::PathBuf::from("<signal-hook>"),
             source,
         }
     })?;
     thread::spawn(move || {
-        for _ in signals.forever() {
-            if hup_tx.send(None).is_err() {
+        for signal in signals.forever() {
+            let event = if signal == SIGHUP { DaemonEvent::Reload } else { DaemonEvent::Stop };
+            if signal_tx.send(event).is_err() {
                 break;
             }
         }
     });
     let mut runtime = DaemonRuntime::new()?;
+    let result = daemon_loop(&mut runtime, &events_rx);
+    // Never leave the fans pinned at the last manual speed with nothing
+    // controlling them, whatever ended the loop
+    let released = runtime.controller.release_to_system(&mut runtime.fans);
+    result.and(released)
+}
 
+/// Runs until SIGTERM/SIGINT (Ok) or an error the daemon cannot recover from.
+fn daemon_loop(runtime: &mut DaemonRuntime, events: &mpsc::Receiver<DaemonEvent>) -> error::Result<()> {
     loop {
-        runtime.tick();
+        runtime.tick()?;
         // With the SMC in charge the readings only feed the UI, so the
         // daemon sleeps until the UI asks again
         let next = if runtime.config.automatic_control_enabled || runtime.ui_active() {
-            connections_rx.recv_timeout(runtime.next_wakeup())
+            events.recv_timeout(runtime.next_wakeup())
         } else {
-            connections_rx.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
+            events.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
         };
         match next {
-            Ok(None) => runtime.reload_config()?,
-            Ok(Some(Ok((stream, _addr)))) => {
+            Ok(DaemonEvent::Stop) => return Ok(()),
+            Ok(DaemonEvent::Reload) => runtime.reload_config()?,
+            Ok(DaemonEvent::Connection(Ok(stream))) => {
                 let request = ipc::read_request(&stream);
                 match request {
+                    Ok(request) if !matches!(request, Request::GetState) && !ipc::peer_may_change(&stream) => {
+                        let _ = ipc::write_error(&stream, "only root or the user at the Mac can change fan settings");
+                    }
                     Ok(request) => match runtime.handle_request(request) {
                         Ok(state) => {
                             let _ = ipc::write_response(&stream, &state);
@@ -425,7 +462,7 @@ fn daemon_main() -> error::Result<()> {
                     }
                 }
             }
-            Ok(Some(Err(source))) => return Err(error::FanControlError::Io {
+            Ok(DaemonEvent::Connection(Err(source))) => return Err(error::FanControlError::Io {
                 path: std::path::PathBuf::from(ipc::SOCKET_PATH),
                 source,
             }),
@@ -450,7 +487,14 @@ struct DaemonRuntime {
     status: String,
     last_full_sensor_read: std::time::Instant,
     last_ui_request: Option<std::time::Instant>,
+    /// Control ticks in a row with no temperature reading or a failed write
+    failed_ticks: u32,
+    /// A GPU-boost or ramp write failed since the last control tick
+    fan_write_failed: bool,
 }
+
+/// About 10 s of failed ticks before the daemon exits for a restart.
+const MAX_FAILED_TICKS: u32 = 5;
 
 impl DaemonRuntime {
     fn new() -> error::Result<Self> {
@@ -493,6 +537,8 @@ impl DaemonRuntime {
             status,
             last_full_sensor_read: std::time::Instant::now(),
             last_ui_request: None,
+            failed_ticks: 0,
+            fan_write_failed: false,
         })
     }
 
@@ -501,7 +547,7 @@ impl DaemonRuntime {
             .is_some_and(|seen| seen.elapsed() <= Duration::from_secs(3))
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> error::Result<()> {
         if self.controller.should_tick() {
             let ui_active = self.ui_active();
             if ui_active {
@@ -524,14 +570,35 @@ impl DaemonRuntime {
             )
             {
                 Ok(snapshot) => {
+                    let has_reading = snapshot.effective_temp_c.is_some();
                     self.snapshot = snapshot;
                     if refresh_all_sensors {
                         self.last_full_sensor_read = std::time::Instant::now();
                     }
+                    if !self.config.automatic_control_enabled
+                        || (has_reading && !self.fan_write_failed)
+                    {
+                        self.failed_ticks = 0;
+                    } else {
+                        self.failed_ticks += 1;
+                        if !has_reading {
+                            self.status = "No temperature reading, the SMC controls the fans".into();
+                        }
+                    }
                 }
                 Err(error) => {
+                    self.failed_ticks += 1;
                     self.status = format!("Fan control failed: {error}");
                 }
+            }
+            self.fan_write_failed = false;
+            // The hwmon paths are found once at start; if t2smc came back
+            // under a new hwmonN they stay broken, so let systemd restart us
+            if self.failed_ticks >= MAX_FAILED_TICKS {
+                return Err(error::FanControlError::Protocol(format!(
+                    "{MAX_FAILED_TICKS} control ticks in a row failed ({}), restarting",
+                    self.status
+                )));
             }
         }
         let boosted = self.gpu_load.as_ref()
@@ -541,6 +608,7 @@ impl DaemonRuntime {
         }
         let ramped = self.controller.ramp(&mut self.fans);
         self.note_fan_change(ramped);
+        Ok(())
     }
 
     fn note_fan_change(&mut self, result: error::Result<bool>) {
@@ -550,7 +618,10 @@ impl DaemonRuntime {
                 self.snapshot.target_rpm_per_fan = self.controller.target_rpm_per_fan(&self.fans);
             }
             Ok(false) => {}
-            Err(error) => self.status = format!("Fan control failed: {error}"),
+            Err(error) => {
+                self.fan_write_failed = true;
+                self.status = format!("Fan control failed: {error}");
+            }
         }
     }
 
@@ -630,7 +701,7 @@ impl DaemonRuntime {
                 self.save_config()?;
             }
         }
-        self.tick();
+        self.tick()?;
         Ok(self.state())
     }
 
@@ -784,13 +855,6 @@ pub fn page() -> Page {
     root.append(&ui.status);
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.set_halign(Align::Start);
-    donate.add_css_class("footer-link");
-    footer.append(&donate);
     let spacer = GtkBox::new(Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
     footer.append(&spacer);
@@ -2022,7 +2086,6 @@ fn build_css(palette: ThemePalette) -> String {
 .meta-text,
 .metric-key,
 .secondary-control > title > label,
-.footer-link,
 .footer-version {{
   color: {meta};
 }}

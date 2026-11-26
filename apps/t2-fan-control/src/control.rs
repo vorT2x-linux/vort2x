@@ -72,6 +72,9 @@ impl Controller {
         temperatures: &mut [TemperatureSource],
         refresh_all_sensors: bool,
     ) -> Result<ControlSnapshot> {
+        // Set first: a failed fan write must wait for the next tick, not
+        // retry at once and use up the daemon's failure budget in a burst
+        self.last_tick = Instant::now();
         let mut snapshot = TemperatureSnapshot::read_for_control(
             temperatures,
             config.curve_sensor_key.as_deref(),
@@ -105,20 +108,34 @@ impl Controller {
             self.goal_percent = target_percent;
             let small_change = self.last_applied_percent.zip(target_percent)
                 .is_some_and(|(applied, goal)| applied.abs_diff(goal) < RAMP_START_THRESHOLD_PERCENT);
-            if forced || self.last_applied_percent.is_none() || target_percent.is_none() {
-                self.ramping = false;
-                if target_percent != self.last_applied_percent {
-                    self.apply(fans, target_percent)?;
+            // A fan a failed handover left with the SMC is taken back
+            let released = fans.iter().any(|fan| fan.app_controlled == Some(false));
+            match target_percent {
+                // No reading: the SMC's own control is safe, a guessed
+                // minimum under load is not
+                None => {
+                    self.ramping = false;
+                    if self.last_applied_percent.is_some() {
+                        self.hand_to_smc(fans)?;
+                    }
                 }
-            } else if !self.ramping && !small_change {
-                self.ramping = true;
-                self.next_ramp_step = Instant::now();
+                Some(target) if forced || released || self.last_applied_percent.is_none() => {
+                    self.ramping = false;
+                    if released || Some(target) != self.last_applied_percent {
+                        self.apply(fans, target)?;
+                    }
+                }
+                Some(_) if !self.ramping && !small_change => {
+                    self.ramping = true;
+                    self.next_ramp_step = Instant::now();
+                }
+                Some(_) => {}
             }
             target_percent = self.last_applied_percent;
-            target_rpm_per_fan = self.target_rpm_per_fan(fans);
+            if target_percent.is_some() {
+                target_rpm_per_fan = self.target_rpm_per_fan(fans);
+            }
         }
-
-        self.last_tick = Instant::now();
 
         let system_temp_c = snapshot.system_temp_c;
         let system_sensor_count = snapshot.system_sensor_count;
@@ -135,13 +152,8 @@ impl Controller {
     }
 
     pub fn release_to_system(&mut self, fans: &mut [FanEndpoint]) -> Result<()> {
-        for fan in fans {
-            fan.release_to_auto()?;
-            fan.app_controlled = Some(false);
-        }
-        self.last_applied_percent = None;
+        self.hand_to_smc(fans)?;
         self.goal_percent = None;
-        self.ramping = false;
         self.heat_soak_cooling = false;
         self.any_sensor_cooling = false;
         self.system_cooling_started_at = None;
@@ -172,7 +184,7 @@ impl Controller {
             return Ok(false);
         }
         self.ramping = false;
-        self.apply(fans, Some(100))?;
+        self.apply(fans, 100)?;
         Ok(true)
     }
 
@@ -194,10 +206,11 @@ impl Controller {
             return Ok(false);
         };
         let next = ramp_step(applied, goal);
-        self.apply(fans, Some(next))?;
-        self.ramping = next != goal;
+        // Set first: a failed write waits for the next step instead of spinning
         self.next_ramp_step = Instant::now()
             + if goal > applied { RAMP_UP_STEP_INTERVAL } else { RAMP_DOWN_STEP_INTERVAL };
+        self.apply(fans, next)?;
+        self.ramping = next != goal;
         Ok(true)
     }
 
@@ -221,15 +234,34 @@ impl Controller {
             .collect()
     }
 
-    fn apply(&mut self, fans: &mut [FanEndpoint], percent: Option<u8>) -> Result<()> {
+    fn apply(&mut self, fans: &mut [FanEndpoint], percent: u8) -> Result<()> {
         for fan in fans {
-            let rpm = percent.map(|percent| fan.percent_to_rpm(percent)).unwrap_or(fan.min_speed);
+            let rpm = fan.percent_to_rpm(percent);
             fan.set_target_speed(rpm)?;
             fan.current_speed = Some(rpm);
             fan.app_controlled = Some(true);
         }
-        self.last_applied_percent = percent;
+        self.last_applied_percent = Some(percent);
         Ok(())
+    }
+
+    /// Leaves the fans to the SMC; the next reading takes them back. Every
+    /// fan is tried even when one fails (shutdown must free them all), and
+    /// the applied level stays until all are free, so the next tick without
+    /// a reading tries again.
+    fn hand_to_smc(&mut self, fans: &mut [FanEndpoint]) -> Result<()> {
+        self.ramping = false;
+        let mut result = Ok(());
+        for fan in fans {
+            match fan.release_to_auto() {
+                Ok(()) => fan.app_controlled = Some(false),
+                Err(error) => result = result.and(Err(error)),
+            }
+        }
+        if result.is_ok() {
+            self.last_applied_percent = None;
+        }
+        result
     }
 
     fn update_system_cooling(&mut self, config: &AppConfig, system_temp_c: Option<u8>) {

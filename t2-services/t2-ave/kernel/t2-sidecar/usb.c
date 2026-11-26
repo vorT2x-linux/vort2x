@@ -244,6 +244,7 @@ static int t2sc_rx_thread(void *data)
 {
 	struct t2sc_device *dev = data;
 	size_t cap = 256 * 1024, len = 0;
+	unsigned int errors = 0;
 	u8 *chunk, *asm_buf;
 	int ret;
 
@@ -273,7 +274,8 @@ static int t2sc_rx_thread(void *data)
 				continue;
 			break;
 		}
-		wait_for_completion(&dev->rx_done);
+		/* TASK_IDLE: waiting for the T2 must not count towards the load average */
+		wait_for_completion_state(&dev->rx_done, TASK_IDLE);
 		ret = dev->rx_urb->status;
 		got = dev->rx_urb->actual_length;
 		if (ret == -ENOENT || ret == -ECONNRESET || ret == -ESHUTDOWN || ret == -ENODEV) {
@@ -282,10 +284,15 @@ static int t2sc_rx_thread(void *data)
 			break;
 		}
 		if (ret) {
-			dev_warn(&dev->intf->dev, "receive failed (%d), dropping partial packet\n", ret);
+			dev_warn_ratelimited(&dev->intf->dev,
+					     "receive failed (%d), dropping partial packet\n", ret);
 			len = 0;
+			/* A lasting error (a stalled endpoint) would otherwise spin a CPU */
+			if (++errors > 3)
+				msleep(100);
 			continue;
 		}
+		errors = 0;
 
 		if (len + got > cap) {
 			size_t want = max(cap * 2, len + got);

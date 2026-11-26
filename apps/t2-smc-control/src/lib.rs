@@ -85,8 +85,7 @@ fn palette_css(dark: bool) -> String {
          progressbar.overview-meter trough {{ min-height: 10px; border-radius: 5px; }}
          progressbar.overview-meter trough {{ margin-top: 6px; }}
          progressbar.overview-meter progress {{ min-height: 10px; border-radius: 5px; }}
-         scale.overview-meter slider {{ min-width: 18px; min-height: 18px; }}
-         .donate-link, .donate-link > label {{ color: alpha({window_fg}, 0.72); }}"
+         scale.overview-meter slider {{ min-width: 18px; min-height: 18px; }}"
     )
 }
 
@@ -1191,8 +1190,6 @@ pub fn page() -> Page {
     root.append(&vbox);
     let footer = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
     footer.set_margin_start(18); footer.set_margin_end(18); footer.set_margin_bottom(8);
-    let donate = gtk4::LinkButton::builder().uri("https://patreon.com/VorT2x").label("Fund our bugs").build();
-    donate.add_css_class("donate-link"); footer.append(&donate);
     let spacer = gtk4::Box::new(gtk4::Orientation::Horizontal, 0); spacer.set_hexpand(true); footer.append(&spacer);
     footer.append(&gtk4::Label::new(Some(&format!("v{APP_VERSION}"))));
     root.append(&footer);

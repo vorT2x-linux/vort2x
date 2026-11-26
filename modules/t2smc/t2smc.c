@@ -470,7 +470,8 @@ static struct t2smc_entry *t2smc_get_entry_by_index(struct t2smc_device *t2,
 {
 	struct t2smc_entry *cache = &t2->cache[index];
 	char key[4];
-	int ret;
+	/* 0: another caller filled the entry while this one waited */
+	int ret = 0;
 
 	if (cache->valid)
 		return cache;
@@ -3304,13 +3305,37 @@ static int t2smc_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(t2smc_pm_ops, t2smc_suspend, t2smc_resume);
 
+/*
+ * The SMC keeps manual fan mode across reboots and module reloads, so a fan
+ * left at a fixed target would stay there with nothing controlling it.
+ */
+static void t2smc_release_fans(struct t2smc_device *t2)
+{
+	int i;
+
+	for_each_set_bit(i, &t2->fan_manual, t2->fan_count) {
+		if (t2smc_write_fan_manual(t2, i, 0))
+			dev_warn(t2->dev, "fan %d: failed to leave manual mode\n", i);
+		clear_bit(i, &t2->fan_manual);
+	}
+}
+
 static void t2smc_shutdown(struct platform_device *pdev)
 {
-	t2smc_rtc_sync_from_system(platform_get_drvdata(pdev));
+	struct t2smc_device *t2 = platform_get_drvdata(pdev);
+
+	t2smc_release_fans(t2);
+	t2smc_rtc_sync_from_system(t2);
+}
+
+static void t2smc_remove(struct platform_device *pdev)
+{
+	t2smc_release_fans(platform_get_drvdata(pdev));
 }
 
 static struct platform_driver t2smc_driver = {
 	.probe = t2smc_probe,
+	.remove = t2smc_remove,
 	.shutdown = t2smc_shutdown,
 	.driver = {
 		.name = "t2smc",

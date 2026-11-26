@@ -235,7 +235,9 @@ s64 t2sc_bpr_dict_get(const struct t2sc_bpr *r, s64 dict, const char *key)
 	ret = bp_object(r, dict, &marker, &count, &pos);
 	if (ret)
 		return ret;
-	if ((marker & 0xf0) != 0xd0)
+	/* count comes from the device: compare it, never sum it, so it can't wrap */
+	if ((marker & 0xf0) != 0xd0 ||
+	    count > ((size_t)(r->offsets - r->data) - pos) / r->ref_size / 2)
 		return -EINVAL;
 	for (i = 0; i < count; i++) {
 		s64 k = bp_ref(r, pos + i * r->ref_size);
@@ -258,7 +260,8 @@ s64 t2sc_bpr_array_get(const struct t2sc_bpr *r, s64 array, unsigned int index)
 	ret = bp_object(r, array, &marker, &count, &pos);
 	if (ret)
 		return ret;
-	if ((marker & 0xf0) != 0xa0)
+	if ((marker & 0xf0) != 0xa0 ||
+	    count > ((size_t)(r->offsets - r->data) - pos) / r->ref_size)
 		return -EINVAL;
 	if (index >= count)
 		return -ENOENT;
@@ -311,7 +314,7 @@ int t2sc_bpr_data(const struct t2sc_bpr *r, s64 obj, const u8 **ptr, size_t *len
 	ret = bp_object(r, obj, &marker, &count, &pos);
 	if (ret)
 		return ret;
-	if ((marker & 0xf0) != 0x40 || pos + count > (size_t)(r->offsets - r->data))
+	if ((marker & 0xf0) != 0x40 || count > (size_t)(r->offsets - r->data) - pos)
 		return -EINVAL;
 	*ptr = r->data + pos;
 	*len = count;

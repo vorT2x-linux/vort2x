@@ -26,6 +26,8 @@ use crate::secure::SecureChannel;
 const MAX_FRAME: usize = 5 * 1024 * 1024;
 /// Largest bytes payload, these carry protobuf frames and short texts.
 const MAX_BYTES_PAYLOAD: i64 = 5 * 1024 * 1024;
+/// Bytes payloads one sender may have open at once.
+const MAX_OPEN_BYTES_PAYLOADS: usize = 16;
 /// Android expects a keep-alive at least every 10 s.
 pub const KEEPALIVE: Duration = Duration::from_secs(5);
 /// Silence after which the peer is considered gone.
@@ -232,9 +234,15 @@ impl BytesPayloads {
             bail!("bytes payload of {} bytes", header.total_size());
         }
         let id = header.id();
+        if !self.buffers.contains_key(&id) && self.buffers.len() >= MAX_OPEN_BYTES_PAYLOADS {
+            bail!("more than {MAX_OPEN_BYTES_PAYLOADS} bytes payloads open");
+        }
         let buffer = self.buffers.entry(id).or_default();
         if chunk.offset() != buffer.len() as i64 {
             bail!("bytes payload chunk at {} after {} bytes", chunk.offset(), buffer.len());
+        }
+        if (buffer.len() + chunk.body().len()) as i64 > header.total_size() {
+            bail!("bytes payload grows past its {} bytes", header.total_size());
         }
         buffer.extend_from_slice(chunk.body());
         if chunk.flags() & 1 == 0 {

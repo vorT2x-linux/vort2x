@@ -138,7 +138,3 @@ You need a Rust toolchain and the usual native build dependencies for GTK4 and L
 - `glib-compile-resources`
 - GTK4 development files
 - Libadwaita development files
-
-## Support
-
-[Support VorT2x on Patreon](https://patreon.com/VorT2x)

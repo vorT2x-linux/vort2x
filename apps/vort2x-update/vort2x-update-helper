@@ -39,20 +39,35 @@ valid_name() {
 		"$repository/scripts/fedora/update-map"
 }
 
-# The newest release tag vX.Y.Z whose supported-releases lists this Fedora.
-# vort2x-install and vort2x-update (src/git.rs) use the same rule.
+# Release tags as GitHub has them, "<commit> <tag>" newest first. Tags that
+# exist only in the user-owned checkout never appear here, so a planted
+# v99.0.0 cannot win.
+remote_releases() {
+	git ls-remote --tags "$repository_url" 'refs/tags/v*' |
+		awk '{
+			tag = $2; sub(/^refs\/tags\//, "", tag)
+			peeled = sub(/\^\{\}$/, "", tag)
+			if (tag !~ /^v[0-9]+\.[0-9]+\.[0-9]+$/) next
+			# an annotated tag is listed twice, the ^{} line names its commit
+			if (peeled || !(tag in commit)) commit[tag] = $1
+		} END { for (tag in commit) print commit[tag], tag }' |
+		sort -k2,2 -rV
+}
+
+# The commit of the newest release tag vX.Y.Z whose supported-releases lists
+# this Fedora. vort2x-install and vort2x-update (src/git.rs) use the same
+# rule. The commit comes from GitHub, not from a ref in the checkout.
 select_release() {
-	local fedora tag
+	local fedora commit _tag
 	fedora=$(. /etc/os-release && printf '%s' "${VERSION_ID:-}")
 	[[ $fedora =~ ^[0-9]+$ ]] || die 'could not read the Fedora release'
-	while read -r tag; do
-		[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
-		repo_git show "refs/tags/$tag:$supported_file" 2>/dev/null |
+	while read -r commit _tag; do
+		repo_git show "$commit:$supported_file" 2>/dev/null |
 			awk -v want="$fedora" '{ sub(/#.*/, "") } $1 == want { found = 1 } END { exit !found }' ||
 			continue
-		printf '%s\n' "$tag"
+		printf '%s\n' "$commit"
 		return 0
-	done < <(repo_git tag --list 'v*' --sort=-version:refname)
+	done < <(remote_releases)
 	die "no VorT2x release supports Fedora $fedora yet, nothing was installed"
 }
 
@@ -71,9 +86,9 @@ record_current_state() {
 
 refresh_repository() {
 	local release
-	repo_git fetch --quiet --force "$repository_url" '+refs/tags/v*:refs/tags/v*'
+	repo_git fetch --quiet --force --prune "$repository_url" '+refs/tags/v*:refs/tags/v*'
 	release=$(select_release) || exit 1
-	target="refs/tags/$release"
+	target=$release
 	record_current_state
 	repo_git reset --hard
 	repo_git clean -fd
@@ -127,6 +142,9 @@ case ${1:-} in
 	optional)
 		# Eddy belongs to the user and needs no helper.
 		(( $# == 3 )) || usage
+		# Never run what happens to be in the working tree: move it to the
+		# release first, like apply does.
+		refresh_repository
 		export SUDO_USER=$user SUDO_UID=$PKEXEC_UID
 		cd "$repository"
 		case $2:$3 in

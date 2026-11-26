@@ -77,7 +77,7 @@ struct bce_vhci_urb {
 	bool cancel_was_active;
 };
 
-void bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
+int bce_vhci_create_transfer_queue(struct bce_vhci *vhci,
 				    struct bce_vhci_transfer_queue *q,
 				    struct usb_host_endpoint *endp,
 				    bce_vhci_device_t dev_addr,

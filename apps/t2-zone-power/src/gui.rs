@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::VecDeque, rc::Rc, time::Duration};
 use adw::StyleManager;
 use gtk4::{
     cairo, gdk, gio, glib, prelude::*, Align, Application, ApplicationWindow, Box as GtkBox, CssProvider,
-    DrawingArea, Grid, Label, LinkButton, Orientation,
+    DrawingArea, Grid, Label, Orientation,
 };
 
 use crate::{
@@ -283,13 +283,6 @@ pub fn page() -> Page {
     root.append(&panel("Temperatures", &ui.temperature_graph, "CPU  •  dGPU  •  Fin stack"));
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.set_halign(Align::Start);
-    donate.add_css_class("footer-link");
-    footer.append(&donate);
     let spacer = GtkBox::new(Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
     footer.append(&spacer);
@@ -807,7 +800,6 @@ fn build_css(palette: ThemePalette) -> String {
 }}
 .meta-text,
 .metric-key,
-.footer-link,
 .footer-version {{
   color: {meta};
 }}

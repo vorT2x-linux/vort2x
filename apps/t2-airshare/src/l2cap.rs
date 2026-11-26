@@ -36,6 +36,8 @@ const SERVICE_ID_HASH: [u8; 3] = [0xfc, 0x9f, 0x5e];
 const CONTROL: [u8; 3] = [0, 0, 0];
 /// Largest packet of a data connection with lengths
 const MAX_PACKET: usize = 64 * 1024;
+/// Largest frame passed on from the phone, as the frame reader accepts.
+const MAX_FRAME: usize = 5 * 1024 * 1024;
 
 const REQUEST_ADVERTISEMENT: u8 = 1;
 const REQUEST_ADVERTISEMENT_FINISH: u8 = 2;
@@ -329,6 +331,9 @@ pub async fn serve(channel: Channel, advertisement: Arc<Vec<u8>>) -> Result<Opti
                     first = false;
                 }
                 let len = reader.u32_be().await?;
+                if len > MAX_FRAME {
+                    return Err(io::Error::other(format!("frame of {len} bytes")));
+                }
                 if packets {
                     let _guard = lock.lock().await;
                     ack_channel.send(&acknowledgement(len)).await?;

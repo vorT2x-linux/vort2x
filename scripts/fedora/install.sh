@@ -304,7 +304,7 @@ for step in "${STEPS[@]}"; do
 		step_args=()
 	fi
 
-	run_step "$step" bash "$SCRIPT_DIR/$step" "${step_args[@]}"
+	run_install_step "$step" bash "$SCRIPT_DIR/$step" "${step_args[@]}"
 	if (( STEP_STATUS != 0 )); then
 		failed_steps+=("$step")
 	elif [[ "$step" != install-apps.sh ]]; then
@@ -313,7 +313,7 @@ for step in "${STEPS[@]}"; do
 done
 
 if [[ $VORT2X_INSTALL_EDDY == 1 ]]; then
-	run_step "VorT2x Eddy for $EDDY_USER" install_eddy
+	run_install_step "VorT2x Eddy for $EDDY_USER" install_eddy
 	if (( STEP_STATUS == 0 )); then
 		mark_applied install-eddy.sh
 	else

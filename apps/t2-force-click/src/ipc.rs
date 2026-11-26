@@ -112,6 +112,8 @@ pub fn handle_request_line(line: &str) -> Result<Request> {
             action_kind,
             key_combo,
             command,
+            // set by the daemon from the peer's credentials
+            command_uid: None,
         }));
     }
     Err(protocol_error(format!("unknown request: {line}")))

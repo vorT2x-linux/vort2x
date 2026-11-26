@@ -32,6 +32,7 @@ shell_files=(
 	scripts/fedora/install-thunderbolt.sh
 	scripts/fedora/install-wireless.sh
 	scripts/fedora/install-rtc-sync.sh
+	scripts/fedora/vort2x-kernel-retry.sh
 	scripts/fedora/lib.sh
 	scripts/macos/download-fedora-iso.sh
 	scripts/macos/prepare-fedora-installer.sh
@@ -43,6 +44,7 @@ shell_files=(
 	scripts/tests/prepare-install.sh
 	scripts/tests/release-bootstrap.sh
 	scripts/tests/run-step-continuation.sh
+	scripts/tests/step-status.sh
 	scripts/tests/bt-firmware.sh
 	scripts/tests/live-bluetooth.sh
 	scripts/tests/rescue.sh
@@ -241,6 +243,7 @@ bash scripts/tests/live-bluetooth.sh
 bash scripts/tests/rescue.sh
 bash scripts/tests/prepare-install.sh
 bash scripts/tests/run-step-continuation.sh
+bash scripts/tests/step-status.sh
 bash scripts/tests/install-launcher.sh
 bash scripts/tests/release-bootstrap.sh
 bash scripts/tests/terminal-launcher.sh

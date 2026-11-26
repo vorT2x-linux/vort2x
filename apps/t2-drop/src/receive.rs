@@ -10,7 +10,7 @@
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Ipv6Addr, SocketAddrV6, TcpListener, TcpStream};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -22,8 +22,17 @@ use rustls::{ServerConfig, ServerConnection, StreamOwned};
 
 use crate::airdrop::File;
 
-/// Largest request body accepted, the files are held in memory.
+/// Largest upload accepted after the user said yes, the files are held in
+/// memory.
 const MAX_BODY: usize = 2 << 30;
+/// Largest body of any other request (/Discover, /Ask and anything before
+/// an accepted ask), so a stranger cannot make the daemon allocate much.
+const MAX_SMALL_BODY: usize = 1 << 20;
+/// Longest request or header line, and most header lines per request.
+const MAX_LINE: u64 = 8192;
+const MAX_HEADERS: usize = 100;
+/// Connections served at once, more are closed straight away.
+const MAX_CONNECTIONS: usize = 8;
 /// How long a connection may stay idle, the ask waits for the user.
 const IDLE: Duration = Duration::from_secs(180);
 
@@ -60,6 +69,26 @@ impl Drop for Transfer<'_> {
 pub struct Server {
     listener: TcpListener,
     config: Arc<ServerConfig>,
+    connections: Arc<AtomicUsize>,
+}
+
+/// Counts a connection for as long as its thread runs.
+struct ConnectionSlot(Arc<AtomicUsize>);
+
+impl ConnectionSlot {
+    fn take(count: &Arc<AtomicUsize>) -> Option<Self> {
+        if count.fetch_add(1, Ordering::AcqRel) >= MAX_CONNECTIONS {
+            count.fetch_sub(1, Ordering::AcqRel);
+            return None;
+        }
+        Some(Self(count.clone()))
+    }
+}
+
+impl Drop for ConnectionSlot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl Server {
@@ -76,7 +105,7 @@ impl Server {
             .with_safe_default_protocol_versions()?
             .with_no_client_auth()
             .with_single_cert(vec![CertificateDer::from(cert.cert.der().to_vec())], key)?;
-        Ok(Self { listener, config: Arc::new(config) })
+        Ok(Self { listener, config: Arc::new(config), connections: Arc::new(AtomicUsize::new(0)) })
     }
 
     /// Serves connections until `stop` is set or the listener fails. Every
@@ -98,12 +127,17 @@ impl Server {
                     break;
                 }
             };
+            let Some(slot) = ConnectionSlot::take(&self.connections) else {
+                debug!("AirDrop server: {MAX_CONNECTIONS} connections open, closing a new one");
+                continue;
+            };
             if stream.set_nonblocking(false).is_err() {
                 continue;
             }
             let config = self.config.clone();
             let handler = handler.clone();
             std::thread::spawn(move || {
+                let _slot = slot;
                 let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_default();
                 if let Err(err) = serve_connection(stream, config, handler.as_ref()) {
                     debug!("AirDrop connection {peer}: {err:#}");
@@ -129,7 +163,8 @@ fn serve_connection(tcp: TcpStream, config: Arc<ServerConfig>, handler: &dyn Han
     loop {
         let request = {
             let mut reader = BufReader::new(&mut tls);
-            match read_request(&mut reader)? {
+            let upload_allowed = matches!(ask, Some((_, true)));
+            match read_request(&mut reader, upload_allowed)? {
                 Some(r) => r,
                 None => return Ok(()),
             }
@@ -201,10 +236,11 @@ fn write_reply(w: &mut impl Write, status: u16, body: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Reads one request, None when the peer closed the connection.
-fn read_request(r: &mut impl BufRead) -> Result<Option<Request>> {
+/// Reads one request, None when the peer closed the connection. A large
+/// body is taken only for /Upload once the user accepted the ask.
+fn read_request(r: &mut impl BufRead, upload_allowed: bool) -> Result<Option<Request>> {
     let mut line = String::new();
-    if r.read_line(&mut line)? == 0 {
+    if read_line(r, &mut line)? == 0 {
         return Ok(None);
     }
     let mut parts = line.split_whitespace();
@@ -213,12 +249,16 @@ fn read_request(r: &mut impl BufRead) -> Result<Option<Request>> {
     if method != "POST" {
         bail!("unexpected {method} {path}");
     }
+    let max_body = if upload_allowed && path == "/Upload" { MAX_BODY } else { MAX_SMALL_BODY };
     let mut length = None;
     let mut chunked = false;
     let mut content_type = None;
-    loop {
+    for header in 0.. {
+        if header == MAX_HEADERS {
+            bail!("more than {MAX_HEADERS} header lines");
+        }
         line.clear();
-        r.read_line(&mut line)?;
+        read_line(r, &mut line)?;
         let l = line.trim_end();
         if l.is_empty() {
             break;
@@ -238,30 +278,46 @@ fn read_request(r: &mut impl BufRead) -> Result<Option<Request>> {
     if chunked {
         loop {
             line.clear();
-            r.read_line(&mut line)?;
+            read_line(r, &mut line)?;
             let size = usize::from_str_radix(line.trim().split(';').next().unwrap_or("0"), 16)?;
             if size == 0 {
                 line.clear();
-                r.read_line(&mut line)?;
+                read_line(r, &mut line)?;
                 break;
             }
-            if body.len() + size > MAX_BODY {
+            if body.len().checked_add(size).is_none_or(|total| total > max_body) {
                 bail!("request body too large");
             }
-            let start = body.len();
-            body.resize(start + size, 0);
-            r.read_exact(&mut body[start..])?;
+            read_body(r, &mut body, size)?;
             line.clear();
-            r.read_line(&mut line)?;
+            read_line(r, &mut line)?;
         }
     } else if let Some(n) = length {
-        if n > MAX_BODY {
+        if n > max_body {
             bail!("request body too large");
         }
-        body.resize(n, 0);
-        r.read_exact(&mut body)?;
+        read_body(r, &mut body, n)?;
     }
     Ok(Some(Request { path, content_type, body }))
+}
+
+/// One line of at most MAX_LINE bytes, 0 at the end of the stream.
+fn read_line(r: &mut impl BufRead, line: &mut String) -> Result<usize> {
+    let n = r.by_ref().take(MAX_LINE).read_line(line)?;
+    if n as u64 == MAX_LINE && !line.ends_with('\n') {
+        bail!("request line longer than {MAX_LINE} bytes");
+    }
+    Ok(n)
+}
+
+/// Appends `n` bytes. The buffer grows with the data that really arrives,
+/// never ahead of it on the strength of a header.
+fn read_body(r: &mut impl BufRead, body: &mut Vec<u8>, n: usize) -> Result<()> {
+    let read = r.by_ref().take(n as u64).read_to_end(body)?;
+    if read != n {
+        bail!("request body ended after {read} of {n} bytes");
+    }
+    Ok(())
 }
 
 fn parse_ask(body: &[u8]) -> Result<Ask> {
@@ -293,7 +349,10 @@ fn unpack(body: &[u8], content_type: Option<&str>) -> Result<Vec<File>> {
         dvzip(body)?
     } else if body.starts_with(&[0x1f, 0x8b]) {
         let mut data = Vec::new();
-        GzDecoder::new(body).read_to_end(&mut data).context("gunzip")?;
+        GzDecoder::new(body).take(MAX_BODY as u64 + 1).read_to_end(&mut data).context("gunzip")?;
+        if data.len() > MAX_BODY {
+            bail!("upload too large");
+        }
         data
     } else {
         body.to_vec()
@@ -412,6 +471,29 @@ mod tests {
         body.extend((5u32 | 0x8000_0000).to_be_bytes());
         body.extend(b"world");
         assert_eq!(dvzip(&body).unwrap(), b"hello world");
+    }
+
+    #[test]
+    fn large_bodies_only_for_an_accepted_upload() {
+        let request = |path: &str, length: usize| {
+            format!("POST {path} HTTP/1.1\r\nContent-Length: {length}\r\n\r\n").into_bytes()
+        };
+        let big = MAX_SMALL_BODY + 1;
+        assert!(read_request(&mut &request("/Ask", big)[..], true).is_err());
+        assert!(read_request(&mut &request("/Upload", big)[..], false).is_err());
+        // allowed, but the 1 MiB that was announced never arrives
+        let err = read_request(&mut &request("/Upload", big)[..], true).err().unwrap();
+        assert!(err.to_string().contains("ended after 0"));
+        let mut ok = request("/Discover", 2);
+        ok.extend_from_slice(b"hi");
+        assert_eq!(read_request(&mut &ok[..], false).unwrap().unwrap().body, b"hi");
+    }
+
+    #[test]
+    fn header_lines_are_capped() {
+        let mut long = b"POST /Ask HTTP/1.1\r\nX: ".to_vec();
+        long.resize(long.len() + MAX_LINE as usize, b'a');
+        assert!(read_request(&mut &long[..], false).is_err());
     }
 
     #[test]
