@@ -672,8 +672,10 @@ static bool gmux_mmio_busy(struct apple_gmux_data *gmux_data)
 }
 
 /*
- * Skip the access while the mailbox is busy and return GMUX_MMIO_BUSY_VALUE;
- * @busy, when given, tells the caller so it doesn't take that as data.
+ * Skip the access while the mailbox is busy, and don't read the data register
+ * if the read command never finishes: it would hold stale data. Either way
+ * return GMUX_MMIO_BUSY_VALUE; @busy, when given, tells the caller so it
+ * doesn't take that as data.
  */
 static u32 gmux_mmio_read(struct apple_gmux_data *gmux_data, int port,
 			  int size, bool *busy)
@@ -683,20 +685,21 @@ static u32 gmux_mmio_read(struct apple_gmux_data *gmux_data, int port,
 
 	mutex_lock(&gmux_data->index_lock);
 	skipped = gmux_mmio_busy(gmux_data);
-	if (busy)
-		*busy = skipped;
 	if (!skipped) {
 		iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
 		iowrite8(GMUX_MMIO_READ | size,
 			 gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
-		if (gmux_mmio_busy(gmux_data))
+		skipped = gmux_mmio_busy(gmux_data);
+		if (skipped)
 			pr_warn_ratelimited("read command timeout on port 0x%x\n",
 					    port);
-		if (size == 4)
+		else if (size == 4)
 			val = ioread32be(gmux_data->iomem_base);
 		else
 			val = ioread8(gmux_data->iomem_base);
 	}
+	if (busy)
+		*busy = skipped;
 	mutex_unlock(&gmux_data->index_lock);
 
 	return val;
