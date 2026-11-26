@@ -24,7 +24,7 @@ use gtk4::{
     glib,
     prelude::*, Align, Application, ApplicationWindow, Box as GtkBox, CheckButton, CssProvider,
     DrawingArea, DropDown, Entry, EventControllerFocus, EventControllerMotion, Expander,
-    GestureDrag, Grid, Label, LinkButton, Orientation, Popover, PositionType, StringList, Switch,
+    GestureDrag, Grid, Label, Orientation, Popover, PositionType, StringList, Switch,
     gdk,
 };
 use ipc::{DaemonState, Request};
@@ -489,6 +489,8 @@ struct DaemonRuntime {
     last_ui_request: Option<std::time::Instant>,
     /// Control ticks in a row with no temperature reading or a failed write
     failed_ticks: u32,
+    /// A GPU-boost or ramp write failed since the last control tick
+    fan_write_failed: bool,
 }
 
 /// About 10 s of failed ticks before the daemon exits for a restart.
@@ -536,6 +538,7 @@ impl DaemonRuntime {
             last_full_sensor_read: std::time::Instant::now(),
             last_ui_request: None,
             failed_ticks: 0,
+            fan_write_failed: false,
         })
     }
 
@@ -572,11 +575,15 @@ impl DaemonRuntime {
                     if refresh_all_sensors {
                         self.last_full_sensor_read = std::time::Instant::now();
                     }
-                    if has_reading || !self.config.automatic_control_enabled {
+                    if !self.config.automatic_control_enabled
+                        || (has_reading && !self.fan_write_failed)
+                    {
                         self.failed_ticks = 0;
                     } else {
                         self.failed_ticks += 1;
-                        self.status = "No temperature reading, the SMC controls the fans".into();
+                        if !has_reading {
+                            self.status = "No temperature reading, the SMC controls the fans".into();
+                        }
                     }
                 }
                 Err(error) => {
@@ -584,6 +591,7 @@ impl DaemonRuntime {
                     self.status = format!("Fan control failed: {error}");
                 }
             }
+            self.fan_write_failed = false;
             // The hwmon paths are found once at start; if t2smc came back
             // under a new hwmonN they stay broken, so let systemd restart us
             if self.failed_ticks >= MAX_FAILED_TICKS {
@@ -610,7 +618,10 @@ impl DaemonRuntime {
                 self.snapshot.target_rpm_per_fan = self.controller.target_rpm_per_fan(&self.fans);
             }
             Ok(false) => {}
-            Err(error) => self.status = format!("Fan control failed: {error}"),
+            Err(error) => {
+                self.fan_write_failed = true;
+                self.status = format!("Fan control failed: {error}");
+            }
         }
     }
 
@@ -844,13 +855,6 @@ pub fn page() -> Page {
     root.append(&ui.status);
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.set_halign(Align::Start);
-    donate.add_css_class("footer-link");
-    footer.append(&donate);
     let spacer = GtkBox::new(Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
     footer.append(&spacer);
@@ -2082,7 +2086,6 @@ fn build_css(palette: ThemePalette) -> String {
 .meta-text,
 .metric-key,
 .secondary-control > title > label,
-.footer-link,
 .footer-version {{
   color: {meta};
 }}
