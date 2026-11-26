@@ -23,6 +23,13 @@ that are only leads or hardware tests (H, G) are noted, not coded.
 - [x] `cargo test --locked` passes without warnings for every changed
       crate: t2-fan-control, t2-airshare, t2-drop, t2-zone-power,
       t2-smc-control, t2-force-click, t2-touchid, vort2x-dashboard
+- [x] After the PR feedback and donation removal: `cargo test --locked`
+      with `-D warnings` passes for t2-fan-control, t2-airshare,
+      vort2x-dashboard, vort2x-update, t2-force-click, t2-zone-power,
+      t2-smc-control, t2-power-tune, t2-hybrid-gpu-control,
+      t2-power-explorer, t2-debug, t2-dgpu-control; t2gmux builds W=1
+      without warnings; the deprecated Python app compiles; no
+      Patreon/donation reference is left outside plans and history
 - [x] Every changed kernel module builds against 7.3.4-300.fc45 with
       `W=1` and no warnings: apple-t2-bridge (vhci, audio), t2smc,
       t2touchbar, t2gmux, t2bdrm, t2smp, t2-sidecar
@@ -307,10 +314,46 @@ Status per item: done (commit), skipped (why).
   from install.sh to lib.sh so the test can use them. Checked that the
   ACPI part fails against `main`'s scripts (exit 1, no warning) and
   passes on this branch.
+- **R1-R9** Copilot's review of PR #12 (2026-11-26), all agreed:
+  - R1 t2-airshare: concurrent transfers could overwrite each other's
+    finished file (`unique_path` then `rename`). `finish_part` renames
+    with `RENAME_NOREPLACE` and tries the next free name on `EEXIST`.
+  - R4 the file entry stays in the session until sync and rename
+    succeed, so `Drop` still removes the `.part` file if either fails.
+  - R5 `.part` files are named `.t2airshare-<payload id>.part`: a
+    255-byte name plus `.part` went past the filename limit.
+  - R2 t2-fan-control: the 200 ms socket timeout was per read, so a
+    client sending a byte at a time could stall the control loop for
+    minutes. One deadline now covers the whole request line.
+  - R3 fan settings and the Quick Share hotspot: logind calls a user
+    "active" for SSH and background sessions too (checked: the
+    seatless `manager` session shows `Active=yes`). Changes now need an
+    active, non-remote session on a seat.
+  - R6 a failed control tick didn't set `last_tick`, so the daemon
+    retried at once and used its five-failure budget in a burst; the
+    same in `ramp()` with `next_ramp_step`. Both are now set first.
+  - R7 handing the fans to the SMC stopped at the first failing fan and
+    forgot the applied level, so it was never retried and shutdown
+    skipped the other fans. Every fan is tried, the level is cleared
+    only when all are free, and a fan left with the SMC is taken back
+    when a reading returns.
+  - R8 GPU-boost and ramp write failures now count as a failed tick.
+  - R9 t2gmux: a read command that times out no longer reads the
+    (stale) data register; it reports busy like the pre-command check.
+- **Donations removed** (Kirk, 2026-11-26: no donations at all). The
+  "Fund our bugs" Patreon link and its CSS are gone from every app (and
+  so from the dashboard), along with `.github/FUNDING.yml`, the Support
+  sections in the fan-control and bridge READMEs and the Patreon tier
+  artwork in `assets/branding/`.
 
 ## Decisions and failed attempts
 
 Newest first.
+
+- 2026-11-26: Kirk asked to add the donation removal to this branch
+  rather than a new one.
+- 2026-11-26: R7 reuses each fan's `app_controlled` flag to find fans a
+  failed handover left with the SMC, instead of a new tracking field.
 
 - 2026-11-25: items that need a redesign or a person at the Mac were not
   coded and are listed per item (C3 root-owned source, C5 airshare trust
