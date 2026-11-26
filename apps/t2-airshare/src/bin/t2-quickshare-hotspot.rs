@@ -105,16 +105,39 @@ impl Hotspot {
     }
 }
 
-/// Root, or a user whose logind state is active: someone at the Mac, not a
-/// background or remote login.
+/// Root, or a user with an active session on a local seat: someone at the
+/// Mac, not a background or remote login. logind calls the user "active"
+/// for SSH and background sessions too, so each session's seat decides.
 async fn caller_is_at_the_mac(connection: &zbus::Connection, header: &Header<'_>) -> bool {
     let Some(sender) = header.sender() else { return false };
     let Ok(dbus) = fdo::DBusProxy::new(connection).await else { return false };
     let Ok(uid) = dbus.get_connection_unix_user(sender.clone().into()).await else { return false };
-    uid == 0
-        || run("loginctl", &["show-user", &uid.to_string(), "--property=State", "--value"])
-            .await
-            .is_ok_and(|state| state.trim() == "active")
+    if uid == 0 {
+        return true;
+    }
+    let Ok(sessions) =
+        run("loginctl", &["show-user", &uid.to_string(), "--property=Sessions", "--value"]).await
+    else {
+        return false;
+    };
+    let ids: Vec<&str> = sessions.split_whitespace().collect();
+    // Without ids, show-session would describe the service's own session
+    if ids.is_empty() {
+        return false;
+    }
+    let mut args = vec!["show-session", "--property=Active", "--property=Remote", "--property=Seat"];
+    args.extend(ids);
+    run("loginctl", &args).await.is_ok_and(|output| has_local_active_session(&output))
+}
+
+/// Whether `loginctl show-session` output (one block per session) has an
+/// active, non-remote session on a seat.
+fn has_local_active_session(output: &str) -> bool {
+    output.split("\n\n").any(|block| {
+        block.lines().any(|line| line == "Active=yes")
+            && block.lines().any(|line| line == "Remote=no")
+            && block.lines().any(|line| line.strip_prefix("Seat=").is_some_and(|seat| !seat.is_empty()))
+    })
 }
 
 async fn run(program: &str, args: &[&str]) -> Result<String> {

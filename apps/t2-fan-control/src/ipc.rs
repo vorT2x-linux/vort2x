@@ -4,7 +4,7 @@ use std::{
     os::{fd::AsRawFd, unix::{fs::PermissionsExt, net::{UnixListener, UnixStream}}},
     path::{Path, PathBuf},
     process::Command,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -15,8 +15,8 @@ use crate::{
 
 pub const SOCKET_DIR: &str = "/run/t2-fancontrol";
 pub const SOCKET_PATH: &str = "/run/t2-fancontrol/daemon.sock";
-/// The daemon reads requests inline in its control loop, so a client that
-/// sends nothing may hold it up only this long
+/// The daemon reads requests inline in its control loop, so a client may
+/// hold it up only this long for the whole request
 const DAEMON_IO_TIMEOUT: Duration = Duration::from_millis(200);
 /// A request can wait for a control tick or `systemctl enable`, but a stuck
 /// daemon must not freeze the GUI for good
@@ -167,25 +167,67 @@ fn set_timeouts(stream: &UnixStream, timeout: Duration) -> Result<()> {
     stream.set_write_timeout(Some(timeout)).map_err(FanControlError::ProcessSpawn)
 }
 
-pub fn read_request(stream: &UnixStream) -> Result<Request> {
-    set_timeouts(stream, DAEMON_IO_TIMEOUT)?;
-    let mut reader = BufReader::new(stream).take(MAX_REQUEST_LINE);
-    let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .map_err(FanControlError::ProcessSpawn)?;
-    handle_request_line(&line)
+/// Reads one request line. The deadline covers the whole line, not each
+/// read, so a client sending a byte at a time can't stall the control loop.
+pub fn read_request(mut stream: &UnixStream) -> Result<Request> {
+    stream.set_write_timeout(Some(DAEMON_IO_TIMEOUT)).map_err(FanControlError::ProcessSpawn)?;
+    let deadline = Instant::now() + DAEMON_IO_TIMEOUT;
+    let mut line = Vec::new();
+    let mut buf = [0; 512];
+    while (line.len() as u64) < MAX_REQUEST_LINE {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Err(FanControlError::ProcessSpawn(std::io::ErrorKind::TimedOut.into()));
+        }
+        stream.set_read_timeout(Some(left)).map_err(FanControlError::ProcessSpawn)?;
+        let read = stream.read(&mut buf).map_err(FanControlError::ProcessSpawn)?;
+        line.extend_from_slice(&buf[..read]);
+        if read == 0 || buf[..read].contains(&b'\n') {
+            break;
+        }
+    }
+    line.truncate(MAX_REQUEST_LINE as usize);
+    handle_request_line(&String::from_utf8_lossy(&line))
 }
 
 /// Whether the client may change settings: root, or a user with an active
-/// local session (the person at the Mac). Reading the state is open to all.
+/// session on a local seat (the person at the Mac). Reading the state is
+/// open to all.
 pub fn peer_may_change(stream: &UnixStream) -> bool {
     let Some(uid) = peer_uid(stream) else { return false };
-    uid == 0
-        || Command::new("loginctl")
-            .args(["show-user", &uid.to_string(), "--property=State", "--value"])
-            .output()
-            .is_ok_and(|output| output.status.success() && output.stdout.trim_ascii() == b"active")
+    uid == 0 || user_at_the_mac(uid)
+}
+
+/// logind calls the user "active" for SSH and background sessions too, so
+/// each session's seat and Remote flag decide.
+fn user_at_the_mac(uid: u32) -> bool {
+    let Some(sessions) = loginctl(&["show-user", &uid.to_string(), "--property=Sessions", "--value"])
+    else {
+        return false;
+    };
+    let ids: Vec<&str> = sessions.split_whitespace().collect();
+    // Without ids, show-session would describe the daemon's own session
+    if ids.is_empty() {
+        return false;
+    }
+    let mut args = vec!["show-session", "--property=Active", "--property=Remote", "--property=Seat"];
+    args.extend(ids);
+    loginctl(&args).is_some_and(|output| has_local_active_session(&output))
+}
+
+fn loginctl(args: &[&str]) -> Option<String> {
+    let output = Command::new("loginctl").args(args).output().ok()?;
+    output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Whether `loginctl show-session` output (one block per session) has an
+/// active, non-remote session on a seat.
+fn has_local_active_session(output: &str) -> bool {
+    output.split("\n\n").any(|block| {
+        block.lines().any(|line| line == "Active=yes")
+            && block.lines().any(|line| line == "Remote=no")
+            && block.lines().any(|line| line.strip_prefix("Seat=").is_some_and(|seat| !seat.is_empty()))
+    })
 }
 
 fn peer_uid(stream: &UnixStream) -> Option<u32> {
@@ -576,4 +618,20 @@ fn bool_flag(value: bool) -> &'static str {
 
 fn protocol_error(message: String) -> FanControlError {
     FanControlError::Protocol(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_session_on_a_seat_counts_as_at_the_mac() {
+        // A desktop login plus systemd's background session
+        assert!(has_local_active_session("Seat=\nRemote=no\nActive=yes\n\nSeat=seat0\nRemote=no\nActive=yes\n"));
+        // SSH only: active, but no seat
+        assert!(!has_local_active_session("Seat=\nRemote=yes\nActive=yes\n"));
+        // At the Mac, but another user's session is in front
+        assert!(!has_local_active_session("Seat=seat0\nRemote=no\nActive=no\n"));
+        assert!(!has_local_active_session(""));
+    }
 }
