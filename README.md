@@ -52,10 +52,9 @@ has the details, rescue tools and troubleshooting.
 
 ## Contributing
 
-Contributions are welcome, including ones made with AI tools. Fork the
-repository, work on a branch and open a pull request. Please read
-[CONTRIBUTING.md](CONTRIBUTING.md) first: it covers plans, testing, AI
-disclosure and coding standards.
+Contributions are welcome. Fork the repository, work on a branch and open
+a pull request. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first: it
+covers plans, testing and coding standards.
 
 ## Origin
 
