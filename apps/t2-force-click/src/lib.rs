@@ -26,7 +26,7 @@ use gtk4::{
     gdk, glib,
     prelude::*,
     Align, Application, ApplicationWindow, Box as GtkBox, Button, CheckButton, DropDown,
-    Entry, EventControllerKey, Label, LinkButton, Orientation, Scale, Stack, StringList, Window,
+    Entry, EventControllerKey, Label, Orientation, Scale, Stack, StringList, Window,
 };
 use ipc::{DaemonState, Request};
 
@@ -467,13 +467,6 @@ pub fn page() -> Page {
 
     let footer = GtkBox::new(Orientation::Horizontal, 8);
     footer.set_margin_top(10);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.set_halign(Align::Start);
-    donate.add_css_class("footer-link");
-    footer.append(&donate);
     let footer_spacer = GtkBox::new(Orientation::Horizontal, 0);
     footer_spacer.set_hexpand(true);
     footer.append(&footer_spacer);

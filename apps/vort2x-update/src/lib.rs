@@ -15,7 +15,7 @@ use std::{
 
 use adw::prelude::*;
 use gtk4::{
-    glib, Align, Application, ApplicationWindow, Box as GtkBox, Button, DrawingArea, Grid, Label, LinkButton,
+    glib, Align, Application, ApplicationWindow, Box as GtkBox, Button, DrawingArea, Grid, Label,
     ListBox, Orientation, Paned, PolicyType, ScrolledWindow, SelectionMode, Switch, TextView, WrapMode,
 };
 use optional::Part;
@@ -307,16 +307,10 @@ pub fn page() -> Page {
     let restart = Button::with_label("Restart");
     restart.add_css_class("suggested-action");
     restart.set_visible(false);
-    let donate = LinkButton::builder()
-        .uri("https://patreon.com/VorT2x")
-        .label("Fund our bugs")
-        .build();
-    donate.add_css_class("donate-link");
     let footer = GtkBox::new(Orientation::Horizontal, 12);
     footer.set_margin_start(style::SIDE_MARGIN);
     footer.set_margin_end(style::SIDE_MARGIN);
     footer.set_margin_bottom(style::BOTTOM_MARGIN);
-    footer.append(&donate);
     footer.append(&result);
     footer.append(&version);
     footer.append(&restart);

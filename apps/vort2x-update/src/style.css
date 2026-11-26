@@ -93,11 +93,6 @@ window.background .title-4 {
   background-color: transparent;
 }
 
-.donate-link,
-.donate-link > label {
-  color: RGB(36 36 36 / 72%);
-}
-
 @media (prefers-color-scheme: dark) {
   window.background {
     color: RGB(232 232 232 / 72%);
@@ -112,11 +107,6 @@ window.background .title-4 {
   .boxed-list {
     background-color: #0d0d0f;
     box-shadow: inset 0 0 0 1px RGB(255 255 255 / 6%);
-  }
-
-  .donate-link,
-  .donate-link > label {
-    color: RGB(232 232 232 / 72%);
   }
 }
 

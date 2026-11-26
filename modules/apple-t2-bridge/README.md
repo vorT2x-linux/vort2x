@@ -21,9 +21,3 @@ The ALSA UCM profile for the audio driver is in `modules/apple-t2-alsa-ucm-conf`
 ```
 apple_t2_bridge.dyndbg=+p apple_t2_vhci_hcd.dyndbg=+p snd_apple_t2.dyndbg=+p t2_ave.dyndbg=+p t2_sidecar.dyndbg=+p
 ```
-
-## Support
-
-If this work helps you and you want to support VorT2x:
-
-https://patreon.com/VorT2x

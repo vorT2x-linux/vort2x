@@ -21,6 +21,3 @@ convert /tmp/wide.png -background black -gravity center -extent 1536x1024 -flatt
 r splash-mark.svg -o "$A/plymouth/vort2x/watermark.png"
 cp "$A/plymouth/vort2x/watermark.png" "$A/plymouth/vort2x/animation-0001.png"
 ls -l "$A"/vort2x-app-logo*.png "$A"/gdm/vort2x-gdm-logo.png "$A"/vorT2x-logo*.png "$A"/plymouth/vort2x/watermark.png
-# Patreon "Support Tier" image (Patreon asks for 460x200; @2x for sharp screens)
-r -w 460 -h 200 patreon-support-tier.svg -o patreon-support-tier.png
-r -w 920 -h 400 patreon-support-tier.svg -o patreon-support-tier@2x.png

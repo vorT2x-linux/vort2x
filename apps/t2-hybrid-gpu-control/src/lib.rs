@@ -64,8 +64,7 @@ fn palette_css(dark: bool) -> String {
              border-radius: 12px;
              box-shadow: inset 0 0 0 1px {line};
          }}
-         .boxed-list row {{ background: {box_bg}; color: alpha({window_fg}, 0.72); }}
-         .donate-link, .donate-link > label {{ color: alpha({window_fg}, 0.72); }}"
+         .boxed-list row {{ background: {box_bg}; color: alpha({window_fg}, 0.72); }}"
     )
 }
 
@@ -402,8 +401,6 @@ pub fn page() -> Page {
     content.append(&page);
     let footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     footer.set_margin_start(18); footer.set_margin_end(18); footer.set_margin_bottom(8);
-    let donate = gtk::LinkButton::builder().uri("https://patreon.com/VorT2x").label("Fund our bugs").build();
-    donate.add_css_class("donate-link"); footer.append(&donate);
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0); spacer.set_hexpand(true); footer.append(&spacer);
     footer.append(&gtk::Label::new(Some(&format!("v{APP_VERSION}"))));
     content.append(&footer);
