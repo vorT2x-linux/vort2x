@@ -50,6 +50,14 @@ pub struct Module {
 /// In sidebar order. The two GPU apps share a title: a Mac gets one of them.
 pub const MODULES: &[Module] = &[
     Module {
+        id: "check-my-mac",
+        // Part of the dashboard itself, so every Mac gets it.
+        installed_if: "/usr/local/bin/vort2x-dashboard",
+        title: "Check my Mac",
+        icon: "vort2x-check-symbolic",
+        build: check_mac,
+    },
+    Module {
         id: "t2-fan-control",
         installed_if: "/usr/local/bin/t2-fancontrol-gtk",
         title: "Fans",
@@ -158,6 +166,11 @@ fn wide(content: &impl IsA<gtk4::Widget>) -> ScrolledWindow {
         .build()
 }
 
+fn check_mac() -> Page {
+    let (content, refresh) = crate::check_page::build();
+    Page::new(adw::WindowTitle::new("Check my Mac", ""), column(&content)).with_end(refresh)
+}
+
 fn fans() -> Page {
     let page = t2_fancontrol_gtk::page();
     Page::new(page.title, column(&page.content)).with_end(page.header_end)
@@ -250,6 +263,8 @@ mod tests {
         std::fs::write(bin.join("t2-fancontrol-gtk"), "").unwrap();
         std::fs::write(bin.join("t2drop"), "").unwrap();
         assert_eq!(ids(&root), ["t2-fan-control", "vort2x-update"]);
+        std::fs::write(bin.join("vort2x-dashboard"), "").unwrap();
+        assert_eq!(ids(&root), ["check-my-mac", "t2-fan-control", "vort2x-update"]);
 
         std::fs::remove_dir_all(&root).unwrap();
     }

@@ -26,11 +26,15 @@ const MODELS: &[(&str, &str)] = &[
 
 /// "iMac Pro (2017)", or the raw model ID for a model not in the list.
 pub fn model() -> String {
-    let id = std::fs::read_to_string(PRODUCT_NAME).unwrap_or_default();
-    model_name(id.trim())
+    model_name(&model_id())
 }
 
-fn model_name(id: &str) -> String {
+/// The firmware model ID, e.g. "iMacPro1,1".
+pub fn model_id() -> String {
+    std::fs::read_to_string(PRODUCT_NAME).unwrap_or_default().trim().to_owned()
+}
+
+pub fn model_name(id: &str) -> String {
     match MODELS.iter().find(|(model, _)| *model == id) {
         Some((_, name)) => (*name).to_owned(),
         None if id.is_empty() => "Unknown Mac".to_owned(),

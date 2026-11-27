@@ -10,6 +10,7 @@ sees just the parts the installer set up for it.
 
 | Page | From | Shown when this file exists |
 |---|---|---|
+| Check my Mac | `src/checks.rs`, `src/check_page.rs` (the dashboard itself) | `/usr/local/bin/vort2x-dashboard` |
 | Fans | `apps/t2-fan-control` | `/usr/local/bin/t2-fancontrol-gtk` |
 | Zone Power | `apps/t2-zone-power` | `/usr/local/bin/t2-zonepower-gtk` |
 | Power Explorer | `apps/t2-power-explorer` | `/usr/local/bin/t2-power-explorer` |
@@ -22,6 +23,13 @@ sees just the parts the installer set up for it.
 | AirShare | `apps/t2-airshare` | `/usr/local/bin/t2-airshare` |
 | Debug | `apps/t2-debug` | `/usr/local/bin/t2-debug` |
 | Updates | `apps/vort2x-update` | `/usr/local/bin/vort2x-update` |
+
+Check my Mac looks for each T2 part on the Mac (drivers loaded, devices
+present, the Touch ID service running, the 5K panel mode, sleep in this
+boot's kernel log), without root. Parts the model doesn't have show as
+"not on this Mac". Send report opens the `mac-report` issue form on GitHub
+with the model and results filled in; Copy report puts the same text on
+the clipboard. The report holds no serial number, host or user name.
 
 Pages that read sensors or run helpers on a timer (Fans, Zone Power,
 SMC, Graphics, TrueTone) do so only while they are on screen.
