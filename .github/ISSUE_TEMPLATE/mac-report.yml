@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Filled in by the VorT2x Dashboard's "Check my Mac" page: it sets the
+# title and the "model" and "checks" fields from the link it opens.
+name: Mac report
+description: Tell us which T2 parts work on your Mac (from Check my Mac in the VorT2x Dashboard)
+title: "Mac report: "
+labels: ["mac-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for checking your Mac. The automatic results are filled in
+        below. Please answer what only you can tell, then submit. Reports
+        show which Macs VorT2x works on.
+  - type: input
+    id: model
+    attributes:
+      label: Model ID
+      description: From the Dashboard, or `cat /sys/class/dmi/id/product_name`
+      placeholder: MacBookPro16,2
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Automatic checks
+      description: Filled in by Check my Mac. If you copied the report, paste it here.
+    validations:
+      required: true
+  - type: dropdown
+    id: sound
+    attributes:
+      label: Speakers
+      description: Does sound play from the built-in speakers?
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: microphone
+    attributes:
+      label: Microphone
+      description: Does the built-in microphone record you?
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: camera
+    attributes:
+      label: Camera
+      description: Does the camera show a picture (e.g. in GNOME Snapshot)?
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: sleep
+    attributes:
+      label: Sleep and wake
+      description: Does the Mac go to sleep and wake up again with everything working?
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: keyboard
+    attributes:
+      label: Keyboard, trackpad and backlight
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: touchbar
+    attributes:
+      label: Touch Bar
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: touchid
+    attributes:
+      label: Touch ID
+      description: Can you unlock or use sudo with your fingerprint?
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: wireless
+    attributes:
+      label: Wi-Fi and Bluetooth
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: dropdown
+    id: display
+    attributes:
+      label: Built-in display and brightness
+      options:
+        - Works
+        - Partly (please say how in the notes)
+        - Doesn't work
+        - Didn't try
+        - My Mac doesn't have this
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else that works, doesn't, or needed a workaround.

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! VorT2x Dashboard: one window with a sidebar page per installed VorT2x part.
 
+mod check_page;
+mod checks;
 mod machine;
 mod modules;
 mod style;

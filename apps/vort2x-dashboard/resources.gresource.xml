@@ -6,6 +6,7 @@
   <gresource prefix="/org/vort2x/Dashboard/icons">
     <file alias="scalable/apps/org.vort2x.Dashboard.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/org.vort2x.Dashboard.svg</file>
     <file alias="scalable/apps/vort2x-airshare-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-airshare-symbolic.svg</file>
+    <file alias="scalable/apps/vort2x-check-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-check-symbolic.svg</file>
     <file alias="scalable/apps/vort2x-debug-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-debug-symbolic.svg</file>
     <file alias="scalable/apps/vort2x-fan-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-fan-symbolic.svg</file>
     <file alias="scalable/apps/vort2x-force-click-symbolic.svg" preprocess="xml-stripblanks">icons/hicolor/scalable/apps/vort2x-force-click-symbolic.svg</file>
